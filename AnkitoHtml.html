@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anki Card Importer</title>
+    <!-- Add JSZip for handling .apkg files (which are zip files) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- SQL.js library with direct WASM path -->
+    <script>
+        // We'll load SQL.js manually with the correct WASM path
+        let SQL;
+        let sqlLib = null;
+        let sqlInitialized = false;
+        let sqlInitInProgress = false;
+        let importInProgress = false;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show initializing message
+            document.getElementById('statusMessage').textContent = 'Initializing database support...';
+            
+            // Load SQL.js script
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js';
+            script.onload = function() {
+                sqlInitInProgress = true;
+                // Initialize SQL.js with correct WASM path
+                initSqlJs({
+                    locateFile: filename => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/' + filename
+                }).then(function(sql) {
+                    sqlLib = sql;
+                    sqlInitialized = true;
+                    sqlInitInProgress = false;
+                    console.log("SQL.js initialized successfully");
+                    document.getElementById('statusMessage').textContent = 'Database support ready - you can now import Anki packages (.apkg files)';
+                    
+                    // Add a delay to clear the message
+                    setTimeout(() => {
+                        if (document.getElementById('statusMessage').textContent === 'Database support ready - you can now import Anki packages (.apkg files)') {
+                            document.getElementById('statusMessage').textContent = '';
+                        }
+                    }, 5000);
+                    
+                }).catch(function(err) {
+                    sqlInitInProgress = false;
+                    console.error("SQL.js initialization failed:", err);
+                    document.getElementById('statusMessage').textContent = 
+                        'Database support failed to initialize: ' + err.message;
+                });
+            };
+            script.onerror = function() {
+                document.getElementById('statusMessage').textContent = 
+                    'Failed to load SQL.js library. Anki package import will not work.';
+            };
+            document.head.appendChild(script);
+        });
+        
+        // Function to check SQL status
+        function checkSqlStatus() {
+            if (sqlInitialized && sqlLib) {
+                return true;
+            } else if (sqlInitInProgress) {
+                statusMessage.textContent = 'Database support is still initializing. Please wait a moment and try again.';
+                return false;
+            } else {
+                statusMessage.textContent = 'Database support is not available. Cannot process Anki package.';
+                return false;
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .input-section {
+            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+        }
+        .url-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .card-container {
+            margin-top: 20px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .question {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .answer {
+            display: none;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .show-answer {
+            margin-top: 10px;
+            background-color: #2ecc71;
+        }
+        .show-answer:hover {
+            background-color: #27ae60;
+        }
+        .card-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .status-message {
+            color: #e74c3c;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .pagination {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .card-count {
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Anki Card Importer & Viewer</h1>
+    
+    <div class="input-section">
+        <h2>Import Anki Cards</h2>
+        <p>Enter the URL to download your Anki deck (.apkg file):</p>
+        <input type="text" id="deckUrl" class="url-input" placeholder="https://example.com/my-anki-deck.apkg">
+        <p>Or upload an Anki deck file directly:</p>
+        <input type="file" id="fileInput" accept=".apkg,.txt,.csv">
+        <p>Or paste tab/comma-separated Q&A pairs (question first, then answer):</p>
+        <textarea id="textInput" class="url-input" rows="4" placeholder="Question 1\tAnswer 1&#10;Question 2\tAnswer 2"></textarea>
+        <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+            <button id="importButton" class="button">Import Cards</button>
+            <button id="exampleButton" class="button">Load Example Cards</button>
+        </div>
+        <p class="status-message" id="statusMessage"></p>
+        <div id="loadingIndicator" class="loading" style="display: none;">Processing Anki package... This may take a moment.</div>
+    </div>
+    
+    <div class="card-count" id="cardCount"></div>
+    
+    <div class="card-container" id="cardContainer"></div>
+    
+    <div class="pagination" id="pagination"></div>
+    
+    <script>
+        // Global variables
+        let cards = []; // All cards
+        let decks = {}; // Deck structure: {id: {name: "Deck Name", cards: []}}
+        let currentDeck = null; // Currently selected deck id
+        let currentCardIndex = 0;
+        const cardsPerPage = 5;
+        let currentPage = 1;
+        // These variables are already declared in the head section
+        // let sqlLib = null;
+        // let sqlInitialized = false;
+        // let sqlInitInProgress = false;
+
+        // DOM Elements
+        const deckUrlInput = document.getElementById('deckUrl');
+        const fileInput = document.getElementById('fileInput');
+        const textInput = document.getElementById('textInput');
+        const importButton = document.getElementById('importButton');
+        const exampleButton = document.getElementById('exampleButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const cardContainer = document.getElementById('cardContainer');
+        const cardCountElement = document.getElementById('cardCount');
+        const paginationElement = document.getElementById('pagination');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        
+        // Event listeners
+        importButton.addEventListener('click', importCards);
+        exampleButton.addEventListener('click', loadExampleCards);
+        fileInput.addEventListener('change', handleFileUpload);
+        
+        // Import cards from URL or text input
+        function importCards() {
+            const url = deckUrlInput.value.trim();
+            const text = textInput.value.trim();
+            
+            if (importInProgress) {
+                statusMessage.textContent = 'Import already in progress. Please wait...';
+                return;
+            }
+            
+            cardContainer.innerHTML = '';
+            cards = [];
+            decks = {};
+            currentDeck = null;
+            
+            if (url) {
+                importInProgress = true;
+                statusMessage.textContent = 'Downloading file...';
+                loadingIndicator.style.display = 'block';
+                
+                // Download the file from the URL
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                        }
+                        statusMessage.textContent = 'File downloaded. Processing...';
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        // Check file size - allow large APKG files (5GB)
+                        const fileType = detectFileType(url, blob.type);
+                        
+                        // Different limits for different file types
+                        const maxSize = fileType === 'apkg' 
+                            ? 5 * 1024 * 1024 * 1024 // 5GB for APKG files 
+                            : 100 * 1024 * 1024;     // 100MB for other files
+                        
+                        if (blob.size > maxSize) {
+                            const sizeLabel = fileType === 'apkg' ? '5GB' : '100MB';
+                            throw new Error(`File too large (maximum ${sizeLabel})`);
+                        }
+                        
+                        // Detect file type from URL or content type
+                        const file = new File([blob], `download.${fileType}`, { type: blob.type });
+                        
+                        // Process according to file type
+                        if (fileType === 'apkg') {
+                            return processAnkiPackage(file);
+                        } else {
+                            // For text-based files, read as text
+                            const reader = new FileReader();
+                            return new Promise((resolve, reject) => {
+                                reader.onload = e => resolve(parseCardContent(e.target.result));
+                                reader.onerror = reject;
+                                reader.readAsText(file);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Import error:', error);
+                        statusMessage.textContent = 'Error importing file: ' + error.message;
+                    })
+                    .finally(() => {
+                        importInProgress = false;
+                        loadingIndicator.style.display = 'none';
+                    });
+            } else if (text) {
+                importInProgress = true;
+                statusMessage.textContent = 'Processing text input...';
+                
+                try {
+                    parseCardContent(text);
+                } catch (error) {
+                    statusMessage.textContent = 'Error parsing text: ' + error.message;
+                } finally {
+                    importInProgress = false;
+                }
+            } else {
+                statusMessage.textContent = 'Please provide a URL, upload a file, or enter text data.';
+            }
+        }
+
+        // Detect file type based on URL and content type
+        function detectFileType(url, contentType) {
+            // Check URL extension first
+            if (url.toLowerCase().endsWith('.apkg')) return 'apkg';
+            if (url.toLowerCase().endsWith('.csv')) return 'csv';
+            if (url.toLowerCase().endsWith('.txt')) return 'txt';
+            
+            // Check content type
+            if (contentType.includes('text/csv')) return 'csv';
+            if (contentType.includes('text/plain')) return 'txt';
+            
+            // Default to text if we can't determine
+            return 'txt';
+        }
+
+        // Handle file upload with improved error handling
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (importInProgress) {
+                statusMessage.textContent = 'Import already in progress. Please wait...';
+                return;
+            }
+            
+            importInProgress = true;
+            statusMessage.textContent = `Preparing to process file: ${file.name}`;
+            
+            // Check file size with different limits based on file type
+            const isApkg = file.name.endsWith('.apkg');
+            const maxSize = isApkg 
+                ? 5 * 1024 * 1024 * 1024 // 5GB for APKG files
+                : 100 * 1024 * 1024;     // 100MB for other files
+            
+            if (file.size > maxSize) {
+                const sizeLabel = isApkg ? '5GB' : '100MB';
+                statusMessage.textContent = `File too large (maximum ${sizeLabel})`;
+                importInProgress = false;
+                return;
+            }
+            
+            // Clear previous data
+            cardContainer.innerHTML = '';
+            cards = [];
+            decks = {};
+            currentDeck = null;
+            
+            try {
+                if (file.name.endsWith('.apkg')) {
+                    statusMessage.textContent = 'Processing Anki package...';
+                    loadingIndicator.style.display = 'block';
+                    processAnkiPackage(file)
+                        .catch(error => {
+                            console.error('Error processing package:', error);
+                            statusMessage.textContent = 'Error processing Anki package: ' + error.message;
+                        })
+                        .finally(() => {
+                            importInProgress = false;
+                            loadingIndicator.style.display = 'none';
+                        });
+                    return;
+                }
+                
+                statusMessage.textContent = 'Reading file...';
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const content = e.target.result;
+                        parseCardContent(content);
+                        statusMessage.textContent = `Successfully imported cards from ${file.name}`;
+                    } catch (error) {
+                        console.error('Error parsing content:', error);
+                        statusMessage.textContent = 'Error parsing file: ' + error.message;
+                    } finally {
+                        importInProgress = false;
+                    }
+                };
+                reader.onerror = function() {
+                    statusMessage.textContent = 'Error reading the file.';
+                    importInProgress = false;
+                };
+                
+                if (file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+                    reader.readAsText(file);
+                } else {
+                    statusMessage.textContent = 'Unsupported file format. Please use .apkg, .txt, or .csv files.';
+                    importInProgress = false;
+                }
+            } catch (error) {
+                console.error('File upload error:', error);
+                statusMessage.textContent = 'Error processing file: ' + error.message;
+                importInProgress = false;
+            }
+        }
+
+        // Parse card content from text with support for more formats
+        function parseCardContent(content) {
+            try {
+                let lines = content.split('\n').filter(line => line.trim());
+                const format = detectContentFormat(lines);
+                
+                statusMessage.textContent = `Detected ${format} format. Processing...`;
+                
+                // Create default deck for imported text
+                const defaultDeck = {
+                    id: 'text-import',
+                    name: 'Imported Cards',
+                    cards: []
+                };
+                
+                cards = [];
+                
+                if (format === 'csv') {
+                    processCSVContent(lines, defaultDeck);
+                } else if (format === 'tsv') {
+                    processTSVContent(lines, defaultDeck);
+                } else if (format === 'json') {
+                    processJSONContent(content, defaultDeck);
+                } else {
+                    // Try multiple separators
+                    processTSVContent(lines, defaultDeck) || 
+                    processCSVContent(lines, defaultDeck) ||
+                    processColonContent(lines, defaultDeck);
+                }
+                
+                // Update decks and current deck
+                if (defaultDeck.cards.length > 0) {
+                    decks = { 'text-import': defaultDeck };
+                    currentDeck = 'text-import';
+                    
+                    // Update display
+                    statusMessage.textContent = `Successfully imported ${defaultDeck.cards.length} cards.`;
+                    createDeckNavigation();
+                    currentPage = 1;
+                    renderCards();
+                } else {
+                    throw new Error('No valid cards found in the input.');
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error parsing content:', error);
+                statusMessage.textContent = 'Error parsing card data: ' + error.message;
+                return false;
+            }
+        }
+
+        // Detect content format based on first few lines
+        function detectContentFormat(lines) {
+            // Sample a few lines to determine format
+            const sampleSize = Math.min(5, lines.length);
+            const samples = lines.slice(0, sampleSize);
+            
+            // Count occurrences of different separators
+            let tabCount = 0;
+            let commaCount = 0;
+            let colonCount = 0;
+            
+            samples.forEach(line => {
+                if (line.includes('\t')) tabCount++;
+                if (line.includes(',')) commaCount++;
+                if (line.includes(':')) colonCount++;
+            });
+            
+            // Check for JSON format
+            if (lines[0].trim().startsWith('{') || lines[0].trim().startsWith('[')) {
+                try {
+                    JSON.parse(lines.join('\n'));
+                    return 'json';
+                } catch (e) {
+                    // Not valid JSON
+                }
+            }
+            
+            // Determine most likely format
+            if (tabCount >= sampleSize / 2) return 'tsv';
+            if (commaCount >= sampleSize / 2) return 'csv';
+            if (colonCount >= sampleSize / 2) return 'colon';
+            
+            // Default to TSV if we can't determine
+            return 'tsv';
+        }
+
+        // Process tab-separated content
+        function processTSVContent(lines, deckData) {
+            let cardCount = 0;
+            
+            lines.forEach((line, index) => {
+                if (!line.includes('\t')) return;
+                
+                const parts = line.split('\t');
+                if (parts.length >= 2) {
+                    const question = parts[0].trim();
+                    const answer = parts.slice(1).join('\t').trim();
+                    
+                    if (question && answer) {
+                        const card = {
+                            id: `text-${index}`,
+                            noteId: `note-${index}`,
+                            deckId: deckData.id,
+                            question: question,
+                            answer: answer
+                        };
+                        
+                        cards.push(card);
+                        deckData.cards.push(card);
+                        cardCount++;
+                    }
+                }
+            });
+            
+            return cardCount > 0;
+        }
+
+        // Process comma-separated content
+        function processCSVContent(lines, deckData) {
+            let cardCount = 0;
+            
+            lines.forEach((line, index) => {
+                if (!line.includes(',')) return;
+                
+                // Handle proper CSV with quotes
+                let parts = [];
+                if (line.includes('"')) {
+                    let inQuotes = false;
+                    let currentItem = '';
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            parts.push(currentItem);
+                            currentItem = '';
+                        } else {
+                            currentItem += char;
+                        }
+                    }
+                    
+                    if (currentItem) parts.push(currentItem);
+                } else {
+                    parts = line.split(',');
+                }
+                
+                if (parts.length >= 2) {
+                    const question = parts[0].trim();
+                    const answer = parts.slice(1).join(', ').trim();
+                    
+                    if (question && answer) {
+                        const card = {
+                            id: `text-${index}`,
+                            noteId: `note-${index}`,
+                            deckId: deckData.id,
+                            question: question,
+                            answer: answer
+                        };
+                        
+                        cards.push(card);
+                        deckData.cards.push(card);
+                        cardCount++;
+                    }
+                }
+            });
+            
+            return cardCount > 0;
+        }
+
+        // Process colon-separated content
+        function processColonContent(lines, deckData) {
+            let cardCount = 0;
+            
+            lines.forEach((line, index) => {
+                if (!line.includes(':')) return;
+                
+                const colonIndex = line.indexOf(':');
+                const question = line.substring(0, colonIndex).trim();
+                const answer = line.substring(colonIndex + 1).trim();
+                
+                if (question && answer) {
+                    const card = {
+                        id: `text-${index}`,
+                        noteId: `note-${index}`,
+                        deckId: deckData.id,
+                        question: question,
+                        answer: answer
+                    };
+                    
+                    cards.push(card);
+                    deckData.cards.push(card);
+                    cardCount++;
+                }
+            });
+            
+            return cardCount > 0;
+        }
+
+        // Process JSON content
+        function processJSONContent(content, deckData) {
+            try {
+                const jsonData = JSON.parse(content);
+                let cardCount = 0;
+                
+                // Handle array of objects
+                if (Array.isArray(jsonData)) {
+                    jsonData.forEach((item, index) => {
+                        let question = '';
+                        let answer = '';
+                        
+                        // Look for common field names
+                        if (item.question && item.answer) {
+                            question = item.question;
+                            answer = item.answer;
+                        } else if (item.front && item.back) {
+                            question = item.front;
+                            answer = item.back;
+                        } else if (item.q && item.a) {
+                            question = item.q;
+                            answer = item.a;
+                        } else if (Object.keys(item).length >= 2) {
+                            // Just use the first two fields
+                            const keys = Object.keys(item);
+                            question = item[keys[0]];
+                            answer = item[keys[1]];
+                        }
+                        
+                        if (question && answer) {
+                            const card = {
+                                id: `json-${index}`,
+                                noteId: `note-${index}`,
+                                deckId: deckData.id,
+                                question: question.toString(),
+                                answer: answer.toString()
+                            };
+                            
+                            cards.push(card);
+                            deckData.cards.push(card);
+                            cardCount++;
+                        }
+                    });
+                } 
+                // Handle object with nested cards
+                else if (jsonData.cards && Array.isArray(jsonData.cards)) {
+                    processJSONContent(JSON.stringify(jsonData.cards), deckData);
+                }
+                // Handle object with question/answer pairs as properties
+                else {
+                    Object.entries(jsonData).forEach(([key, value], index) => {
+                        if (value && typeof value === 'string') {
+                            const card = {
+                                id: `json-${index}`,
+                                noteId: `note-${index}`,
+                                deckId: deckData.id,
+                                question: key,
+                                answer: value
+                            };
+                            
+                            cards.push(card);
+                            deckData.cards.push(card);
+                            cardCount++;
+                        }
+                    });
+                }
+                
+                return cardCount > 0;
+            } catch (e) {
+                console.error("JSON processing error:", e);
+                return false;
+            }
+        }
+
+        // Load example cards for demonstration
+        function loadExampleCards() {
+            cards = [
+                { question: "What is the capital of France?", answer: "Paris" },
+                { question: "What is the largest planet in our solar system?", answer: "Jupiter" },
+                { question: "Who wrote 'Romeo and Juliet'?", answer: "William Shakespeare" },
+                { question: "What is the chemical symbol for gold?", answer: "Au" },
+                { question: "What year did World War II end?", answer: "1945" },
+                { question: "What is the most abundant gas in Earth's atmosphere?", answer: "Nitrogen (78%)" },
+                { question: "What is the square root of 144?", answer: "12" },
+                { question: "Who painted the Mona Lisa?", answer: "Leonardo da Vinci" },
+                { question: "What is the smallest prime number?", answer: "2" },
+                { question: "What is the speed of light in vacuum?", answer: "299,792,458 meters per second" },
+                { question: "What is the main component of the Sun?", answer: "Hydrogen" },
+                { question: "What is the largest ocean on Earth?", answer: "Pacific Ocean" }
+            ];
+            
+            statusMessage.textContent = 'Example cards loaded successfully.';
+            currentPage = 1;
+            renderCards();
+        }
+        
+        // Render cards with pagination
+        function renderCards() {
+            // Get cards from current deck
+            let cardsToRender = [];
+            
+            if (currentDeck) {
+                const deckData = decks.find(d => d.id === currentDeck);
+                if (deckData) {
+                    cardsToRender = deckData.cards;
+                }
+            } else {
+                cardsToRender = cards;
+            }
+            
+            // Update card count
+            cardCountElement.textContent = `Total Cards in Deck: ${cardsToRender.length}`;
+            
+            // Clear container
+            cardContainer.innerHTML = '';
+            
+            if (cardsToRender.length === 0) {
+                cardContainer.innerHTML = '<div class="card"><p>No cards found in this deck.</p></div>';
+                paginationElement.innerHTML = '';
+                return;
+            }
+            
+            // Calculate page range
+            const startIndex = (currentPage - 1) * cardsPerPage;
+            const endIndex = Math.min(startIndex + cardsPerPage, cardsToRender.length);
+            
+            // Create cards for current page
+            for (let i = startIndex; i < endIndex; i++) {
+                const card = cardsToRender[i];
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                
+                // Create question container with HTML support
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.innerHTML = `<strong>Q:</strong> ${card.question}`;
+                
+                // Create answer container with HTML support
+                const answerDiv = document.createElement('div');
+                answerDiv.className = 'answer';
+                answerDiv.id = `answer-${i}`;
+                answerDiv.innerHTML = `<strong>A:</strong> ${card.answer}`;
+                
+                // Create show/hide button
+                const button = document.createElement('button');
+                button.className = 'button show-answer';
+                button.textContent = 'Show Answer';
+                button.dataset.index = i;
+                
+                // Append elements to card
+                cardElement.appendChild(questionDiv);
+                cardElement.appendChild(answerDiv);
+                cardElement.appendChild(button);
+                
+                // Add to container
+                cardContainer.appendChild(cardElement);
+            }
+            
+            // Add event listeners to show answer buttons
+            document.querySelectorAll('.show-answer').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = this.getAttribute('data-index');
+                    const answerElement = document.getElementById(`answer-${index}`);
+                    
+                    if (answerElement.style.display === 'block') {
+                        answerElement.style.display = 'none';
+                        this.textContent = 'Show Answer';
+                    } else {
+                        answerElement.style.display = 'block';
+                        this.textContent = 'Hide Answer';
+                    }
+                });
+            });
+            
+            // Update pagination
+            renderPagination(cardsToRender.length);
+        }
+        
+        // Render pagination controls
+        function renderPagination(totalCards) {
+            paginationElement.innerHTML = '';
+            
+            if (totalCards === 0) return;
+            
+            const totalPages = Math.ceil(totalCards / cardsPerPage);
+            
+            // Create pagination container
+            const paginationControls = document.createElement('div');
+            paginationControls.style.display = 'flex';
+            paginationControls.style.justifyContent = 'center';
+            paginationControls.style.gap = '10px';
+            
+            // Previous button
+            const prevButton = document.createElement('button');
+            prevButton.className = 'button';
+            prevButton.textContent = '← Previous';
+            prevButton.disabled = currentPage === 1;
+            prevButton.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderCards();
+                }
+            });
+            
+            // Next button
+            const nextButton = document.createElement('button');
+            nextButton.className = 'button';
+            nextButton.textContent = 'Next →';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderCards();
+                }
+            });
+            
+            // Page indicator
+            const pageIndicator = document.createElement('div');
+            pageIndicator.style.padding = '10px';
+            pageIndicator.textContent = `Page ${currentPage} of ${totalPages}`;
+            
+            // Add to pagination container
+            paginationControls.appendChild(prevButton);
+            paginationControls.appendChild(pageIndicator);
+            paginationControls.appendChild(nextButton);
+            
+            paginationElement.appendChild(paginationControls);
+        }
+
+        // Function to create deck navigation UI
+        function createDeckNavigation() {
+            // Add a container for deck selection if it doesn't exist
+            let deckNavContainer = document.getElementById('deckNavigation');
+            if (!deckNavContainer) {
+                deckNavContainer = document.createElement('div');
+                deckNavContainer.id = 'deckNavigation';
+                deckNavContainer.className = 'deck-navigation';
+                deckNavContainer.style.margin = '20px 0';
+                deckNavContainer.style.textAlign = 'center';
+                
+                // Insert before card container
+                cardContainer.parentNode.insertBefore(deckNavContainer, cardContainer);
+            } else {
+                deckNavContainer.innerHTML = ''; // Clear existing content
+            }
+            
+            // Create deck selection header
+            const deckHeader = document.createElement('h3');
+            deckHeader.textContent = 'Select Deck:';
+            deckNavContainer.appendChild(deckHeader);
+            
+            // Create deck buttons container
+            const deckButtonsContainer = document.createElement('div');
+            deckButtonsContainer.style.display = 'flex';
+            deckButtonsContainer.style.flexWrap = 'wrap';
+            deckButtonsContainer.style.justifyContent = 'center';
+            deckButtonsContainer.style.gap = '10px';
+            deckButtonsContainer.style.marginBottom = '15px';
+            
+            // Add buttons for each deck
+            decks.forEach(deck => {
+                const deckButton = document.createElement('button');
+                deckButton.className = 'button';
+                deckButton.textContent = `${deck.name} (${deck.cards.length})`;
+                deckButton.dataset.deckId = deck.id;
+                
+                // Highlight current deck
+                if (deck.id === currentDeck) {
+                    deckButton.style.backgroundColor = '#27ae60';
+                }
+                
+                // Add click handler
+                deckButton.addEventListener('click', () => {
+                    currentDeck = deck.id;
+                    currentPage = 1;
+                    createDeckNavigation(); // Refresh deck navigation
+                    renderCards(); // Render cards for selected deck
+                });
+                
+                deckButtonsContainer.appendChild(deckButton);
+            });
+            
+            deckNavContainer.appendChild(deckButtonsContainer);
+            
+            // Add selected deck info
+            if (currentDeck) {
+                const currentDeckInfo = decks.find(d => d.id === currentDeck);
+                if (currentDeckInfo) {
+                    const deckInfo = document.createElement('div');
+                    deckInfo.innerHTML = `<strong>Current Deck:</strong> ${currentDeckInfo.name} (${currentDeckInfo.cards.length} cards)`;
+                    deckNavContainer.appendChild(deckInfo);
+                }
+            }
+        }
+
+        // Process .apkg file
+        async function processAnkiPackage(file) {
+            if (!checkSqlStatus()) {
+                return Promise.reject(new Error("SQL database not initialized"));
+            }
+            
+            loadingIndicator.style.display = 'block';
+            statusMessage.textContent = 'Processing Anki package...';
+            
+            try {
+                // Read the file as an ArrayBuffer
+                const fileBuffer = await readFileAsArrayBuffer(file);
+                
+                // Use JSZip to extract the .apkg contents
+                const zip = new JSZip();
+                const zipContents = await zip.loadAsync(fileBuffer);
+                
+                // Check if collection.anki2 exists
+                if (!zipContents.files['collection.anki2']) {
+                    throw new Error('Not a valid Anki package: missing collection.anki2');
+                }
+                
+                console.log("Zip contents:", Object.keys(zipContents.files));
+                
+                // Create a media map
+                const mediaMap = {};
+                
+                // Look for media file (media mapping)
+                if (zipContents.files['media']) {
+                    try {
+                        const mediaContent = await zipContents.files['media'].async('text');
+                        const mediaJSON = JSON.parse(mediaContent);
+                        console.log("Media map found:", mediaJSON);
+                        
+                        // In Anki, media files are mapped as numbers in the package
+                        for (const [index, filename] of Object.entries(mediaJSON)) {
+                            mediaMap[index] = filename;
+                        }
+                    } catch (e) {
+                        console.warn("Error parsing media file:", e);
+                    }
+                }
+                
+                // Process media files
+                const mediaFiles = {};
+                for (const filename in zipContents.files) {
+                    // Skip directories and non-media files
+                    if (zipContents.files[filename].dir || 
+                        filename === 'collection.anki2' || 
+                        filename === 'media') {
+                        continue;
+                    }
+                    
+                    try {
+                        // Check if this is a media file (typically in format like "1", "2", etc.)
+                        const fileIndex = filename.match(/^(\d+)$/);
+                        if (fileIndex) {
+                            const realFilename = mediaMap[fileIndex[1]] || `file_${fileIndex[1]}`;
+                            
+                            // Get file data as blob
+                            const fileData = await zipContents.files[filename].async('blob');
+                            const fileUrl = URL.createObjectURL(fileData);
+                            
+                            // Store in our media files map
+                            mediaFiles[realFilename] = fileUrl;
+                            console.log(`Extracted media file: ${realFilename} (${filename})`);
+                        }
+                    } catch (e) {
+                        console.warn(`Error extracting media file ${filename}:`, e);
+                    }
+                }
+                
+                // Extract the SQLite database
+                const dbData = await zipContents.files['collection.anki2'].async('arraybuffer');
+                
+                // Open the database with SQL.js
+                const db = new sqlLib.Database(new Uint8Array(dbData));
+                
+                // Extract the cards with media support
+                await extractAnkiCardsWithMedia(db, mediaFiles);
+                
+                return true; // Successful processing
+            } catch (error) {
+                console.error('Error processing Anki package:', error);
+                statusMessage.textContent = 'Error processing Anki package: ' + error.message;
+                loadingIndicator.style.display = 'none';
+                return Promise.reject(error);
+            }
+        }
+        
+        // Function to extract cards from Anki package with media support
+        async function extractAnkiCardsWithMedia(db, mediaFiles) {
+            try {
+                // Reset global state
+                cards = [];
+                decks = {};
+                
+                console.log("Beginning card extraction with media support and deck organization");
+                
+                // Debug: List all tables in the database
+                let tables = [];
+                try {
+                    const tablesQuery = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+                    if (tablesQuery.length > 0 && tablesQuery[0].values) {
+                        tables = tablesQuery[0].values.map(v => v[0]);
+                        console.log("Database tables:", tables);
+                    }
+                } catch (e) {
+                    console.error("Error listing tables:", e);
+                }
+                
+                // STEP 1: Extract decks information first
+                let decksByIdMap = {}; // Will store deck info by id
+                let defaultDeckId = '1'; // Default deck ID in Anki
+                
+                try {
+                    // Look for decks in 'col' table (collection)
+                    if (tables.includes('col')) {
+                        console.log("Extracting deck information from collection");
+                        
+                        const colQuery = db.exec(`SELECT decks FROM col`);
+                        if (colQuery.length > 0 && colQuery[0].values && colQuery[0].values.length > 0) {
+                            try {
+                                // Parse JSON decks data
+                                const decksData = colQuery[0].values[0][0];
+                                if (decksData && typeof decksData === 'string') {
+                                    const decksObj = JSON.parse(decksData);
+                                    console.log("Found decks:", decksObj);
+                                    
+                                    // Process each deck
+                                    for (const [deckId, deckInfo] of Object.entries(decksObj)) {
+                                        // Store deck ID and name
+                                        decksByIdMap[deckId] = {
+                                            id: deckId,
+                                            name: deckInfo.name || `Deck ${deckId}`,
+                                            cards: [] // Will populate later
+                                        };
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("Error parsing decks JSON:", e);
+                            }
+                        }
+                    }
+                    
+                    // If no decks were found, create a default deck
+                    if (Object.keys(decksByIdMap).length === 0) {
+                        console.log("No decks found, creating default deck");
+                        decksByIdMap[defaultDeckId] = {
+                            id: defaultDeckId,
+                            name: "Default Deck",
+                            cards: []
+                        };
+                    }
+                    
+                    console.log(`Found ${Object.keys(decksByIdMap).length} decks`);
+                } catch (e) {
+                    console.warn("Error extracting decks:", e);
+                    // Create default deck if error
+                    decksByIdMap[defaultDeckId] = {
+                        id: defaultDeckId,
+                        name: "Default Deck",
+                        cards: []
+                    };
+                }
+                
+                // STEP 2: Extract cards and associate with decks
+                try {
+                    if (tables.includes('notes') && tables.includes('cards')) {
+                        console.log("Extracting cards and associating with decks");
+                        
+                        // Get cards with their note IDs and deck IDs
+                        const cardsQuery = db.exec(`
+                            SELECT c.id, c.nid, c.did, n.flds
+                            FROM cards c
+                            JOIN notes n ON c.nid = n.id
+                        `);
+                        
+                        if (cardsQuery.length > 0 && cardsQuery[0].values && cardsQuery[0].values.length > 0) {
+                            const cardCount = cardsQuery[0].values.length;
+                            console.log(`Found ${cardCount} cards to process`);
+                            
+                            // Process cards
+                            cardsQuery[0].values.forEach((cardData, index) => {
+                                // Log progress for large decks
+                                if (index === 0 || index === Math.floor(cardCount/2) || index === cardCount-1) {
+                                    console.log(`Processing card ${index+1}/${cardCount}`);
+                                }
+                                
+                                const cardId = cardData[0];
+                                const noteId = cardData[1];
+                                const deckId = cardData[2].toString();
+                                const fields = cardData[3].split('\x1F'); // Fields separated by Unit Separator
+                                
+                                // Make sure the deck exists (create if not)
+                                if (!decksByIdMap[deckId]) {
+                                    decksByIdMap[deckId] = {
+                                        id: deckId,
+                                        name: `Deck ${deckId}`,
+                                        cards: []
+                                    };
+                                }
+                                
+                                // Process card fields (typically front/back)
+                                if (fields.length >= 2) {
+                                    let question = fields[0].trim();
+                                    let answer = fields[1].trim();
+                                    
+                                    // Process HTML content and replace media references
+                                    question = processAnkiHtml(question, mediaFiles);
+                                    answer = processAnkiHtml(answer, mediaFiles);
+                                    
+                                    if (question && answer) {
+                                        // Create card object
+                                        const card = { 
+                                            id: cardId, 
+                                            noteId, 
+                                            deckId, 
+                                            question, 
+                                            answer 
+                                        };
+                                        
+                                        // Add to global cards array
+                                        cards.push(card);
+                                        
+                                        // Add to specific deck
+                                        decksByIdMap[deckId].cards.push(card);
+                                    }
+                                } else if (fields.length === 1 && fields[0].trim()) {
+                                    // Handle single-field cards
+                                    let content = fields[0].trim();
+                                    content = processAnkiHtml(content, mediaFiles);
+                                    
+                                    if (content) {
+                                        const card = {
+                                            id: cardId,
+                                            noteId,
+                                            deckId,
+                                            question: content,
+                                            answer: "See original Anki deck for complete answer"
+                                        };
+                                        
+                                        cards.push(card);
+                                        decksByIdMap[deckId].cards.push(card);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Error processing cards with decks:", e);
+                }
+                
+                // STEP 3: If still no cards, try alternative approaches
+                if (cards.length === 0) {
+                    console.log("No cards found with standard approach, trying alternative methods");
+                    
+                    try {
+                        // Try direct query from notes
+                        const notesQuery = db.exec(`SELECT id, flds FROM notes`);
+                        if (notesQuery.length > 0 && notesQuery[0].values && notesQuery[0].values.length > 0) {
+                            console.log(`Found ${notesQuery[0].values.length} notes to process`);
+                            
+                            // Use first deck as default
+                            const defaultDeckId = Object.keys(decksByIdMap)[0];
+                            
+                            notesQuery[0].values.forEach((note) => {
+                                const noteId = note[0];
+                                const fields = note[1].split('\x1F');
+                                
+                                if (fields.length >= 2) {
+                                    let question = fields[0].trim();
+                                    let answer = fields[1].trim();
+                                    
+                                    question = processAnkiHtml(question, mediaFiles);
+                                    answer = processAnkiHtml(answer, mediaFiles);
+                                    
+                                    if (question && answer) {
+                                        const card = { 
+                                            id: `note-${noteId}`, 
+                                            noteId, 
+                                            deckId: defaultDeckId, 
+                                            question, 
+                                            answer 
+                                        };
+                                        
+                                        cards.push(card);
+                                        decksByIdMap[defaultDeckId].cards.push(card);
+                                    }
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn("Error with alternative card extraction:", e);
+                    }
+                }
+                
+                // STEP 4: Convert decks map to array for easier use
+                decks = Object.values(decksByIdMap);
+                
+                // Set current deck to the first one with cards
+                currentDeck = decks.find(deck => deck.cards.length > 0)?.id || null;
+                
+                console.log(`Total cards extracted: ${cards.length} across ${decks.length} decks`);
+                decks.forEach(deck => {
+                    console.log(`Deck "${deck.name}": ${deck.cards.length} cards`);
+                });
+                
+                if (cards.length > 0) {
+                    // Create deck UI and render cards
+                    statusMessage.textContent = `Successfully imported ${cards.length} cards from ${decks.length} deck(s).`;
+                    createDeckNavigation();
+                    currentPage = 1;
+                    renderCards();
+                    return true;
+                } else {
+                    // If all approaches failed, report failure
+                    statusMessage.textContent = 'Failed to extract any cards from the Anki package.';
+                    loadingIndicator.style.display = 'none';
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error extracting cards with media:', error);
+                statusMessage.textContent = 'Error extracting cards: ' + error.message;
+                loadingIndicator.style.display = 'none';
+                return false;
+            }
+        }
+        
+        // Helper function to process Anki HTML content and handle media references
+        function processAnkiHtml(html, mediaFiles) {
+            if (!html) return '';
+            
+            try {
+                // Replace Anki media references like [sound:file.mp3] or <img src="file.jpg">
+                
+                // Handle image references in HTML
+                html = html.replace(/<img[^>]*src=["']([^"']*)["'][^>]*>/gi, (match, filename) => {
+                    const mediaUrl = mediaFiles[filename];
+                    if (mediaUrl) {
+                        return `<img src="${mediaUrl}" alt="${filename}" style="max-width: 100%;">`;
+                    }
+                    return match; // Keep as is if we don't have the media file
+                });
+                
+                // Handle sound references [sound:file.mp3]
+                html = html.replace(/\[sound:(.*?)\]/gi, (match, filename) => {
+                    const mediaUrl = mediaFiles[filename];
+                    if (mediaUrl) {
+                        return `<audio controls src="${mediaUrl}"></audio>`;
+                    }
+                    return `[Sound: ${filename}]`; // Replace with text if we don't have the file
+                });
+                
+                // Handle special Anki-specific HTML/CSS that might cause rendering issues
+                html = html.replace(/\.card[\s\{].*?\}/gs, ''); // Remove .card CSS class definitions
+                
+                return html;
+            } catch (e) {
+                console.warn("Error processing HTML:", e);
+                return html; // Return original if processing fails
+            }
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(e.target.error);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+    </script>
+</body>
+</html>

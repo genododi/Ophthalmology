@@ -1,20 +1,5 @@
 # Add version system at the top of the file
-__version__ = "1.1.0"
-
-"""
-OphthoPapers - Medical Article Search and Management Tool for Ophthalmology
-
-Time-based Filtering Enhancements in v1.1.0:
-1. Added relative date range filtering options (last week, last month, last quarter, last year)
-2. Added support for seasonal filtering (winter, spring, summer, fall)
-3. Added conference-based date filtering for popular ophthalmology conferences
-4. Improved date parsing algorithm to handle more date formats
-5. Added custom date range filtering with specific start and end dates
-6. Optimized PubMed API queries for better time-based relevancy
-7. Enhanced post-filtering accuracy for date-specific searches
-
-Usage: Run this script directly or as a module.
-"""
+__version__ = "1.0.0"
 
 import csv
 import os
@@ -53,11 +38,9 @@ import calendar
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("ophthopapers.log"),
-        logging.StreamHandler()
-    ]
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filename='ophthopapers.log',
+    filemode='a'
 )
 logger = logging.getLogger(__name__)
 
@@ -164,7 +147,7 @@ def extract_date_from_pubmed(record):
     
     return date_str, date_obj
 
-def fetch_recent_ophthalmology_articles(email, api_key=None, days_back=30, max_results=1000, min_impact_factor=0.0, subspecialty=None, today_only=False, month_only=False, search_keyword=None, specific_journal=None, specific_year=None, date_range_type=None, custom_start_date=None, custom_end_date=None, seasonal_filter=None):
+def fetch_recent_ophthalmology_articles(email, api_key=None, days_back=30, max_results=1000, min_impact_factor=0.0, subspecialty=None, today_only=False, month_only=False, search_keyword=None, specific_journal=None, specific_year=None):
     """
     Fetch recent ophthalmology articles from PubMed
     
@@ -180,10 +163,6 @@ def fetch_recent_ophthalmology_articles(email, api_key=None, days_back=30, max_r
     - search_keyword: Specific keyword to search for in PubMed query
     - specific_journal: Specific journal to search for (by name or ISSN)
     - specific_year: Specific year to search for (YYYY format)
-    - date_range_type: One of 'last_week', 'last_month', 'last_quarter', 'last_year', 'custom'
-    - custom_start_date: Start date for custom date range (datetime object)
-    - custom_end_date: End date for custom date range (datetime object)
-    - seasonal_filter: One of 'spring', 'summer', 'fall', 'winter' to filter by season
     """
     # Set email and API key (required by NCBI)
     Entrez.email = email
@@ -318,151 +297,32 @@ def fetch_recent_ophthalmology_articles(email, api_key=None, days_back=30, max_r
     # Set date range depending on mode
     today = datetime.today()
     
-    # Calculate date range based on selected filter type
-    if date_range_type:
-        if date_range_type == 'last_week':
-            # Last 7 days
-            end_date = today
-            start_date = end_date - timedelta(days=7)
-        elif date_range_type == 'last_month':
-            # Last 30 days 
-            end_date = today
-            start_date = end_date - timedelta(days=30)
-        elif date_range_type == 'last_quarter':
-            # Last 90 days
-            end_date = today
-            start_date = end_date - timedelta(days=90)
-        elif date_range_type == 'last_year':
-            # Last 365 days
-            end_date = today
-            start_date = end_date - timedelta(days=365)
-        elif date_range_type == 'custom' and custom_start_date and custom_end_date:
-            # Custom date range
-            start_date = custom_start_date
-            end_date = custom_end_date
-        else:
-            # Default to days_back if date_range_type is invalid
-            end_date = today
-            start_date = end_date - timedelta(days=days_back)
-    elif today_only:
+    if today_only:
         # Get today's date in YYYY/MM/DD format
-        start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)  # Beginning of today
-        end_date = today
-        
-        # Build a more precise query to target today's publications
-        # Use multiple date fields to maximize chances of finding today's articles
-        date_query = (
-            f'("{today.strftime("%Y/%m/%d")}"[Date - Publication] OR '
-            f'"{today.strftime("%Y/%m/%d")}"[Date - Create] OR '
-            f'"{today.strftime("%Y/%m/%d")}"[Date - Medline])'
-        )
+        today_date = today.strftime('%Y/%m/%d')
+        # Use the most specific date field for today-only filtering - Date of Publication [DP] + Date - Create [CRDT]
+        date_query = f'("{today_date}"[Date - Publication] OR "{today_date}"[CRDT])'
+        # Use exact today's date for search
         search_date_range = date_query
     elif month_only:
-        # Get first and last day of current month
-        first_day = datetime(today.year, today.month, 1)
-        
-        # Calculate last day of current month
-        if today.month == 12:
-            last_day = datetime(today.year, 12, 31)
-        else:
-            last_day = datetime(today.year, today.month + 1, 1) - timedelta(days=1)
-        
-        start_date = first_day
-        end_date = today  # Use today as end date, not last day of month
-        
-        # More precise monthly filter using PubMed's date field
-        date_query = f'"{first_day.strftime("%Y/%m/%d")}"[Date - Publication] : "{end_date.strftime("%Y/%m/%d")}"[Date - Publication]'
-        
-        # Alternative format using month specification
-        search_date_range = f"{today.strftime('%Y/%m')}[Date - Publication]"
+        # Get first day of current month
+        first_day = datetime(today.year, today.month, 1).strftime('%Y/%m/%d')
+        # Get current day
+        current_day = today.strftime('%Y/%m/%d')
+        date_query = f'"{first_day}"[Date - Publication] : "{current_day}"[Date - Publication]'
+        search_date_range = f"{today.strftime('%Y/%m')}[PDAT]"  # Use month format
     elif specific_year:
         # If specific year is selected, use that year for the date range
-        try:
-            year = int(specific_year)
-            start_date = datetime(year, 1, 1)
-            end_date = datetime(year, 12, 31, 23, 59, 59)
-            
-            # Use a year-specific query format that's more efficient
-            date_query = f'"{year}"[Date - Publication : Year]'
-            
-            # Also look for entries where only the year is known
-            search_date_range = date_query
-        except (ValueError, TypeError):
-            # Default to current year if invalid
-            year = today.year
-            start_date = datetime(year, 1, 1)
-            end_date = datetime(year, 12, 31, 23, 59, 59)
-            date_query = f'"{year}"[Date - Publication : Year]'
-            search_date_range = date_query
-    elif seasonal_filter:
-        # Season-based filtering (for conference proceedings, seasonal publications)
-        current_year = today.year
-        
-        # Define seasons based on northern hemisphere
-        seasons = {
-            'winter': {'start': (1, 1), 'end': (3, 20)},    # Jan 1 - Mar 20
-            'spring': {'start': (3, 21), 'end': (6, 20)},   # Mar 21 - Jun 20
-            'summer': {'start': (6, 21), 'end': (9, 22)},   # Jun 21 - Sep 22
-            'fall': {'start': (9, 23), 'end': (12, 20)},    # Sep 23 - Dec 20
-            'winter_end': {'start': (12, 21), 'end': (12, 31)}  # Dec 21 - Dec 31 (part of winter)
-        }
-        
-        if seasonal_filter.lower() == 'winter':
-            # Winter spans across year boundary
-            # Current year's winter
-            winter_start = datetime(current_year, *seasons['winter']['start'])
-            winter_end = datetime(current_year, *seasons['winter']['end'])
-            
-            # Previous year's end of winter
-            prev_winter_start = datetime(current_year - 1, *seasons['winter_end']['start'])
-            prev_winter_end = datetime(current_year - 1, *seasons['winter_end']['end'])
-            
-            # Use the appropriate winter period based on current date
-            if today.month <= 3:
-                # We're in winter period, use current winter including previous December
-                start_date = prev_winter_start
-                end_date = winter_end
-            else:
-                # Use previous full winter season
-                start_date = prev_winter_start
-                end_date = winter_end
-                
-            # Create a complex date query to capture winter months
-            date_query = (
-                f'("{start_date.strftime("%Y/%m/%d")}"[Date - Publication] : '
-                f'"{end_date.strftime("%Y/%m/%d")}"[Date - Publication])'
-            )
-            search_date_range = date_query
-        else:
-            # For other seasons, use the defined ranges
-            season_data = seasons.get(seasonal_filter.lower())
-            if season_data:
-                start_date = datetime(current_year, *season_data['start'])
-                end_date = datetime(current_year, *season_data['end'])
-                
-                # If the current date is before this season's start in the current year,
-                # use last year's season
-                if today < start_date:
-                    start_date = datetime(current_year - 1, *season_data['start'])
-                    end_date = datetime(current_year - 1, *season_data['end'])
-                
-                date_query = (
-                    f'("{start_date.strftime("%Y/%m/%d")}"[Date - Publication] : '
-                    f'"{end_date.strftime("%Y/%m/%d")}"[Date - Publication])'
-                )
-                search_date_range = date_query
-            else:
-                # Default to last 30 days if invalid season
-                start_date = today - timedelta(days=30)
-                end_date = today
-                date_query = f'"{start_date.strftime("%Y/%m/%d")}"[Date - Publication] : "{end_date.strftime("%Y/%m/%d")}"[Date - Publication]'
-                search_date_range = date_query
+        start_date = datetime(int(specific_year), 1, 1)
+        end_date = datetime(int(specific_year), 12, 31)
+        date_query = f'"{start_date.strftime("%Y/%m/%d")}"[Date - Publication] : "{end_date.strftime("%Y/%m/%d")}"[Date - Publication]'
+        search_date_range = date_query
     else:
         # Calculate date range based on days_back
         end_date = today
         start_date = end_date - timedelta(days=days_back)
         date_query = f'"{start_date.strftime("%Y/%m/%d")}"[Date - Publication] : "{end_date.strftime("%Y/%m/%d")}"[Date - Publication]'
-        search_date_range = date_query
+        search_date_range = date_query  # Use the full date range
     
     # Define exclusion terms
     exclusion_terms = {'reply', 'erratum', 'error', 'correction', 'letter', 'comment', 'response', 'correspondence'}
@@ -1167,88 +1027,52 @@ def check_for_updates(current_version=__version__):
     """
     try:
         logger.info("Checking for updates...")
-        # Updated URLs for version information with fallback options
-        version_urls = [
-            "https://raw.githubusercontent.com/genododi/Ophthalmology/main/version.json",
-            "https://genododi.github.io/Ophthalmology/version.json", 
-            "https://api.github.com/repos/genododi/Ophthalmology/contents/version.json"
-        ]
-        download_url = "https://raw.githubusercontent.com/genododi/Ophthalmology/main/ophthopapers.py"
+        # Use the correct URL for version information
+        version_url = "https://genododi.github.io/Ophthalmology/version.json"
+        download_url = "https://genododi.github.io/Ophthalmology/ophthopapers.py"
         
         # Create SSL context for HTTPS connection
         ctx = ssl.create_default_context()
         ctx.check_hostname = True
         ctx.verify_mode = ssl.CERT_REQUIRED
         
-        # Try each URL until one works
-        for version_url in version_urls:
-            try:
-                logger.info(f"Trying update URL: {version_url}")
-                with urllib.request.urlopen(version_url, context=ctx, timeout=5) as response:
-                    if response.status == 200:
-                        try:
-                            # For GitHub API URLs, we need to decode the base64 content
-                            if "api.github.com" in version_url:
-                                import base64
-                                version_data = json.loads(response.read().decode('utf-8'))
-                                content = base64.b64decode(version_data['content']).decode('utf-8')
-                                version_info = json.loads(content)
-                            else:
-                                version_info = json.loads(response.read().decode('utf-8'))
-                                
-                            latest_version = version_info.get('version')
-                            download_url = version_info.get('download_url', download_url)
-                            
-                            if latest_version and download_url:
-                                # Compare versions (simple string comparison works for semantic versioning)
-                                if latest_version > current_version:
-                                    logger.info(f"Update available: {latest_version}")
-                                    return {'version': latest_version, 'url': download_url}
-                                else:
-                                    logger.info("No updates available")
-                                    return None
-                            else:
-                                logger.warning("Invalid version information received")
-                                continue  # Try next URL
-                        except json.JSONDecodeError:
-                            logger.error("Invalid JSON format in version file")
-                            continue  # Try next URL
-                    else:
-                        logger.warning(f"Received status code {response.status} from {version_url}")
-                        continue  # Try next URL
-            except urllib.error.HTTPError as e:
-                logger.warning(f"HTTP error when checking {version_url}: {e.code} - {e.reason}")
-                continue  # Try next URL
-            except urllib.error.URLError as e:
-                logger.warning(f"Could not connect to {version_url}: {str(e)}")
-                continue  # Try next URL
-            except Exception as e:
-                logger.warning(f"Error checking {version_url}: {str(e)}")
-                continue  # Try next URL
-        
-        # If we've tried all URLs and none worked, try to check the script file directly
-        logger.info("Trying to check script file directly")
+        # Fetch the latest version info
         try:
-            with urllib.request.urlopen(download_url, context=ctx, timeout=5) as script_response:
-                if script_response.status == 200:
-                    script_content = script_response.read().decode('utf-8')
-                    # Try to extract version from the script content
-                    version_match = re.search(r'__version__\s*=\s*[\'"]([^\'"]+)[\'"]', script_content)
-                    if version_match:
-                        latest_version = version_match.group(1)
+            with urllib.request.urlopen(version_url, context=ctx) as response:
+                if response.status == 404:
+                    # If version.json doesn't exist, try to check the script file directly
+                    with urllib.request.urlopen(download_url, context=ctx) as script_response:
+                        script_content = script_response.read().decode('utf-8')
+                        # Try to extract version from the script content
+                        version_match = re.search(r'__version__\s*=\s*[\'"]([^\'"]+)[\'"]', script_content)
+                        if version_match:
+                            latest_version = version_match.group(1)
+                            if latest_version > current_version:
+                                logger.info(f"Update available: {latest_version}")
+                                return {'version': latest_version, 'url': download_url}
+                        return None
+                else:
+                    version_info = json.load(response)
+                    latest_version = version_info.get('version')
+                    download_url = version_info.get('download_url', download_url)
+                    
+                    if latest_version and download_url:
+                        # Compare versions (simple string comparison works for semantic versioning)
                         if latest_version > current_version:
                             logger.info(f"Update available: {latest_version}")
                             return {'version': latest_version, 'url': download_url}
-                    logger.info("No updates available or couldn't determine version")
-                    return None
-        except Exception as e:
-            logger.error(f"Error checking script directly: {str(e)}")
-    
+                        else:
+                            logger.info("No updates available")
+                            return None
+                    else:
+                        logger.warning("Invalid version information received")
+                        return None
+        except urllib.error.URLError as e:
+            logger.error(f"Could not connect to update server: {str(e)}")
+            return None
     except Exception as e:
-        logger.error(f"Error in update check: {str(e)}")
-    
-    # If all attempts fail, return None
-    return None
+        logger.error(f"Error checking for updates: {str(e)}")
+        return None
 
 def update_script(update_info):
     """
@@ -1310,70 +1134,48 @@ def download_paper_from_scihub(doi, output_path):
     Returns:
         bool: True if download was successful, False otherwise
     """
-    # List of Sci-Hub mirrors to try - comprehensive updated list
+    # List of Sci-Hub mirrors to try - updated to latest working mirrors
     scihub_mirrors = [
+        "https://sci-hub.wf/",
+        "https://sci-hub.yt/",
+        "https://sci-hub.ee/",
         "https://sci-hub.se/",
         "https://sci-hub.st/",
-        "https://sci-hub.ru/",
-        "https://sci-hub.yt/",
-        "https://sci-hub.wf/",
-        "https://sci-hub.ee/",
-        "https://sci-hub.shop/",
-        "https://sci-hub.tw/",
-        "https://sci-hub.uno/",
-        "https://sci-hub.cat/",
-        "https://sci-hub.fan/",
-        "https://sci-hub.do/",
-        "https://sci-hubtw.hkvisa.net/",
-        "https://sci.hubg.org/",
-        "https://sci-hub.hkvisa.net/",
-        "https://sci-hub.wvisa.ru/",
-        "https://sci-hub.tech/",
-        "https://sci-hub.mksa.top/",
-        "https://sci-hub.ren/",
-        "https://sci-hub.cc/",
-        "https://sci-hub.best/",
-        "https://sci.hubtw.fyi/"
+        "https://sci-hub.ru/"
     ]
-    
-    # Configure headers to mimic a browser
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
-        'Referer': 'https://google.com/'
-    }
-    
-    # Disable insecure HTTPS warnings
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     # Try each mirror
     for mirror in scihub_mirrors:
         try:
-            logger.info(f"Trying to download from {mirror} for DOI: {doi}")
-            
             # Create URL for the DOI
             url = f"{mirror}{doi}"
             
-            # Send request with a timeout, ignore SSL certificate verification
-            response = requests.get(url, headers=headers, timeout=30, verify=False)
+            # Configure headers to mimic a browser
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
+            }
+            
+            logger.info(f"Trying to download from {mirror} for DOI: {doi}")
+            
+            # Send request with a timeout
+            response = requests.get(url, headers=headers, timeout=30)
             
             # Check if the request was successful
             if response.status_code == 200:
                 # Parse the HTML response
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Look for the embedded PDF iframe (multiple selectors to try)
-                iframe = soup.find('iframe', id='pdf') or soup.find('iframe', attrs={'name': 'pdf'}) or soup.find('iframe')
-                
-                # If found iframe with src attribute
+                # Look for the embedded PDF or download link (updated selectors)
+                iframe = soup.find('iframe', id='pdf')
                 if iframe and iframe.get('src'):
                     pdf_url = iframe['src']
                     
@@ -1383,356 +1185,25 @@ def download_paper_from_scihub(doi, output_path):
                     elif not pdf_url.startswith(('http://', 'https://')):
                         # Try to determine the base URL from the mirror
                         base_url = '/'.join(mirror.split('/')[:3])
-                        pdf_url = base_url + pdf_url if not pdf_url.startswith('/') else base_url + pdf_url
+                        pdf_url = base_url + pdf_url
                     
                     logger.info(f"Found PDF URL: {pdf_url}")
                     
                     # Download the PDF with a longer timeout
-                    try:
-                        pdf_response = requests.get(pdf_url, headers=headers, timeout=60, stream=True, verify=False)
-                        
-                        # Check if it's a PDF or HTML (sometimes Sci-Hub returns HTML in error cases)
-                        content_type = pdf_response.headers.get('Content-Type', '')
-                        if pdf_response.status_code == 200 and (content_type.startswith('application/pdf') or pdf_url.lower().endswith('.pdf')):
-                            # Save the PDF to the specified path
-                            with open(output_path, 'wb') as f:
-                                f.write(pdf_response.content)
-                            
-                            # Verify the file is a PDF (starts with %PDF)
-                            with open(output_path, 'rb') as f:
-                                header = f.read(4)
-                                if header == b'%PDF':
-                                    logger.info(f"Successfully downloaded PDF from {mirror}")
-                                    return output_path
-                                else:
-                                    logger.warning(f"Downloaded file is not a valid PDF from {mirror}")
-                                    os.remove(output_path)  # Remove invalid file
-                    except Exception as e:
-                        logger.error(f"Error downloading PDF from {pdf_url}: {str(e)}")
-                        continue
+                    pdf_response = requests.get(pdf_url, headers=headers, timeout=60, stream=True)
+                    
+                    if pdf_response.status_code == 200 and pdf_response.headers.get('Content-Type', '').startswith('application/pdf'):
+                        # Save the PDF to the specified path with progress tracking
+                        total_size = int(pdf_response.headers.get('content-length', 0))
+                        with open(output_path, 'wb') as f:
+                            f.write(pdf_response.content)
+                        return output_path
                 
-                # Alternative method: look for direct download button/link
-                download_buttons = soup.select('button#save') or soup.select('a.download') or soup.select('a[href*="download"]')
-                for button in download_buttons:
-                    try:
-                        download_url = button.get('href') or button.get('data-href') or button.get('onclick')
-                        if download_url:
-                            # Extract URL from onclick handler if needed
-                            if 'onclick' in str(button):
-                                match = re.search(r"location.href='([^']+)'", str(button))
-                                if match:
-                                    download_url = match.group(1)
-                            
-                            # Make URL absolute if needed
-                            if not download_url.startswith(('http://', 'https://')):
-                                download_url = urljoin(mirror, download_url)
-                            
-                            # Try to download from this URL
-                            pdf_response = requests.get(download_url, headers=headers, timeout=60, verify=False)
-                            if pdf_response.status_code == 200:
-                                with open(output_path, 'wb') as f:
-                                    f.write(pdf_response.content)
-                                
-                                # Verify the file is a PDF
-                                with open(output_path, 'rb') as f:
-                                    header = f.read(4)
-                                    if header == b'%PDF':
-                                        logger.info(f"Successfully downloaded PDF from button link")
-                                        return output_path
-                                    else:
-                                        os.remove(output_path)  # Remove invalid file
-                    except Exception as e:
-                        logger.error(f"Error with download button: {str(e)}")
-                        continue
-        
-        except requests.exceptions.Timeout:
-            logger.warning(f"Timeout with mirror {mirror}")
-            continue
-        except requests.exceptions.ConnectionError:
-            logger.warning(f"Connection error with mirror {mirror}")
-            continue
         except Exception as e:
-            logger.error(f"Error with mirror {mirror}: {str(e)}")
+            print(f"Error with mirror {mirror}: {str(e)}")
             continue
     
     # If all mirrors failed
-    logger.error("All Sci-Hub mirrors failed, couldn't download the paper")
-    return None
-
-def download_paper_from_ekb(doi, output_path, username=None, password=None):
-    """
-    Download a paper from EKB (Egyptian Knowledge Bank) using its DOI
-    
-    Args:
-        doi (str): The DOI of the paper
-        output_path (str): Path where the PDF will be saved
-        username (str): EKB username (optional, will use stored credentials if None)
-        password (str): EKB password (optional, will use stored credentials if None)
-        
-    Returns:
-        str: Path to the saved PDF if successful, None otherwise
-    """
-    # Use passed credentials or default ones
-    if username is None or password is None:
-        # Get credentials from settings
-        config_path = os.path.join(os.path.expanduser("~"), ".ophthopapers_config")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    stored_username = config.get('ekb_username', "genododi@gmail.com")
-                    stored_password = config.get('ekb_password', "pu@pjq8CgYnZAM4")
-                    
-                    username = username or stored_username
-                    password = password or stored_password
-            except:
-                # Default fallback credentials if file is corrupted
-                username = username or "genododi@gmail.com"
-                password = password or "pu@pjq8CgYnZAM4"
-        else:
-            # Default fallback credentials
-            username = username or "genododi@gmail.com"
-            password = password or "pu@pjq8CgYnZAM4"
-    
-    logger.info(f"Attempting to download from EKB for DOI: {doi} using account: {username}")
-    
-    # EKB URLs
-    ekb_url = "https://www.ekb.eg/"
-    resources_url = "https://www.ekb.eg/resources"
-    
-    # Configure session with headers to mimic a browser
-    session = requests.Session()
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'keep-alive',
-        'Referer': ekb_url
-    }
-    
-    session.headers.update(headers)
-    
-    try:
-        # Step 1: Visit the home page to get cookies
-        logger.info("Accessing EKB home page")
-        home_response = session.get(ekb_url, timeout=30)
-        if home_response.status_code != 200:
-            logger.error(f"Failed to access EKB home page: {home_response.status_code}")
-            return None
-        
-        # Step 2: Login to EKB
-        logger.info("Logging in to EKB")
-        login_url = f"{ekb_url}login"
-        login_data = {
-            'username': username,
-            'password': password,
-            'remember': 'true'
-        }
-        
-        login_response = session.post(login_url, data=login_data, timeout=30)
-        if login_response.status_code != 200 or "login" in login_response.url.lower():
-            logger.error("Login failed")
-            return None
-        
-        # Step 3: Navigate to resources page to establish session
-        logger.info("Navigating to EKB resources page")
-        resources_response = session.get(resources_url, timeout=30)
-        if resources_response.status_code != 200:
-            logger.error(f"Failed to access resources page: {resources_response.status_code}")
-            return None
-        
-        # Step 4: Search for the article by DOI
-        logger.info(f"Searching for article with DOI: {doi}")
-        search_url = f"{ekb_url}search"
-        search_params = {
-            'query': doi,
-            'type': 'all'
-        }
-        
-        search_response = session.get(search_url, params=search_params, timeout=30)
-        if search_response.status_code != 200:
-            logger.error(f"Search failed: {search_response.status_code}")
-            return None
-        
-        # Parse the search results to find the article
-        soup = BeautifulSoup(search_response.text, 'html.parser')
-        article_links = soup.select('a.article-title')
-        
-        if not article_links:
-            logger.warning("No articles found for this DOI in search results")
-            
-            # Try direct access through DOI.org
-            direct_url = f"https://doi.org/{doi}"
-            logger.info(f"Trying direct DOI access: {direct_url}")
-            
-            # Follow the DOI redirect to publisher
-            doi_response = session.get(direct_url, timeout=30, allow_redirects=True)
-            if doi_response.status_code != 200:
-                logger.error(f"Failed to access article via DOI: {doi_response.status_code}")
-                return None
-            
-            # Get the publisher URL from the redirect
-            publisher_url = doi_response.url
-            publisher_domain = publisher_url.split('/')[2]
-            logger.info(f"DOI redirected to publisher: {publisher_domain}")
-            
-            # Try to access through EKB proxy with explicit resources path
-            ekb_publisher_url = f"https://www.ekb.eg/web/guest/resources/-/journal_content/56/55802/proxy?url={publisher_url}"
-            logger.info(f"Trying EKB proxy access: {ekb_publisher_url}")
-            
-            publisher_response = session.get(ekb_publisher_url, timeout=60)
-            if publisher_response.status_code != 200:
-                logger.error(f"Failed to access through EKB proxy: {publisher_response.status_code}")
-                # Try an alternative access method through the resources page
-                try:
-                    resources_soup = BeautifulSoup(resources_response.text, 'html.parser')
-                    publisher_links = resources_soup.select('a[href*="' + publisher_domain.replace('.', '-') + '"]')
-                    
-                    if publisher_links:
-                        # Found a link to the publisher in resources page
-                        publisher_portal_url = publisher_links[0].get('href')
-                        if not publisher_portal_url.startswith(('http://', 'https://')):
-                            publisher_portal_url = urljoin(resources_url, publisher_portal_url)
-                        
-                        logger.info(f"Found publisher portal in resources: {publisher_portal_url}")
-                        
-                        # Visit publisher portal through EKB
-                        portal_response = session.get(publisher_portal_url, timeout=30)
-                        if portal_response.status_code == 200:
-                            # Navigate to the article using the DOI
-                            article_url = f"{publisher_portal_url}?doi={doi}"
-                            article_response = session.get(article_url, timeout=30)
-                            
-                            if article_response.status_code != 200:
-                                logger.error(f"Failed to access article through publisher portal: {article_response.status_code}")
-                                return None
-                            
-                            # Search for PDF links in the article page
-                            article_soup = BeautifulSoup(article_response.text, 'html.parser')
-                            pdf_links = article_soup.select('a[href*=".pdf"], a.pdf-download-link, a[data-download-type="pdf"]')
-                            
-                            if pdf_links:
-                                pdf_url = pdf_links[0].get('href')
-                                if not pdf_url.startswith(('http://', 'https://')):
-                                    pdf_url = urljoin(article_url, pdf_url)
-                                
-                                logger.info(f"Found PDF URL through publisher portal: {pdf_url}")
-                                
-                                # Try to download the PDF
-                                pdf_response = session.get(pdf_url, timeout=60, stream=True)
-                                if pdf_response.status_code == 200:
-                                    with open(output_path, 'wb') as f:
-                                        f.write(pdf_response.content)
-                                    
-                                    # Verify it's a valid PDF
-                                    with open(output_path, 'rb') as f:
-                                        header = f.read(4)
-                                        if header == b'%PDF':
-                                            logger.info("Successfully downloaded PDF from publisher portal")
-                                            return output_path
-                                        else:
-                                            logger.warning("Downloaded file is not a valid PDF")
-                                            os.remove(output_path)
-                        else:
-                            logger.error(f"Failed to access publisher portal: {portal_response.status_code}")
-                    else:
-                        logger.warning(f"No publisher portal found for: {publisher_domain}")
-                except Exception as e:
-                    logger.error(f"Error accessing publisher through resources: {str(e)}")
-                
-                return None
-            
-            # Look for PDF download links on the publisher page
-            pub_soup = BeautifulSoup(publisher_response.text, 'html.parser')
-            pdf_links = pub_soup.select('a[href*=".pdf"], a[data-download-type="pdf"], a.pdf-link, a[href*="download"]')
-            
-            if not pdf_links:
-                logger.warning("No PDF links found on publisher page")
-                return None
-            
-            # Try the first PDF link
-            pdf_url = pdf_links[0].get('href')
-            if not pdf_url.startswith(('http://', 'https://')):
-                pdf_url = urljoin(publisher_url, pdf_url)
-            
-            # Download the PDF
-            logger.info(f"Downloading PDF from: {pdf_url}")
-            pdf_response = session.get(pdf_url, timeout=60, stream=True)
-            
-            if pdf_response.status_code == 200 and (pdf_response.headers.get('Content-Type', '').startswith('application/pdf') or pdf_url.lower().endswith('.pdf')):
-                with open(output_path, 'wb') as f:
-                    f.write(pdf_response.content)
-                
-                # Verify it's a valid PDF
-                with open(output_path, 'rb') as f:
-                    header = f.read(4)
-                    if header == b'%PDF':
-                        logger.info("Successfully downloaded PDF from EKB via proxy")
-                        return output_path
-                    else:
-                        logger.warning("Downloaded file is not a valid PDF")
-                        os.remove(output_path)
-                        return None
-        else:
-            # Process search results
-            logger.info(f"Found {len(article_links)} potential articles in search results")
-            for link in article_links:
-                article_title = link.text.strip()
-                article_url = link.get('href')
-                if not article_url.startswith(('http://', 'https://')):
-                    article_url = urljoin(ekb_url, article_url)
-                
-                logger.info(f"Found article: {article_title}")
-                
-                # Visit the article page
-                article_response = session.get(article_url, timeout=30)
-                if article_response.status_code != 200:
-                    logger.error(f"Failed to access article page: {article_response.status_code}")
-                    continue
-                
-                # Look for PDF download link
-                article_soup = BeautifulSoup(article_response.text, 'html.parser')
-                pdf_links = article_soup.select('a[href*=".pdf"], a.pdf-download-link, a[data-download-type="pdf"], a[href*="download"], a.fulltext-link')
-                
-                if not pdf_links:
-                    logger.warning("No PDF links found on article page")
-                    continue
-                
-                # Try the first PDF link
-                pdf_url = pdf_links[0].get('href')
-                if not pdf_url.startswith(('http://', 'https://')):
-                    pdf_url = urljoin(article_url, pdf_url)
-                
-                # Download the PDF
-                logger.info(f"Downloading PDF from: {pdf_url}")
-                pdf_response = session.get(pdf_url, timeout=60, stream=True)
-                
-                if pdf_response.status_code == 200 and (pdf_response.headers.get('Content-Type', '').startswith('application/pdf') or pdf_url.lower().endswith('.pdf')):
-                    with open(output_path, 'wb') as f:
-                        f.write(pdf_response.content)
-                    
-                    # Verify it's a valid PDF
-                    with open(output_path, 'rb') as f:
-                        header = f.read(4)
-                        if header == b'%PDF':
-                            logger.info("Successfully downloaded PDF from EKB search results")
-                            return output_path
-                        else:
-                            logger.warning("Downloaded file is not a valid PDF")
-                            os.remove(output_path)
-                            continue
-                
-                # If we reached here, the download failed for this link
-                logger.warning(f"Failed to download PDF from: {pdf_url}")
-            
-            # If we've tried all links and failed
-            logger.error("Could not download PDF from any of the article links")
-            return None
-    
-    except Exception as e:
-        logger.error(f"Error in EKB download process: {str(e)}")
-        return None
-    
     return None
 
 class OphthoPapersApp:
@@ -2012,7 +1483,7 @@ class OphthoPapersApp:
             ('Open Ophthalmology Journal', '1874-3641'),
             ('Journal of Optometry', '1888-4296'),
             ('Journal of Current Ophthalmology', '2452-2325'),
-            # Healio ophthalmology journals
+            # Healio journals
             ('Journal of Pediatric Ophthalmology and Strabismus', '0191-3913'),
             ('Ocular Surgery News', '8750-3085'),
             ('Primary Care Optometry News', '1081-6437'),
@@ -2377,22 +1848,13 @@ class OphthoPapersApp:
                 self.results_text.insert(tk.END, article['doi'], link_tag)
                 self.results_text.insert(tk.END, "\n")
                 
-                # Add download links if DOI is available
-                download_tag_scihub = f"download_scihub_{idx}"
-                download_tag_ekb = f"download_ekb_{idx}"
-                
+                # Add a "Download Full Paper" link if DOI is available
+                download_tag = f"download_{idx}"
                 self.results_text.insert(tk.END, "Full Paper: ")
-                self.results_text.insert(tk.END, "[Download via Sci-Hub]", download_tag_scihub)
-                self.results_text.insert(tk.END, " | ")
-                self.results_text.insert(tk.END, "[Download via EKB]", download_tag_ekb)
+                self.results_text.insert(tk.END, "[Download via Sci-Hub]", download_tag)
                 self.results_text.insert(tk.END, "\n")
-                
-                # Configure link appearance and add to hyperlinks dictionary
-                self.results_text.tag_configure(download_tag_scihub, foreground="green", underline=1)
-                self.results_text.tag_configure(download_tag_ekb, foreground="purple", underline=1)
-                
-                self.hyperlinks[download_tag_scihub] = f"download_scihub:{article['doi']}"
-                self.hyperlinks[download_tag_ekb] = f"download_ekb:{article['doi']}"
+                self.results_text.tag_configure(download_tag, foreground="green", underline=1)
+                self.hyperlinks[download_tag] = f"download_doi:{article['doi']}"
             else:
                 self.results_text.insert(tk.END, "DOI: N/A\n")
             
@@ -2426,153 +1888,7 @@ class OphthoPapersApp:
         for tag in self.results_text.tag_names(index):
             if tag in self.hyperlinks:
                 url = self.hyperlinks[tag]
-                
-                # Handle Sci-Hub download requests
-                if url.startswith("download_scihub:"):
-                    doi = url.replace("download_scihub:", "")
-                    
-                    # Ask user where to save the file
-                    save_dir = self.save_dir_var.get() or os.path.expanduser("~/Desktop")
-                    filename = doi.replace("/", "_").replace(".", "_") + ".pdf"
-                    output_path = os.path.join(save_dir, filename)
-                    
-                    # Update status
-                    self.status_var.set(f"Attempting to download paper with DOI: {doi} via Sci-Hub...")
-                    self.root.update_idletasks()
-                    
-                    # Create a progress window
-                    progress_window = tk.Toplevel(self.root)
-                    progress_window.title("Downloading Paper via Sci-Hub")
-                    progress_window.geometry("400x150")
-                    progress_window.transient(self.root)
-                    progress_window.grab_set()
-                    
-                    # Add message
-                    ttk.Label(progress_window, text=f"Downloading paper with DOI:\n{doi}", 
-                             wraplength=380, justify=tk.CENTER).pack(pady=10)
-                    
-                    # Add progress bar
-                    progress = ttk.Progressbar(progress_window, mode='indeterminate', length=350)
-                    progress.pack(pady=10)
-                    progress.start()
-                    
-                    # Run download in a thread to keep UI responsive
-                    def download_thread():
-                        result = download_paper_from_scihub(doi, output_path)
-                        self.root.after(0, lambda: complete_download(result))
-                    
-                    def complete_download(result):
-                        progress.stop()
-                        progress_window.destroy()
-                        
-                        if result:
-                            self.status_var.set(f"Downloaded paper to {result}")
-                            messagebox.showinfo("Download Complete", 
-                                               f"Paper was successfully downloaded to:\n{result}")
-                            
-                            # Ask if user wants to open the PDF
-                            if messagebox.askyesno("Open PDF", "Would you like to open the PDF now?"):
-                                if sys.platform == 'darwin':  # macOS
-                                    os.system(f"open '{result}'")
-                                elif sys.platform == 'win32':  # Windows
-                                    os.startfile(result)
-                                else:  # Linux
-                                    os.system(f"xdg-open '{result}'")
-                        else:
-                            self.status_var.set("Failed to download paper from Sci-Hub")
-                            messagebox.showerror("Download Failed", 
-                                                "Could not download the paper from Sci-Hub.\n"
-                                                "Try again later or try a different source.")
-                    
-                    # Start download thread
-                    threading.Thread(target=download_thread).start()
-                
-                # Handle EKB download requests
-                elif url.startswith("download_ekb:"):
-                    doi = url.replace("download_ekb:", "")
-                    
-                    # Ask user where to save the file
-                    save_dir = self.save_dir_var.get() or os.path.expanduser("~/Desktop")
-                    filename = doi.replace("/", "_").replace(".", "_") + ".pdf"
-                    output_path = os.path.join(save_dir, filename)
-                    
-                    # Load EKB credentials from config
-                    config_path = os.path.join(os.path.expanduser("~"), ".ophthopapers_config")
-                    ekb_username = "genododi@gmail.com"  # Default
-                    ekb_password = "pu@pjq8CgYnZAM4"  # Default
-                    
-                    if os.path.exists(config_path):
-                        try:
-                            with open(config_path, 'r') as f:
-                                config = json.load(f)
-                                ekb_username = config.get('ekb_username', ekb_username)
-                                ekb_password = config.get('ekb_password', ekb_password)
-                        except:
-                            # Using default credentials if config file is corrupted
-                            pass
-                    
-                    # Update status
-                    self.status_var.set(f"Attempting to download paper with DOI: {doi} via EKB...")
-                    self.root.update_idletasks()
-                    
-                    # Create a progress window
-                    progress_window = tk.Toplevel(self.root)
-                    progress_window.title("Downloading Paper via EKB")
-                    progress_window.geometry("450x180")
-                    progress_window.transient(self.root)
-                    progress_window.grab_set()
-                    
-                    # Add message
-                    ttk.Label(progress_window, text=f"Downloading paper with DOI:\n{doi}\nfrom Egyptian Knowledge Bank", 
-                             wraplength=430, justify=tk.CENTER).pack(pady=10)
-                    
-                    # Add credentials info
-                    ttk.Label(progress_window, text=f"Using account: {ekb_username}", 
-                             font=("Helvetica", 8), foreground="gray").pack(pady=2)
-                    
-                    # Add progress bar
-                    progress = ttk.Progressbar(progress_window, mode='indeterminate', length=400)
-                    progress.pack(pady=10)
-                    progress.start()
-                    
-                    # Run download in a thread to keep UI responsive
-                    def download_thread():
-                        result = download_paper_from_ekb(doi, output_path, username=ekb_username, password=ekb_password)
-                        self.root.after(0, lambda: complete_download(result))
-                    
-                    def complete_download(result):
-                        progress.stop()
-                        progress_window.destroy()
-                        
-                        if result:
-                            self.status_var.set(f"Downloaded paper to {result}")
-                            messagebox.showinfo("Download Complete", 
-                                               f"Paper was successfully downloaded from EKB to:\n{result}")
-                            
-                            # Ask if user wants to open the PDF
-                            if messagebox.askyesno("Open PDF", "Would you like to open the PDF now?"):
-                                if sys.platform == 'darwin':  # macOS
-                                    os.system(f"open '{result}'")
-                                elif sys.platform == 'win32':  # Windows
-                                    os.startfile(result)
-                                else:  # Linux
-                                    os.system(f"xdg-open '{result}'")
-                        else:
-                            self.status_var.set("Failed to download paper from EKB")
-                            messagebox.showerror("Download Failed", 
-                                                "Could not download the paper from Egyptian Knowledge Bank.\n"
-                                                "This could be due to:\n"
-                                                "- Article not available in EKB\n"
-                                                "- Login credentials expired\n"
-                                                "- Network or server issues\n\n"
-                                                "Try Sci-Hub as an alternative.")
-                    
-                    # Start download thread
-                    threading.Thread(target=download_thread).start()
-                
-                else:
-                    # Regular URL - open in browser
-                    webbrowser.open_new_tab(url)
+                webbrowser.open_new_tab(url)
                 return
         
         # Check if the click is on an article to select it
@@ -2581,17 +1897,17 @@ class OphthoPapersApp:
             line_number = int(index.split('.')[0])
             
             # Find which article was clicked on by its position in the text widget
-            for i, start_line in enumerate(self.article_line_positions):
-                if start_line <= line_number <= start_line + 20:  # Approximate article size in lines
+            for i, (start_line, end_line) in enumerate(self.article_line_positions):
+                if start_line <= line_number <= end_line:
                     # Select this article
                     self.selected_article_idx = i
                     
                     # Remove previous selection highlight
                     self.results_text.tag_remove("selected_article", "1.0", tk.END)
                     
-                    # Highlight the selected article - estimate 20 lines per article
+                    # Highlight the selected article
                     start_pos = f"{start_line}.0"
-                    end_pos = f"{start_line + 20}.0"
+                    end_pos = f"{end_line+1}.0"
                     self.results_text.tag_add("selected_article", start_pos, end_pos)
                     self.results_text.tag_configure("selected_article", background="#e6f2ff")  # Light blue background
                     
@@ -2993,126 +2309,7 @@ class OphthoPapersApp:
         today = datetime.today()
         end_date = today
         
-        # Check if we have a date_range_type attribute for enhanced filtering
-        if hasattr(self, 'date_range_type_var') and self.date_range_type_var.get():
-            date_range_type = self.date_range_type_var.get()
-            
-            if date_range_type == 'last_week':
-                # Last 7 days
-                start_date = today - timedelta(days=7)
-                description = "last week's"
-                
-            elif date_range_type == 'last_month':
-                # Last 30 days
-                start_date = today - timedelta(days=30)
-                description = "last month's"
-                
-            elif date_range_type == 'last_quarter':
-                # Last 90 days
-                start_date = today - timedelta(days=90)
-                description = "last quarter's"
-                
-            elif date_range_type == 'last_year':
-                # Last 365 days
-                start_date = today - timedelta(days=365)
-                description = "last year's"
-                
-            elif date_range_type == 'custom' and hasattr(self, 'custom_start_date_var') and hasattr(self, 'custom_end_date_var'):
-                # Custom date range
-                try:
-                    start_str = self.custom_start_date_var.get()
-                    end_str = self.custom_end_date_var.get()
-                    
-                    # Parse the custom date strings
-                    start_date = datetime.strptime(start_str, '%Y-%m-%d')
-                    end_date = datetime.strptime(end_str, '%Y-%m-%d')
-                    description = f"custom range ({start_str} to {end_str})"
-                except (ValueError, AttributeError):
-                    # Default to last 30 days if custom dates are invalid
-                    start_date = today - timedelta(days=30)
-                    description = "the last 30 days (default)"
-                    
-            elif date_range_type == 'seasonal' and hasattr(self, 'seasonal_filter_var'):
-                # Seasonal filtering
-                season = self.seasonal_filter_var.get().lower()
-                current_year = today.year
-                
-                # Define seasons (Northern Hemisphere)
-                seasons = {
-                    'winter': {'start': (1, 1), 'end': (3, 20)},    # Jan 1 - Mar 20
-                    'spring': {'start': (3, 21), 'end': (6, 20)},   # Mar 21 - Jun 20
-                    'summer': {'start': (6, 21), 'end': (9, 22)},   # Jun 21 - Sep 22
-                    'fall': {'start': (9, 23), 'end': (12, 20)},    # Sep 23 - Dec 20
-                    'winter_end': {'start': (12, 21), 'end': (12, 31)}  # Dec 21 - Dec 31 (part of winter)
-                }
-                
-                if season == 'winter':
-                    # Winter spans year boundary
-                    if today.month <= 3:
-                        # Current winter including last December
-                        winter_end = datetime(current_year, 3, 20)
-                        winter_start = datetime(current_year-1, 12, 21)
-                    else:
-                        # Previous winter
-                        winter_start = datetime(current_year-1, 12, 21)
-                        winter_end = datetime(current_year, 3, 20)
-                    
-                    start_date = winter_start
-                    end_date = winter_end
-                    description = f"winter ({winter_start.strftime('%b %d, %Y')} to {winter_end.strftime('%b %d, %Y')})"
-                    
-                elif season in seasons:
-                    season_data = seasons[season]
-                    # Current year's season
-                    start_date = datetime(current_year, *season_data['start'])
-                    end_date = datetime(current_year, *season_data['end'])
-                    
-                    # If today is before this season's start in current year,
-                    # use last year's season
-                    if today < start_date:
-                        start_date = datetime(current_year-1, *season_data['start'])
-                        end_date = datetime(current_year-1, *season_data['end'])
-                    
-                    description = f"{season} ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})"
-                else:
-                    # Default to last 30 days if invalid season
-                    start_date = today - timedelta(days=30)
-                    description = "the last 30 days (default)"
-                    
-            elif date_range_type == 'conference' and hasattr(self, 'conference_date_var'):
-                # Conference date filtering (e.g., for AAO, ARVO, etc.)
-                conference = self.conference_date_var.get().lower()
-                current_year = today.year
-                
-                conferences = {
-                    'aao': {'month': 10, 'duration': 5},  # AAO typically in October
-                    'arvo': {'month': 5, 'duration': 5},  # ARVO typically in May
-                    'ascrs': {'month': 4, 'duration': 4}, # ASCRS typically in April
-                    'asrs': {'month': 7, 'duration': 3},  # ASRS typically in July
-                }
-                
-                if conference in conferences:
-                    conf_data = conferences[conference]
-                    # Check if this year's conference has passed
-                    conf_month = conf_data['month']
-                    conf_year = current_year if today.month <= conf_month else current_year - 1
-                    
-                    # For conferences, look at papers 3 months before and 1 month after
-                    conf_date = datetime(conf_year, conf_month, 15)  # Middle of conference month
-                    start_date = conf_date - timedelta(days=90)  # 3 months before
-                    end_date = conf_date + timedelta(days=30)   # 1 month after
-                    
-                    description = f"{conference.upper()} {conf_year} period ({start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')})"
-                else:
-                    # Default to last 30 days if invalid conference
-                    start_date = today - timedelta(days=30)
-                    description = "the last 30 days (default)"
-            else:
-                # Default to last 30 days for any invalid or unrecognized range type
-                start_date = today - timedelta(days=30)
-                description = "the last 30 days (default)"
-                
-        elif self.today_only_var.get():
+        if self.today_only_var.get():
             # For today's articles, use only today's date for strict filtering
             start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)  # Beginning of today
             description = "today's"
@@ -4287,8 +3484,6 @@ class OphthoPapersApp:
         file_menu.add_command(label="Save Search Settings", command=self.save_search_settings)
         file_menu.add_command(label="Load Default Settings", command=self.reset_to_defaults)
         file_menu.add_separator()
-        file_menu.add_command(label="EKB Account Settings", command=self.show_ekb_settings)
-        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
         
         # Search menu
@@ -4310,12 +3505,6 @@ class OphthoPapersApp:
         export_menu.add_command(label="Export as Excel", command=lambda: self.export_current_results("excel"))
         export_menu.add_command(label="Export as Text", command=lambda: self.export_current_results("txt"))
         export_menu.add_command(label="Export DOI URLs", command=lambda: self.export_current_results("doi"))
-        
-        # Tools menu
-        tools_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Tools", menu=tools_menu)
-        tools_menu.add_command(label="EKB Account Settings", command=self.show_ekb_settings)
-        tools_menu.add_command(label="Set Download Directory", command=self.browse_directory)
         
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -4420,7 +3609,6 @@ class OphthoPapersApp:
             messagebox.showerror("Export Error", f"Error exporting articles: {str(e)}")
             logger.error(f"Export error: {str(e)}")
 
-
     def load_search_settings(self):
         """Load saved search settings from config file"""
         try:
@@ -4457,11 +3645,12 @@ class OphthoPapersApp:
                     except ValueError:
                         # Use current year if value is invalid
                         self.year_var.set(str(datetime.today().year))
-                    else:
-                        self.today_only_var.set(False)
-                        self.month_only_var.set(False)
-                        self.specific_year_var.set(False)
-                        self.days_back_var.set(settings.get("days_back", 30))
+                else:
+                    self.today_only_var.set(False)
+                    self.month_only_var.set(False)
+                    self.specific_year_var.set(False)
+                    self.days_back_var.set(settings.get("days_back", 30))
+                
                 self.max_results_var.set(settings.get("max_results", 1000))
                 self.subspecialty_var.set(settings.get("subspecialty", ""))
                 self.fetch_keyword_var.set(settings.get("keyword", ""))
@@ -4972,189 +4161,6 @@ class OphthoPapersApp:
                     child.configure(borderwidth=0, relief="flat")
                     break
 
-    def show_ekb_settings(self):
-        """Show dialog to configure EKB (Egyptian Knowledge Bank) credentials"""
-        # Create settings dialog
-        settings_window = tk.Toplevel(self.root)
-        settings_window.title("EKB Account Settings")
-        settings_window.geometry("450x300")
-        settings_window.transient(self.root)
-        settings_window.grab_set()
-        settings_window.resizable(False, False)
-        
-        # Load current credentials from config
-        config_path = os.path.join(os.path.expanduser("~"), ".ophthopapers_config")
-        current_username = "genododi@gmail.com"  # Default
-        current_password = "pu@pjq8CgYnZAM4"     # Default
-        
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    current_username = config.get('ekb_username', current_username)
-                    current_password = config.get('ekb_password', current_password)
-            except:
-                pass
-        
-        # Create frame with padding
-        main_frame = ttk.Frame(settings_window, padding=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Add title
-        ttk.Label(main_frame, text="Egyptian Knowledge Bank (EKB) Account Settings", 
-                 font=("Helvetica", 12, "bold")).pack(pady=(0, 20))
-        
-        # Description
-        description = (
-            "The Egyptian Knowledge Bank provides access to scientific papers "
-            "through Egypt's national subscription. Enter your EKB credentials below."
-        )
-        ttk.Label(main_frame, text=description, wraplength=400, justify=tk.LEFT).pack(pady=(0, 20), fill=tk.X)
-        
-        # Username field
-        username_frame = ttk.Frame(main_frame)
-        username_frame.pack(fill=tk.X, pady=5)
-        ttk.Label(username_frame, text="Username:", width=12).pack(side=tk.LEFT)
-        username_var = tk.StringVar(value=current_username)
-        username_entry = ttk.Entry(username_frame, textvariable=username_var, width=30)
-        username_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        
-        # Password field
-        password_frame = ttk.Frame(main_frame)
-        password_frame.pack(fill=tk.X, pady=5)
-        ttk.Label(password_frame, text="Password:", width=12).pack(side=tk.LEFT)
-        password_var = tk.StringVar(value=current_password)
-        password_entry = ttk.Entry(password_frame, textvariable=password_var, show="•", width=30)
-        password_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        
-        # Show password checkbox
-        show_password_var = tk.BooleanVar(value=False)
-        
-        def toggle_password_visibility():
-            if show_password_var.get():
-                password_entry.config(show="")
-            else:
-                password_entry.config(show="•")
-        
-        show_password_check = ttk.Checkbutton(main_frame, text="Show password", 
-                                             variable=show_password_var, 
-                                             command=toggle_password_visibility)
-        show_password_check.pack(anchor=tk.W, pady=(0, 10))
-        
-        # Status
-        status_var = tk.StringVar(value="")
-        status_label = ttk.Label(main_frame, textvariable=status_var, foreground="gray")
-        status_label.pack(pady=5, fill=tk.X)
-        
-        # Buttons frame
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(15, 0))
-        
-        def validate_connection():
-            """Test EKB account by attempting to login"""
-            username = username_var.get().strip()
-            password = password_var.get().strip()
-            
-            if not username or not password:
-                status_var.set("Please enter both username and password")
-                status_label.config(foreground="red")
-                return
-            
-            status_var.set("Testing connection...")
-            status_label.config(foreground="blue")
-            settings_window.update_idletasks()
-            
-            # Configure session with headers to mimic a browser
-            session = requests.Session()
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://www.ekb.eg/'
-            }
-            
-            session.headers.update(headers)
-            
-            try:
-                # Visit home page to get cookies
-                home_response = session.get("https://www.ekb.eg/", timeout=20)
-                
-                # Try login
-                login_url = "https://www.ekb.eg/login"
-                login_data = {
-                    'username': username,
-                    'password': password,
-                    'remember': 'true'
-                }
-                
-                login_response = session.post(login_url, data=login_data, timeout=20)
-                
-                # Check if login was successful
-                if login_response.status_code == 200 and "login" not in login_response.url.lower():
-                    status_var.set("Connection successful! Credentials are valid.")
-                    status_label.config(foreground="green")
-                else:
-                    status_var.set("Login failed. Please check your credentials.")
-                    status_label.config(foreground="red")
-            except Exception as e:
-                status_var.set(f"Connection error: {str(e)}")
-                status_label.config(foreground="red")
-        
-        def save_credentials():
-            """Save credentials to config file"""
-            username = username_var.get().strip()
-            password = password_var.get().strip()
-            
-            if not username or not password:
-                status_var.set("Please enter both username and password")
-                status_label.config(foreground="red")
-                return
-            
-            config_data = {}
-            
-            # Load existing config if available
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, 'r') as f:
-                        config_data = json.load(f)
-                except:
-                    pass
-            
-            # Update with new credentials
-            config_data['ekb_username'] = username
-            config_data['ekb_password'] = password
-            
-            # Save config
-            try:
-                with open(config_path, 'w') as f:
-                    json.dump(config_data, f)
-                status_var.set("Credentials saved successfully!")
-                status_label.config(foreground="green")
-            except Exception as e:
-                status_var.set(f"Error saving credentials: {str(e)}")
-                status_label.config(foreground="red")
-        
-        def reset_defaults():
-            """Reset to default credentials"""
-            username_var.set("genododi@gmail.com")
-            password_var.set("pu@pjq8CgYnZAM4")
-            status_var.set("Default credentials restored (not yet saved)")
-            status_label.config(foreground="blue")
-        
-        # Add buttons
-        ttk.Button(button_frame, text="Test Connection", command=validate_connection).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Save", command=save_credentials).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Reset to Default", command=reset_defaults).pack(side=tk.LEFT, padx=5)
-        ttk.Button(button_frame, text="Close", command=settings_window.destroy).pack(side=tk.RIGHT, padx=5)
-        
-        # Center window on screen
-        settings_window.update_idletasks()
-        width = settings_window.winfo_width()
-        height = settings_window.winfo_height()
-        x = (settings_window.winfo_screenwidth() // 2) - (width // 2)
-        y = (settings_window.winfo_screenheight() // 2) - (height // 2)
-        settings_window.geometry(f'{width}x{height}+{x}+{y}')
-
 if __name__ == '__main__':
     def main():
         try:
@@ -5230,4 +4236,3 @@ if __name__ == '__main__':
     
     # Call the main function
     main()
-            
