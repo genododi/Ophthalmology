@@ -1,0 +1,21 @@
+{
+  "name": "ophthalmic-infographic-creator",
+  "version": "2.0.0",
+  "description": "Ophthalmic Infographic Creator with Knowledge Base and FTP Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "ophthalmology",
+    "infographic",
+    "medical",
+    "education"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ftp-srv": "^4.6.3"
+  }
+}
