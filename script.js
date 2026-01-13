@@ -554,8 +554,13 @@ const DEFAULT_CHAPTERS = [
     { id: 'resources', name: 'Resources', color: '#64748b' }
 ];
 
-/* Safe Fetch Wrapper to handle file:// protocol */
+/* Safe Fetch Wrapper to handle file:// protocol and GitHub Pages */
 const SERVER_URL = 'http://localhost:3000';
+const GITHUB_PAGES_HOST = 'genododi.github.io';
+
+function isGitHubPages() {
+    return window.location.hostname === GITHUB_PAGES_HOST;
+}
 
 async function safeFetch(url, options) {
     if (window.location.protocol === 'file:') {
@@ -564,6 +569,24 @@ async function safeFetch(url, options) {
         return fetch(fullUrl, options);
     }
     return fetch(url, options);
+}
+
+// Fetch library from static JSON file (for GitHub Pages)
+async function fetchLibraryFromStatic() {
+    try {
+        // Try fetching the pre-generated library index
+        const response = await fetch('library-index.json');
+        if (response.ok) {
+            return await response.json();
+        }
+        
+        // Fallback: try fetching individual files from Library folder listing
+        // This won't work on GitHub Pages without a proper index, so return empty
+        return [];
+    } catch (err) {
+        console.log('Could not fetch static library index:', err.message);
+        return [];
+    }
 }
 
 function getChapters() {
@@ -600,6 +623,12 @@ function assignSequentialIds(library) {
 
 // Auto-Sync to Server Logic
 async function syncLibraryToServer() {
+    // Skip sync on GitHub Pages (static hosting, no backend)
+    if (isGitHubPages()) {
+        console.log("Running on GitHub Pages - sync to server skipped (use sync_to_github.py locally)");
+        return;
+    }
+    
     if (window.location.protocol === 'file:') {
         // Try to sync anyway via localhost API
     }
@@ -695,9 +724,26 @@ function setupKnowledgeBase() {
         if (importBtn) importBtn.innerHTML = '<span class="material-symbols-rounded">sync</span>';
 
         try {
-            const response = await safeFetch('api/library/list');
-            if (response.ok) {
-                const serverItems = await response.json();
+            let serverItems = [];
+            
+            // GitHub Pages: Use static JSON file instead of API
+            if (isGitHubPages()) {
+                console.log("Running on GitHub Pages. Fetching from static library index...");
+                serverItems = await fetchLibraryFromStatic();
+                if (serverItems.length === 0 && !silent) {
+                    console.log("No items found in static library index.");
+                }
+            } else {
+                // Local/Server mode: Use API
+                const response = await safeFetch('api/library/list');
+                if (response.ok) {
+                    serverItems = await response.json();
+                } else {
+                    throw new Error('API response not ok');
+                }
+            }
+            
+            if (serverItems.length > 0 || isGitHubPages()) {
                 let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                 let addedCount = 0;
                 let updatedCount = 0;
@@ -784,7 +830,8 @@ function setupKnowledgeBase() {
                 // That requires "Last Modified" timestamp which we don't have reliably yet.
                 // So we only push NEW items. Updates MUST be triggered manually by "Save" or "Rename" pushing.
 
-                if (localOnlyItems.length > 0) {
+                // BIDIRECTIONAL SYNC: Only for non-GitHub Pages (requires backend)
+                if (!isGitHubPages() && localOnlyItems.length > 0) {
                     try {
                         await safeFetch('api/library/upload', {
                             method: 'POST',
@@ -796,16 +843,15 @@ function setupKnowledgeBase() {
                         console.log('Bidirectional Sync: Could not upload local items:', uploadErr.message);
                     }
                 }
-            } else {
-                if (!silent) alert('Failed to fetch from server.');
-                console.warn("Auto-Sync: Failed to fetch from server.");
             }
         } catch (err) {
             if (!silent) {
                 console.error('Import error:', err);
-                alert('Error connecting to server.');
+                if (!isGitHubPages()) {
+                    alert('Error connecting to server.');
+                }
             } else {
-                console.log("Auto-Sync: Could not connect to server (backend likely offline).");
+                console.log("Auto-Sync: Could not connect to server (backend likely offline or running on static hosting).");
             }
         } finally {
             if (importBtn) importBtn.innerHTML = originalIcon;
