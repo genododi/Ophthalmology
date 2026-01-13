@@ -51,6 +51,45 @@
             <button id="generate-btn" class="primary-btn">
                 Generate Infographic
             </button>
+
+            <!-- Studio Tools Panel - NotebookLM Style -->
+            <div class="studio-tools-panel" id="studio-panel">
+                <div class="studio-header">
+                    <span class="material-symbols-rounded">auto_awesome</span>
+                    <h3>Studio Tools</h3>
+                </div>
+                <div class="studio-tools-grid">
+                    <button class="studio-tool-btn" id="audio-overview-btn" title="Generate Audio Overview">
+                        <span class="material-symbols-rounded">headphones</span>
+                        <span class="tool-label">Audio Overview</span>
+                    </button>
+                    <button class="studio-tool-btn" id="video-overview-btn" title="Generate Video Overview">
+                        <span class="material-symbols-rounded">smart_display</span>
+                        <span class="tool-label">Video Overview</span>
+                    </button>
+                    <button class="studio-tool-btn" id="mindmap-view-btn" title="Interactive Mind Map">
+                        <span class="material-symbols-rounded">hub</span>
+                        <span class="tool-label">Mind Map</span>
+                    </button>
+                    <button class="studio-tool-btn" id="report-btn" title="Generate Text Report">
+                        <span class="material-symbols-rounded">description</span>
+                        <span class="tool-label">Reports</span>
+                    </button>
+                    <button class="studio-tool-btn" id="flashcards-btn" title="Create Flashcards">
+                        <span class="material-symbols-rounded">style</span>
+                        <span class="tool-label">Flashcards</span>
+                    </button>
+                    <button class="studio-tool-btn" id="quiz-btn" title="Interactive Quiz">
+                        <span class="material-symbols-rounded">quiz</span>
+                        <span class="tool-label">Quiz</span>
+                    </button>
+                    <button class="studio-tool-btn" id="slidedeck-btn" title="Generate Slide Deck">
+                        <span class="material-symbols-rounded">slideshow</span>
+                        <span class="tool-label">Slide Deck</span>
+                    </button>
+                </div>
+                <p class="studio-hint">Generate an infographic first to unlock these tools</p>
+            </div>
         </aside>
 
         <!-- Main Content Area -->
@@ -180,6 +219,343 @@
                         <li>Connect to the provided address with credentials</li>
                         <li>Access and download saved infographics remotely</li>
                     </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Overview Modal -->
+    <div id="audio-modal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">headphones</span>
+                    Audio Overview
+                </h2>
+                <button id="close-audio-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body audio-modal-body">
+                <div class="audio-player-container">
+                    <div class="audio-visualization" id="audio-viz">
+                        <div class="audio-waveform"></div>
+                    </div>
+                    <div class="audio-controls">
+                        <button class="audio-control-btn" id="audio-play-btn">
+                            <span class="material-symbols-rounded">play_arrow</span>
+                        </button>
+                        <div class="audio-progress">
+                            <div class="audio-progress-bar" id="audio-progress-bar"></div>
+                        </div>
+                        <span class="audio-time" id="audio-time">0:00</span>
+                    </div>
+                    <div class="audio-options">
+                        <label>Voice Style:</label>
+                        <select id="voice-select">
+                            <option value="default">Professional</option>
+                            <option value="friendly">Friendly</option>
+                            <option value="formal">Formal</option>
+                        </select>
+                        <button class="btn-secondary" id="generate-audio-btn">
+                            <span class="material-symbols-rounded">record_voice_over</span>
+                            Generate Audio
+                        </button>
+                        <button class="btn-secondary" id="download-audio-btn" style="display: none;">
+                            <span class="material-symbols-rounded">download</span>
+                            Download
+                        </button>
+                    </div>
+                </div>
+                <div class="audio-transcript">
+                    <h4>Transcript Preview</h4>
+                    <div id="audio-transcript-text" class="transcript-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Overview Modal -->
+    <div id="video-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">smart_display</span>
+                    Video Overview
+                </h2>
+                <button id="close-video-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body video-modal-body">
+                <div class="video-player-container">
+                    <div class="video-preview" id="video-preview">
+                        <div class="video-slide" id="current-slide">
+                            <span class="material-symbols-rounded video-placeholder-icon">movie</span>
+                            <p>Click "Generate Video" to create a slideshow presentation</p>
+                        </div>
+                    </div>
+                    <div class="video-controls">
+                        <button class="video-control-btn" id="video-prev-btn">
+                            <span class="material-symbols-rounded">skip_previous</span>
+                        </button>
+                        <button class="video-control-btn" id="video-play-btn">
+                            <span class="material-symbols-rounded">play_arrow</span>
+                        </button>
+                        <button class="video-control-btn" id="video-next-btn">
+                            <span class="material-symbols-rounded">skip_next</span>
+                        </button>
+                        <span class="slide-counter" id="slide-counter">0 / 0</span>
+                    </div>
+                </div>
+                <div class="video-options">
+                    <button class="btn-primary" id="generate-video-btn">
+                        <span class="material-symbols-rounded">movie_edit</span>
+                        Generate Video Slides
+                    </button>
+                    <button class="btn-secondary" id="export-video-btn" style="display: none;">
+                        <span class="material-symbols-rounded">download</span>
+                        Export as HTML
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mind Map Modal -->
+    <div id="mindmap-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">hub</span>
+                    Interactive Mind Map
+                </h2>
+                <button id="close-mindmap-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body mindmap-modal-body">
+                <div class="mindmap-canvas" id="mindmap-canvas"></div>
+                <div class="mindmap-actions">
+                    <button class="btn-secondary" id="mindmap-zoom-in">
+                        <span class="material-symbols-rounded">zoom_in</span>
+                    </button>
+                    <button class="btn-secondary" id="mindmap-zoom-out">
+                        <span class="material-symbols-rounded">zoom_out</span>
+                    </button>
+                    <button class="btn-secondary" id="mindmap-reset">
+                        <span class="material-symbols-rounded">center_focus_strong</span>
+                    </button>
+                    <button class="btn-primary" id="export-mindmap-btn">
+                        <span class="material-symbols-rounded">download</span>
+                        Export as PNG
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Modal -->
+    <div id="reports-modal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">description</span>
+                    Study Report
+                </h2>
+                <button id="close-reports-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body reports-modal-body">
+                <div class="report-format-options">
+                    <label>Report Format:</label>
+                    <div class="format-buttons">
+                        <button class="format-btn active" data-format="summary">Summary</button>
+                        <button class="format-btn" data-format="detailed">Detailed</button>
+                        <button class="format-btn" data-format="bullet">Bullet Points</button>
+                        <button class="format-btn" data-format="study-guide">Study Guide</button>
+                    </div>
+                </div>
+                <div class="report-content" id="report-content">
+                    <div class="report-placeholder">
+                        <span class="material-symbols-rounded">article</span>
+                        <p>Select a format and the report will be generated from your infographic content.</p>
+                    </div>
+                </div>
+                <div class="report-actions">
+                    <button class="btn-primary" id="copy-report-btn">
+                        <span class="material-symbols-rounded">content_copy</span>
+                        Copy to Clipboard
+                    </button>
+                    <button class="btn-secondary" id="download-report-btn">
+                        <span class="material-symbols-rounded">download</span>
+                        Download as TXT
+                    </button>
+                    <button class="btn-secondary" id="print-report-btn">
+                        <span class="material-symbols-rounded">print</span>
+                        Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flashcards Modal -->
+    <div id="flashcards-modal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">style</span>
+                    Flashcards
+                </h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="flashcard-counter" id="flashcard-counter">0 / 0</span>
+                    <button id="close-flashcards-modal-btn" class="icon-btn-ghost">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body flashcards-modal-body">
+                <div class="flashcard-container" id="flashcard-container">
+                    <div class="flashcard" id="current-flashcard">
+                        <div class="flashcard-inner">
+                            <div class="flashcard-front">
+                                <span class="flashcard-label">Question</span>
+                                <p id="flashcard-question">Click "Generate Flashcards" to create study cards</p>
+                            </div>
+                            <div class="flashcard-back">
+                                <span class="flashcard-label">Answer</span>
+                                <p id="flashcard-answer">Answer will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flashcard-hint">Click the card to flip</div>
+                <div class="flashcard-controls">
+                    <button class="flashcard-nav-btn" id="prev-card-btn">
+                        <span class="material-symbols-rounded">chevron_left</span>
+                    </button>
+                    <button class="flashcard-action-btn" id="shuffle-cards-btn">
+                        <span class="material-symbols-rounded">shuffle</span>
+                        Shuffle
+                    </button>
+                    <button class="flashcard-nav-btn" id="next-card-btn">
+                        <span class="material-symbols-rounded">chevron_right</span>
+                    </button>
+                </div>
+                <div class="flashcard-actions">
+                    <button class="btn-primary" id="generate-flashcards-btn">
+                        <span class="material-symbols-rounded">auto_fix_high</span>
+                        Generate Flashcards
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quiz-modal" class="modal-overlay">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">quiz</span>
+                    Knowledge Quiz
+                </h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="quiz-score" id="quiz-score">Score: 0/0</span>
+                    <button id="close-quiz-modal-btn" class="icon-btn-ghost">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body quiz-modal-body">
+                <div class="quiz-container" id="quiz-container">
+                    <div class="quiz-question-card">
+                        <div class="quiz-progress">
+                            <div class="quiz-progress-bar" id="quiz-progress-bar"></div>
+                        </div>
+                        <h3 class="quiz-question" id="quiz-question">Click "Start Quiz" to begin</h3>
+                        <div class="quiz-options" id="quiz-options">
+                            <!-- Options will be injected here -->
+                        </div>
+                    </div>
+                    <div class="quiz-feedback" id="quiz-feedback" style="display: none;">
+                        <span class="material-symbols-rounded" id="feedback-icon">check_circle</span>
+                        <p id="feedback-text">Correct!</p>
+                    </div>
+                </div>
+                <div class="quiz-results" id="quiz-results" style="display: none;">
+                    <div class="results-circle">
+                        <span class="results-percentage" id="results-percentage">0%</span>
+                    </div>
+                    <h3>Quiz Complete!</h3>
+                    <p id="results-message">Great job!</p>
+                    <button class="btn-primary" id="retake-quiz-btn">
+                        <span class="material-symbols-rounded">refresh</span>
+                        Retake Quiz
+                    </button>
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn-primary" id="start-quiz-btn">
+                        <span class="material-symbols-rounded">play_arrow</span>
+                        Start Quiz
+                    </button>
+                    <button class="btn-secondary" id="next-question-btn" style="display: none;">
+                        Next Question
+                        <span class="material-symbols-rounded">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide Deck Modal -->
+    <div id="slidedeck-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">slideshow</span>
+                    Slide Deck
+                </h2>
+                <button id="close-slidedeck-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body slidedeck-modal-body">
+                <div class="slidedeck-preview" id="slidedeck-preview">
+                    <div class="slide-frame" id="slide-frame">
+                        <div class="slide-content" id="slide-content">
+                            <span class="material-symbols-rounded slide-placeholder-icon">presentation</span>
+                            <p>Generate slides from your infographic</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="slide-thumbnails" id="slide-thumbnails">
+                    <!-- Thumbnails will be injected here -->
+                </div>
+                <div class="slidedeck-controls">
+                    <button class="slide-nav-btn" id="slide-prev-btn">
+                        <span class="material-symbols-rounded">chevron_left</span>
+                    </button>
+                    <span class="slide-indicator" id="slide-indicator">Slide 0 of 0</span>
+                    <button class="slide-nav-btn" id="slide-next-btn">
+                        <span class="material-symbols-rounded">chevron_right</span>
+                    </button>
+                </div>
+                <div class="slidedeck-actions">
+                    <button class="btn-primary" id="generate-slides-btn">
+                        <span class="material-symbols-rounded">auto_fix_high</span>
+                        Generate Slides
+                    </button>
+                    <button class="btn-secondary" id="present-slides-btn" style="display: none;">
+                        <span class="material-symbols-rounded">cast</span>
+                        Present
+                    </button>
+                    <button class="btn-secondary" id="export-slides-btn" style="display: none;">
+                        <span class="material-symbols-rounded">download</span>
+                        Export HTML
+                    </button>
                 </div>
             </div>
         </div>

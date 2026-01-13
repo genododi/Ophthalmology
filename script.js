@@ -567,48 +567,9 @@ async function safeFetch(url, options) {
 }
 
 function getChapters() {
-    let chapters = DEFAULT_CHAPTERS;
-    const stored = localStorage.getItem(CHAPTERS_KEY);
-
-    if (stored) {
-        try {
-            const parsed = JSON.parse(stored);
-            // Merge strategies:
-            // 1. Ensure all DEFAULT chapters exist (add if missing)
-            // 2. Preserve custom chapters if any (though UI doesn't allow adding custom ones yet)
-            // 3. Update names/colors of existing default chapters to ensure updates (like "Strabismus") propagation
-
-            const defaultsMap = new Map(DEFAULT_CHAPTERS.map(c => [c.id, c]));
-
-            // Start with parsed chapters
-            chapters = parsed.map(ch => {
-                // If it's a default chapter, use the latest definition (name/color) but keep the ID/order? 
-                // Actually, simply overwriting with default definition is safer for updates.
-                if (defaultsMap.has(ch.id)) {
-                    return defaultsMap.get(ch.id);
-                }
-                return ch;
-            });
-
-            // Add any missing default chapters
-            DEFAULT_CHAPTERS.forEach(def => {
-                if (!chapters.some(ch => ch.id === def.id)) {
-                    chapters.push(def);
-                }
-            });
-
-            // Update storage with the merged list
-            if (JSON.stringify(chapters) !== stored) {
-                localStorage.setItem(CHAPTERS_KEY, JSON.stringify(chapters));
-            }
-        } catch (e) {
-            console.warn("Error parsing chapters, resetting to defaults", e);
-            localStorage.setItem(CHAPTERS_KEY, JSON.stringify(DEFAULT_CHAPTERS));
-        }
-    } else {
-        localStorage.setItem(CHAPTERS_KEY, JSON.stringify(DEFAULT_CHAPTERS));
-    }
-    return chapters;
+    // Strict Mode: Always return DEFAULT_CHAPTERS to prevent duplicates/legacy chapters
+    // We ignore localStorage 'ophthalmic_infographic_chapters' to clean up
+    return DEFAULT_CHAPTERS;
 }
 
 // Helper: Assign Persistent Sequential IDs
@@ -675,6 +636,7 @@ function setupKnowledgeBase() {
 
     let currentChapterFilter = 'all';
     let currentSearchTerm = ''; // NEW: Search state
+    let currentSortMode = 'date'; // NEW: Sort state
     let selectionMode = false;
     let selectedItems = new Set();
 
@@ -989,6 +951,20 @@ function setupKnowledgeBase() {
             );
         }
 
+        // 3. Apply Sorting
+        if (currentSortMode === 'date') {
+            filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
+        } else if (currentSortMode === 'chapter') {
+            const chapterOrder = new Map(chapters.map((ch, idx) => [ch.id, idx]));
+            filteredLibrary.sort((a, b) => {
+                const idxA = chapterOrder.get(a.chapterId) ?? 999;
+                const idxB = chapterOrder.get(b.chapterId) ?? 999;
+                if (idxA !== idxB) return idxA - idxB;
+                // Secondary sort by date
+                return new Date(b.date) - new Date(a.date);
+            });
+        }
+
         // Build chapter filter tabs
         const modalBody = modal.querySelector('.modal-body');
 
@@ -1037,6 +1013,12 @@ function setupKnowledgeBase() {
                     <input type="text" id="library-search" placeholder="Search saved infographics..." value="${currentSearchTerm}" 
                         style="width: 100%; padding: 8px 10px 8px 35px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem;">
                 </div>
+                <div class="sort-wrapper">
+                    <select id="sort-select" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; background-color: white; cursor: pointer;">
+                        <option value="date" ${currentSortMode === 'date' ? 'selected' : ''}>Sort by Date</option>
+                        <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
+                    </select>
+                </div>
             </div>
             <div class="toolbar-row" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <button class="btn-small ${selectionMode ? 'btn-active' : ''}" id="toggle-selection-btn">
@@ -1074,6 +1056,15 @@ function setupKnowledgeBase() {
                     newInput.focus();
                     newInput.setSelectionRange(newInput.value.length, newInput.value.length);
                 }
+            });
+        }
+
+        // Sort Handler
+        const sortSelect = toolbar.querySelector('#sort-select');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                currentSortMode = e.target.value;
+                renderLibraryList();
             });
         }
 
@@ -1734,4 +1725,1567 @@ function renderInfographic(data) {
 
     posterSheet.appendChild(grid);
     outputContainer.appendChild(posterSheet);
+
+    // Enable Studio Tools when infographic is generated
+    enableStudioTools();
 }
+
+/* ========================================
+   STUDIO TOOLS - NotebookLM-Style Features
+   ======================================== */
+
+function enableStudioTools() {
+    const studioPanel = document.getElementById('studio-panel');
+    if (studioPanel) {
+        studioPanel.classList.add('studio-panel-enabled');
+        const buttons = studioPanel.querySelectorAll('.studio-tool-btn');
+        buttons.forEach(btn => btn.disabled = false);
+    }
+}
+
+function disableStudioTools() {
+    const studioPanel = document.getElementById('studio-panel');
+    if (studioPanel) {
+        studioPanel.classList.remove('studio-panel-enabled');
+        const buttons = studioPanel.querySelectorAll('.studio-tool-btn');
+        buttons.forEach(btn => btn.disabled = true);
+    }
+}
+
+/* ========================================
+   AUDIO OVERVIEW FEATURE
+   ======================================== */
+
+let audioContext = null;
+let audioSource = null;
+let isPlaying = false;
+let audioTranscript = '';
+
+function setupAudioOverview() {
+    const audioBtn = document.getElementById('audio-overview-btn');
+    const audioModal = document.getElementById('audio-modal');
+    const closeBtn = document.getElementById('close-audio-modal-btn');
+    const generateBtn = document.getElementById('generate-audio-btn');
+    const playBtn = document.getElementById('audio-play-btn');
+    const downloadBtn = document.getElementById('download-audio-btn');
+
+    if (!audioBtn || !audioModal) return;
+
+    audioBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        audioModal.classList.add('active');
+        generateTranscript();
+    });
+
+    closeBtn?.addEventListener('click', () => {
+        audioModal.classList.remove('active');
+        stopAudio();
+    });
+
+    audioModal.addEventListener('click', (e) => {
+        if (e.target === audioModal) {
+            audioModal.classList.remove('active');
+            stopAudio();
+        }
+    });
+
+    generateBtn?.addEventListener('click', () => {
+        generateAudio();
+    });
+
+    playBtn?.addEventListener('click', () => {
+        if (isPlaying) {
+            stopAudio();
+        } else {
+            playAudio();
+        }
+    });
+}
+
+function generateTranscript() {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    let transcript = `${data.title}.\n\n`;
+    transcript += `${data.summary}\n\n`;
+
+    if (data.sections) {
+        data.sections.forEach(section => {
+            transcript += `${section.title}.\n`;
+            
+            if (Array.isArray(section.content)) {
+                section.content.forEach(item => {
+                    transcript += `${item}.\n`;
+                });
+            } else if (typeof section.content === 'object') {
+                if (section.content.mnemonic) {
+                    transcript += `Remember: ${section.content.mnemonic}. ${section.content.explanation}.\n`;
+                } else if (section.content.center) {
+                    transcript += `Central concept: ${section.content.center}. `;
+                    if (section.content.branches) {
+                        transcript += `Key branches include: ${section.content.branches.join(', ')}.\n`;
+                    }
+                } else if (section.content.data) {
+                    section.content.data.forEach(d => {
+                        transcript += `${d.label}: ${d.value} percent.\n`;
+                    });
+                } else if (section.content.headers && section.content.rows) {
+                    section.content.rows.forEach(row => {
+                        transcript += row.join(', ') + '.\n';
+                    });
+                }
+            } else {
+                transcript += `${section.content}.\n`;
+            }
+            transcript += '\n';
+        });
+    }
+
+    audioTranscript = transcript;
+    const transcriptEl = document.getElementById('audio-transcript-text');
+    if (transcriptEl) {
+        transcriptEl.textContent = transcript;
+    }
+}
+
+function generateAudio() {
+    if (!audioTranscript) {
+        generateTranscript();
+    }
+
+    // Use Web Speech API for text-to-speech
+    if ('speechSynthesis' in window) {
+        const voiceSelect = document.getElementById('voice-select');
+        const voiceStyle = voiceSelect?.value || 'default';
+        
+        // Create animated waveform
+        createWaveformAnimation();
+        
+        const generateBtn = document.getElementById('generate-audio-btn');
+        const downloadBtn = document.getElementById('download-audio-btn');
+        
+        if (generateBtn) {
+            generateBtn.innerHTML = '<span class="material-symbols-rounded">check</span> Audio Ready';
+        }
+        if (downloadBtn) {
+            downloadBtn.style.display = 'flex';
+        }
+        
+        alert('Audio generated! Click Play to listen. Note: Audio uses browser\'s text-to-speech capabilities.');
+    } else {
+        alert('Text-to-speech is not supported in this browser.');
+    }
+}
+
+function createWaveformAnimation() {
+    const waveform = document.querySelector('.audio-waveform');
+    if (!waveform) return;
+
+    waveform.innerHTML = '';
+    for (let i = 0; i < 40; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.animationDelay = `${i * 0.05}s`;
+        bar.style.height = `${20 + Math.random() * 60}%`;
+        waveform.appendChild(bar);
+    }
+}
+
+function playAudio() {
+    if (!audioTranscript) return;
+
+    const utterance = new SpeechSynthesisUtterance(audioTranscript);
+    const voiceSelect = document.getElementById('voice-select');
+    const voiceStyle = voiceSelect?.value || 'default';
+
+    // Set voice properties based on style
+    switch (voiceStyle) {
+        case 'friendly':
+            utterance.rate = 1.1;
+            utterance.pitch = 1.1;
+            break;
+        case 'formal':
+            utterance.rate = 0.9;
+            utterance.pitch = 0.9;
+            break;
+        default:
+            utterance.rate = 1;
+            utterance.pitch = 1;
+    }
+
+    utterance.onstart = () => {
+        isPlaying = true;
+        updatePlayButton();
+        animateProgress();
+    };
+
+    utterance.onend = () => {
+        isPlaying = false;
+        updatePlayButton();
+        resetProgress();
+    };
+
+    speechSynthesis.speak(utterance);
+}
+
+function stopAudio() {
+    speechSynthesis.cancel();
+    isPlaying = false;
+    updatePlayButton();
+    resetProgress();
+}
+
+function updatePlayButton() {
+    const playBtn = document.getElementById('audio-play-btn');
+    if (playBtn) {
+        playBtn.innerHTML = isPlaying 
+            ? '<span class="material-symbols-rounded">pause</span>'
+            : '<span class="material-symbols-rounded">play_arrow</span>';
+    }
+}
+
+function animateProgress() {
+    const progressBar = document.getElementById('audio-progress-bar');
+    if (progressBar) {
+        progressBar.style.transition = 'width 60s linear';
+        progressBar.style.width = '100%';
+    }
+}
+
+function resetProgress() {
+    const progressBar = document.getElementById('audio-progress-bar');
+    if (progressBar) {
+        progressBar.style.transition = 'none';
+        progressBar.style.width = '0%';
+    }
+}
+
+/* ========================================
+   VIDEO OVERVIEW FEATURE
+   ======================================== */
+
+let videoSlides = [];
+let currentVideoSlide = 0;
+let videoAutoPlay = null;
+
+function setupVideoOverview() {
+    const videoBtn = document.getElementById('video-overview-btn');
+    const videoModal = document.getElementById('video-modal');
+    const closeBtn = document.getElementById('close-video-modal-btn');
+    const generateBtn = document.getElementById('generate-video-btn');
+    const playBtn = document.getElementById('video-play-btn');
+    const prevBtn = document.getElementById('video-prev-btn');
+    const nextBtn = document.getElementById('video-next-btn');
+    const exportBtn = document.getElementById('export-video-btn');
+
+    if (!videoBtn || !videoModal) return;
+
+    videoBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        videoModal.classList.add('active');
+    });
+
+    closeBtn?.addEventListener('click', () => {
+        videoModal.classList.remove('active');
+        stopVideoAutoPlay();
+    });
+
+    videoModal.addEventListener('click', (e) => {
+        if (e.target === videoModal) {
+            videoModal.classList.remove('active');
+            stopVideoAutoPlay();
+        }
+    });
+
+    generateBtn?.addEventListener('click', generateVideoSlides);
+    playBtn?.addEventListener('click', toggleVideoAutoPlay);
+    prevBtn?.addEventListener('click', () => navigateVideoSlide(-1));
+    nextBtn?.addEventListener('click', () => navigateVideoSlide(1));
+    exportBtn?.addEventListener('click', exportVideoAsHTML);
+}
+
+function generateVideoSlides() {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    videoSlides = [];
+
+    // Title slide
+    videoSlides.push({
+        type: 'title',
+        title: data.title,
+        subtitle: data.summary
+    });
+
+    // Section slides
+    if (data.sections) {
+        data.sections.forEach(section => {
+            videoSlides.push({
+                type: 'section',
+                title: section.title,
+                content: section.content,
+                sectionType: section.type,
+                colorTheme: section.color_theme
+            });
+        });
+    }
+
+    // Summary slide
+    videoSlides.push({
+        type: 'end',
+        title: 'Key Takeaways',
+        subtitle: 'Review and practice the concepts covered'
+    });
+
+    currentVideoSlide = 0;
+    renderVideoSlide();
+    updateVideoCounter();
+
+    const exportBtn = document.getElementById('export-video-btn');
+    if (exportBtn) exportBtn.style.display = 'flex';
+}
+
+function renderVideoSlide() {
+    const slideContainer = document.getElementById('current-slide');
+    if (!slideContainer || videoSlides.length === 0) return;
+
+    const slide = videoSlides[currentVideoSlide];
+    
+    if (slide.type === 'title' || slide.type === 'end') {
+        slideContainer.innerHTML = `
+            <h2>${slide.title}</h2>
+            <p>${slide.subtitle || ''}</p>
+        `;
+        slideContainer.style.background = 'linear-gradient(135deg, #1e293b, #334155)';
+    } else {
+        let contentHtml = '';
+        
+        if (Array.isArray(slide.content)) {
+            contentHtml = `<ul>${slide.content.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        } else if (typeof slide.content === 'object') {
+            if (slide.content.mnemonic) {
+                contentHtml = `<p><strong>${slide.content.mnemonic}</strong><br>${slide.content.explanation}</p>`;
+            } else if (slide.content.center) {
+                contentHtml = `<p><strong>${slide.content.center}</strong></p>`;
+                if (slide.content.branches) {
+                    contentHtml += `<ul>${slide.content.branches.map(b => `<li>${b}</li>`).join('')}</ul>`;
+                }
+            } else if (slide.content.data) {
+                contentHtml = `<ul>${slide.content.data.map(d => `<li>${d.label}: ${d.value}%</li>`).join('')}</ul>`;
+            }
+        } else {
+            contentHtml = `<p>${slide.content}</p>`;
+        }
+
+        const bgColor = getSlideBackground(slide.colorTheme);
+        slideContainer.innerHTML = `
+            <h2>${slide.title}</h2>
+            ${contentHtml}
+        `;
+        slideContainer.style.background = bgColor;
+    }
+}
+
+function getSlideBackground(theme) {
+    const themes = {
+        blue: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+        red: 'linear-gradient(135deg, #ef4444, #dc2626)',
+        green: 'linear-gradient(135deg, #10b981, #059669)',
+        yellow: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        purple: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+    };
+    return themes[theme] || 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+}
+
+function navigateVideoSlide(direction) {
+    if (videoSlides.length === 0) return;
+    
+    currentVideoSlide += direction;
+    if (currentVideoSlide < 0) currentVideoSlide = videoSlides.length - 1;
+    if (currentVideoSlide >= videoSlides.length) currentVideoSlide = 0;
+    
+    renderVideoSlide();
+    updateVideoCounter();
+}
+
+function updateVideoCounter() {
+    const counter = document.getElementById('slide-counter');
+    if (counter) {
+        counter.textContent = `${currentVideoSlide + 1} / ${videoSlides.length}`;
+    }
+}
+
+function toggleVideoAutoPlay() {
+    const playBtn = document.getElementById('video-play-btn');
+    
+    if (videoAutoPlay) {
+        stopVideoAutoPlay();
+        if (playBtn) playBtn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>';
+    } else {
+        videoAutoPlay = setInterval(() => {
+            navigateVideoSlide(1);
+        }, 4000);
+        if (playBtn) playBtn.innerHTML = '<span class="material-symbols-rounded">pause</span>';
+    }
+}
+
+function stopVideoAutoPlay() {
+    if (videoAutoPlay) {
+        clearInterval(videoAutoPlay);
+        videoAutoPlay = null;
+    }
+}
+
+function exportVideoAsHTML() {
+    if (videoSlides.length === 0) return;
+
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+    <title>${currentInfographicData.title} - Video Presentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #000; }
+        .slide { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; padding: 4rem; text-align: center; }
+        h2 { font-size: 3rem; margin-bottom: 2rem; }
+        p { font-size: 1.5rem; opacity: 0.9; }
+        ul { font-size: 1.3rem; text-align: left; list-style: none; }
+        li { padding: 0.5rem 0; }
+        li::before { content: "▸ "; color: rgba(255,255,255,0.7); }
+    </style>
+</head>
+<body>
+${videoSlides.map((slide, i) => `
+    <div class="slide" style="background: ${slide.type === 'title' || slide.type === 'end' ? 'linear-gradient(135deg, #1e293b, #334155)' : getSlideBackground(slide.colorTheme)}">
+        <h2>${slide.title}</h2>
+        ${slide.subtitle ? `<p>${slide.subtitle}</p>` : ''}
+        ${Array.isArray(slide.content) ? `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>` : ''}
+    </div>
+`).join('')}
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentInfographicData.title.replace(/[^a-z0-9]/gi, '_')}_presentation.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ========================================
+   MIND MAP FEATURE
+   ======================================== */
+
+let mindmapZoom = 1;
+
+function setupMindMap() {
+    const mindmapBtn = document.getElementById('mindmap-view-btn');
+    const mindmapModal = document.getElementById('mindmap-modal');
+    const closeBtn = document.getElementById('close-mindmap-modal-btn');
+    const zoomInBtn = document.getElementById('mindmap-zoom-in');
+    const zoomOutBtn = document.getElementById('mindmap-zoom-out');
+    const resetBtn = document.getElementById('mindmap-reset');
+    const exportBtn = document.getElementById('export-mindmap-btn');
+
+    if (!mindmapBtn || !mindmapModal) return;
+
+    mindmapBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        mindmapModal.classList.add('active');
+        generateMindMap();
+    });
+
+    closeBtn?.addEventListener('click', () => mindmapModal.classList.remove('active'));
+    mindmapModal.addEventListener('click', (e) => {
+        if (e.target === mindmapModal) mindmapModal.classList.remove('active');
+    });
+
+    zoomInBtn?.addEventListener('click', () => {
+        mindmapZoom = Math.min(mindmapZoom + 0.2, 2);
+        applyMindmapZoom();
+    });
+
+    zoomOutBtn?.addEventListener('click', () => {
+        mindmapZoom = Math.max(mindmapZoom - 0.2, 0.5);
+        applyMindmapZoom();
+    });
+
+    resetBtn?.addEventListener('click', () => {
+        mindmapZoom = 1;
+        applyMindmapZoom();
+    });
+
+    exportBtn?.addEventListener('click', exportMindMapAsPNG);
+}
+
+function generateMindMap() {
+    const canvas = document.getElementById('mindmap-canvas');
+    if (!canvas || !currentInfographicData) return;
+
+    const data = currentInfographicData;
+    const centerX = 450;
+    const centerY = 300;
+    const radius = 180;
+
+    let svg = `<svg class="mindmap-svg" viewBox="0 0 900 600" style="transform: scale(${mindmapZoom})">`;
+
+    // Draw connections first (behind nodes)
+    const sections = data.sections || [];
+    const angleStep = (2 * Math.PI) / Math.max(sections.length, 1);
+
+    sections.forEach((section, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+
+        // Draw line from center to branch
+        svg += `<line class="mindmap-line" x1="${centerX}" y1="${centerY}" x2="${x}" y2="${y}"/>`;
+    });
+
+    // Draw center node
+    svg += `<g class="mindmap-node">
+        <circle class="mindmap-node-center" cx="${centerX}" cy="${centerY}" r="60"/>
+        <text class="mindmap-text" x="${centerX}" y="${centerY}">${truncateText(data.title, 20)}</text>
+    </g>`;
+
+    // Draw branch nodes
+    sections.forEach((section, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+
+        const colors = {
+            blue: '#3b82f6',
+            red: '#ef4444',
+            green: '#10b981',
+            yellow: '#f59e0b',
+            purple: '#8b5cf6'
+        };
+        const color = colors[section.color_theme] || '#3b82f6';
+
+        svg += `<g class="mindmap-node">
+            <circle cx="${x}" cy="${y}" r="45" fill="${color}"/>
+            <text class="mindmap-text" x="${x}" y="${y}">${truncateText(section.title, 15)}</text>
+        </g>`;
+
+        // Draw leaf nodes for content
+        if (Array.isArray(section.content)) {
+            const leafRadius = 60;
+            const leafCount = Math.min(section.content.length, 4);
+            const leafAngleStep = Math.PI / 3 / Math.max(leafCount - 1, 1);
+            const startLeafAngle = angle - Math.PI / 6;
+
+            section.content.slice(0, 4).forEach((item, j) => {
+                const leafAngle = startLeafAngle + j * leafAngleStep;
+                const lx = x + leafRadius * Math.cos(leafAngle);
+                const ly = y + leafRadius * Math.sin(leafAngle);
+
+                svg += `<line class="mindmap-line" x1="${x}" y1="${y}" x2="${lx}" y2="${ly}" style="stroke-width: 1; opacity: 0.5"/>`;
+                svg += `<g class="mindmap-node">
+                    <rect class="mindmap-node-leaf" x="${lx - 40}" y="${ly - 12}" width="80" height="24" rx="4"/>
+                    <text class="mindmap-text mindmap-text-leaf" x="${lx}" y="${ly}">${truncateText(item, 12)}</text>
+                </g>`;
+            });
+        }
+    });
+
+    svg += '</svg>';
+    canvas.innerHTML = svg;
+}
+
+function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 2) + '...';
+}
+
+function applyMindmapZoom() {
+    const svg = document.querySelector('.mindmap-svg');
+    if (svg) {
+        svg.style.transform = `scale(${mindmapZoom})`;
+    }
+}
+
+function exportMindMapAsPNG() {
+    const canvas = document.getElementById('mindmap-canvas');
+    if (!canvas) return;
+
+    // Create a canvas element and draw the SVG
+    const svg = canvas.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentInfographicData?.title || 'mindmap'}_mindmap.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ========================================
+   REPORTS FEATURE
+   ======================================== */
+
+let currentReportFormat = 'summary';
+let currentReportContent = '';
+
+function setupReports() {
+    const reportBtn = document.getElementById('report-btn');
+    const reportsModal = document.getElementById('reports-modal');
+    const closeBtn = document.getElementById('close-reports-modal-btn');
+    const formatBtns = document.querySelectorAll('.format-btn');
+    const copyBtn = document.getElementById('copy-report-btn');
+    const downloadBtn = document.getElementById('download-report-btn');
+    const printBtn = document.getElementById('print-report-btn');
+
+    if (!reportBtn || !reportsModal) return;
+
+    reportBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        reportsModal.classList.add('active');
+        generateReport(currentReportFormat);
+    });
+
+    closeBtn?.addEventListener('click', () => reportsModal.classList.remove('active'));
+    reportsModal.addEventListener('click', (e) => {
+        if (e.target === reportsModal) reportsModal.classList.remove('active');
+    });
+
+    formatBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            formatBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentReportFormat = btn.dataset.format;
+            generateReport(currentReportFormat);
+        });
+    });
+
+    copyBtn?.addEventListener('click', () => {
+        navigator.clipboard.writeText(currentReportContent).then(() => {
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<span class="material-symbols-rounded">check</span> Copied!';
+            setTimeout(() => copyBtn.innerHTML = originalText, 2000);
+        });
+    });
+
+    downloadBtn?.addEventListener('click', () => {
+        const blob = new Blob([currentReportContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentInfographicData?.title || 'report'}_${currentReportFormat}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    printBtn?.addEventListener('click', () => {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head><title>${currentInfographicData?.title || 'Report'}</title>
+            <style>
+                body { font-family: 'Segoe UI', sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+                h1 { color: #2563eb; margin-bottom: 1rem; }
+                h2 { color: #334155; margin-top: 1.5rem; }
+                ul { margin-left: 1.5rem; }
+                li { margin-bottom: 0.5rem; }
+            </style>
+            </head>
+            <body>${document.getElementById('report-content')?.innerHTML || ''}</body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    });
+}
+
+function generateReport(format) {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    const reportContainer = document.getElementById('report-content');
+    if (!reportContainer) return;
+
+    let html = '';
+    let text = '';
+
+    switch (format) {
+        case 'summary':
+            html = `<div class="report-text">
+                <h1>${data.title}</h1>
+                <p>${data.summary}</p>
+                <h2>Key Points</h2>
+                <ul>
+                    ${(data.sections || []).map(s => `<li><strong>${s.title}</strong></li>`).join('')}
+                </ul>
+            </div>`;
+            text = `${data.title}\n\n${data.summary}\n\nKey Points:\n${(data.sections || []).map(s => `- ${s.title}`).join('\n')}`;
+            break;
+
+        case 'detailed':
+            html = `<div class="report-text">
+                <h1>${data.title}</h1>
+                <p>${data.summary}</p>
+                ${(data.sections || []).map(s => `
+                    <h2>${s.title}</h2>
+                    ${formatSectionContent(s)}
+                `).join('')}
+            </div>`;
+            text = `${data.title}\n\n${data.summary}\n\n${(data.sections || []).map(s => `${s.title}\n${formatSectionContentText(s)}`).join('\n\n')}`;
+            break;
+
+        case 'bullet':
+            html = `<div class="report-text">
+                <h1>${data.title}</h1>
+                <ul>
+                    ${(data.sections || []).map(s => `
+                        <li><strong>${s.title}</strong>
+                            ${formatSectionAsBullets(s)}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>`;
+            text = `${data.title}\n\n${(data.sections || []).map(s => `• ${s.title}\n${formatSectionAsBulletsText(s)}`).join('\n')}`;
+            break;
+
+        case 'study-guide':
+            html = `<div class="report-text">
+                <h1>📚 Study Guide: ${data.title}</h1>
+                <p><em>${data.summary}</em></p>
+                <h2>Learning Objectives</h2>
+                <p>After reviewing this material, you should be able to:</p>
+                <ul>
+                    ${(data.sections || []).map(s => `<li>Understand ${s.title}</li>`).join('')}
+                </ul>
+                <h2>Content Review</h2>
+                ${(data.sections || []).map((s, i) => `
+                    <h3>${i + 1}. ${s.title}</h3>
+                    ${formatSectionContent(s)}
+                `).join('')}
+                <h2>Self-Assessment Questions</h2>
+                <ul>
+                    ${(data.sections || []).slice(0, 5).map(s => `<li>What are the key points about ${s.title}?</li>`).join('')}
+                </ul>
+            </div>`;
+            text = `STUDY GUIDE: ${data.title}\n\n${data.summary}\n\nLEARNING OBJECTIVES:\n${(data.sections || []).map(s => `- Understand ${s.title}`).join('\n')}\n\nCONTENT:\n${(data.sections || []).map((s, i) => `${i + 1}. ${s.title}\n${formatSectionContentText(s)}`).join('\n\n')}`;
+            break;
+    }
+
+    reportContainer.innerHTML = html;
+    currentReportContent = text;
+}
+
+function formatSectionContent(section) {
+    if (Array.isArray(section.content)) {
+        return `<ul>${section.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+    } else if (typeof section.content === 'object') {
+        if (section.content.mnemonic) {
+            return `<p><strong>${section.content.mnemonic}</strong>: ${section.content.explanation}</p>`;
+        } else if (section.content.center) {
+            return `<p><strong>${section.content.center}</strong></p>
+                ${section.content.branches ? `<ul>${section.content.branches.map(b => `<li>${b}</li>`).join('')}</ul>` : ''}`;
+        } else if (section.content.data) {
+            return `<ul>${section.content.data.map(d => `<li>${d.label}: ${d.value}%</li>`).join('')}</ul>`;
+        } else if (section.content.headers && section.content.rows) {
+            return `<table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
+                <tr>${section.content.headers.map(h => `<th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;">${h}</th>`).join('')}</tr>
+                ${section.content.rows.map(row => `<tr>${row.map(cell => `<td style="border: 1px solid #ddd; padding: 8px;">${cell}</td>`).join('')}</tr>`).join('')}
+            </table>`;
+        }
+    }
+    return `<p>${section.content}</p>`;
+}
+
+function formatSectionContentText(section) {
+    if (Array.isArray(section.content)) {
+        return section.content.map(c => `  - ${c}`).join('\n');
+    } else if (typeof section.content === 'object') {
+        if (section.content.mnemonic) {
+            return `  ${section.content.mnemonic}: ${section.content.explanation}`;
+        } else if (section.content.center) {
+            return `  ${section.content.center}\n${section.content.branches ? section.content.branches.map(b => `    - ${b}`).join('\n') : ''}`;
+        } else if (section.content.data) {
+            return section.content.data.map(d => `  - ${d.label}: ${d.value}%`).join('\n');
+        }
+    }
+    return `  ${section.content}`;
+}
+
+function formatSectionAsBullets(section) {
+    if (Array.isArray(section.content)) {
+        return `<ul>${section.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+    }
+    return '';
+}
+
+function formatSectionAsBulletsText(section) {
+    if (Array.isArray(section.content)) {
+        return section.content.map(c => `  ◦ ${c}`).join('\n');
+    }
+    return '';
+}
+
+/* ========================================
+   FLASHCARDS FEATURE
+   ======================================== */
+
+let flashcards = [];
+let currentFlashcardIndex = 0;
+
+function setupFlashcards() {
+    const flashcardsBtn = document.getElementById('flashcards-btn');
+    const flashcardsModal = document.getElementById('flashcards-modal');
+    const closeBtn = document.getElementById('close-flashcards-modal-btn');
+    const generateBtn = document.getElementById('generate-flashcards-btn');
+    const prevBtn = document.getElementById('prev-card-btn');
+    const nextBtn = document.getElementById('next-card-btn');
+    const shuffleBtn = document.getElementById('shuffle-cards-btn');
+    const flashcard = document.getElementById('current-flashcard');
+
+    if (!flashcardsBtn || !flashcardsModal) return;
+
+    flashcardsBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        flashcardsModal.classList.add('active');
+    });
+
+    closeBtn?.addEventListener('click', () => flashcardsModal.classList.remove('active'));
+    flashcardsModal.addEventListener('click', (e) => {
+        if (e.target === flashcardsModal) flashcardsModal.classList.remove('active');
+    });
+
+    generateBtn?.addEventListener('click', generateFlashcards);
+    prevBtn?.addEventListener('click', () => navigateFlashcard(-1));
+    nextBtn?.addEventListener('click', () => navigateFlashcard(1));
+    shuffleBtn?.addEventListener('click', shuffleFlashcards);
+
+    flashcard?.addEventListener('click', () => {
+        flashcard.classList.toggle('flipped');
+    });
+}
+
+function generateFlashcards() {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    flashcards = [];
+
+    // Create flashcards from sections
+    if (data.sections) {
+        data.sections.forEach(section => {
+            // Main section question
+            flashcards.push({
+                question: `What are the key points about ${section.title}?`,
+                answer: formatFlashcardAnswer(section)
+            });
+
+            // Additional cards for specific content
+            if (Array.isArray(section.content) && section.content.length > 3) {
+                section.content.forEach((item, i) => {
+                    if (i < 5) { // Limit per section
+                        flashcards.push({
+                            question: `In ${section.title}: Explain "${truncateText(item, 50)}"`,
+                            answer: item
+                        });
+                    }
+                });
+            }
+
+            if (section.content?.mnemonic) {
+                flashcards.push({
+                    question: `What does the mnemonic "${section.content.mnemonic}" stand for?`,
+                    answer: section.content.explanation
+                });
+            }
+        });
+    }
+
+    // Summary card
+    flashcards.push({
+        question: `Summarize: ${data.title}`,
+        answer: data.summary
+    });
+
+    currentFlashcardIndex = 0;
+    renderFlashcard();
+    updateFlashcardCounter();
+}
+
+function formatFlashcardAnswer(section) {
+    if (Array.isArray(section.content)) {
+        return section.content.slice(0, 5).join('\n• ');
+    } else if (typeof section.content === 'object') {
+        if (section.content.mnemonic) {
+            return `${section.content.mnemonic}: ${section.content.explanation}`;
+        } else if (section.content.center) {
+            return `${section.content.center}: ${(section.content.branches || []).join(', ')}`;
+        }
+    }
+    return String(section.content || '');
+}
+
+function renderFlashcard() {
+    if (flashcards.length === 0) return;
+
+    const card = flashcards[currentFlashcardIndex];
+    const questionEl = document.getElementById('flashcard-question');
+    const answerEl = document.getElementById('flashcard-answer');
+    const flashcard = document.getElementById('current-flashcard');
+
+    if (questionEl) questionEl.textContent = card.question;
+    if (answerEl) answerEl.textContent = card.answer;
+    if (flashcard) flashcard.classList.remove('flipped');
+}
+
+function navigateFlashcard(direction) {
+    if (flashcards.length === 0) return;
+
+    currentFlashcardIndex += direction;
+    if (currentFlashcardIndex < 0) currentFlashcardIndex = flashcards.length - 1;
+    if (currentFlashcardIndex >= flashcards.length) currentFlashcardIndex = 0;
+
+    renderFlashcard();
+    updateFlashcardCounter();
+}
+
+function updateFlashcardCounter() {
+    const counter = document.getElementById('flashcard-counter');
+    if (counter) {
+        counter.textContent = flashcards.length > 0 
+            ? `${currentFlashcardIndex + 1} / ${flashcards.length}`
+            : '0 / 0';
+    }
+}
+
+function shuffleFlashcards() {
+    for (let i = flashcards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [flashcards[i], flashcards[j]] = [flashcards[j], flashcards[i]];
+    }
+    currentFlashcardIndex = 0;
+    renderFlashcard();
+    updateFlashcardCounter();
+}
+
+/* ========================================
+   QUIZ FEATURE
+   ======================================== */
+
+let quizQuestions = [];
+let currentQuestionIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+
+function setupQuiz() {
+    const quizBtn = document.getElementById('quiz-btn');
+    const quizModal = document.getElementById('quiz-modal');
+    const closeBtn = document.getElementById('close-quiz-modal-btn');
+    const startBtn = document.getElementById('start-quiz-btn');
+    const nextBtn = document.getElementById('next-question-btn');
+    const retakeBtn = document.getElementById('retake-quiz-btn');
+
+    if (!quizBtn || !quizModal) return;
+
+    quizBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        quizModal.classList.add('active');
+        resetQuiz();
+    });
+
+    closeBtn?.addEventListener('click', () => quizModal.classList.remove('active'));
+    quizModal.addEventListener('click', (e) => {
+        if (e.target === quizModal) quizModal.classList.remove('active');
+    });
+
+    startBtn?.addEventListener('click', startQuiz);
+    nextBtn?.addEventListener('click', nextQuestion);
+    retakeBtn?.addEventListener('click', startQuiz);
+}
+
+function generateQuizQuestions() {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    quizQuestions = [];
+
+    if (data.sections) {
+        data.sections.forEach(section => {
+            if (Array.isArray(section.content) && section.content.length >= 2) {
+                // Multiple choice from content
+                const correctAnswer = section.content[0];
+                const wrongAnswers = getRandomWrongAnswers(data.sections, section, correctAnswer);
+                
+                quizQuestions.push({
+                    question: `Which of the following is true about ${section.title}?`,
+                    options: shuffleArray([correctAnswer, ...wrongAnswers]),
+                    correctAnswer: correctAnswer
+                });
+            }
+
+            if (section.content?.mnemonic) {
+                quizQuestions.push({
+                    question: `What does the mnemonic "${section.content.mnemonic}" help remember?`,
+                    options: shuffleArray([
+                        section.content.explanation,
+                        `A ${section.title} classification system`,
+                        `Diagnostic criteria`,
+                        `Treatment protocols`
+                    ]),
+                    correctAnswer: section.content.explanation
+                });
+            }
+        });
+
+        // Add general knowledge questions
+        quizQuestions.push({
+            question: `What is the main topic of this infographic?`,
+            options: shuffleArray([
+                data.title,
+                'General Ophthalmology',
+                'Clinical Examination',
+                'Surgical Techniques'
+            ]),
+            correctAnswer: data.title
+        });
+    }
+
+    // Limit to 10 questions max
+    quizQuestions = quizQuestions.slice(0, 10);
+}
+
+function getRandomWrongAnswers(sections, currentSection, correctAnswer) {
+    const wrongAnswers = [];
+    
+    sections.forEach(s => {
+        if (s !== currentSection && Array.isArray(s.content)) {
+            s.content.forEach(item => {
+                if (item !== correctAnswer && wrongAnswers.length < 3) {
+                    wrongAnswers.push(item);
+                }
+            });
+        }
+    });
+
+    while (wrongAnswers.length < 3) {
+        wrongAnswers.push(`Option ${wrongAnswers.length + 1}`);
+    }
+
+    return wrongAnswers.slice(0, 3);
+}
+
+function shuffleArray(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function resetQuiz() {
+    currentQuestionIndex = 0;
+    quizScore = 0;
+    quizAnswered = false;
+    
+    document.getElementById('quiz-container').style.display = 'block';
+    document.getElementById('quiz-results').style.display = 'none';
+    document.getElementById('start-quiz-btn').style.display = 'flex';
+    document.getElementById('next-question-btn').style.display = 'none';
+    document.getElementById('quiz-feedback').style.display = 'none';
+    document.getElementById('quiz-question').textContent = 'Click "Start Quiz" to begin';
+    document.getElementById('quiz-options').innerHTML = '';
+    document.getElementById('quiz-progress-bar').style.width = '0%';
+    updateQuizScore();
+}
+
+function startQuiz() {
+    generateQuizQuestions();
+    currentQuestionIndex = 0;
+    quizScore = 0;
+    quizAnswered = false;
+    
+    document.getElementById('quiz-results').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'block';
+    document.getElementById('start-quiz-btn').style.display = 'none';
+    
+    renderQuizQuestion();
+    updateQuizScore();
+}
+
+function renderQuizQuestion() {
+    if (quizQuestions.length === 0) return;
+
+    const question = quizQuestions[currentQuestionIndex];
+    const questionEl = document.getElementById('quiz-question');
+    const optionsEl = document.getElementById('quiz-options');
+    const progressBar = document.getElementById('quiz-progress-bar');
+    const feedback = document.getElementById('quiz-feedback');
+
+    questionEl.textContent = question.question;
+    feedback.style.display = 'none';
+    quizAnswered = false;
+
+    const progress = ((currentQuestionIndex) / quizQuestions.length) * 100;
+    progressBar.style.width = `${progress}%`;
+
+    optionsEl.innerHTML = question.options.map((opt, i) => `
+        <div class="quiz-option" data-answer="${opt}">
+            <span class="quiz-option-letter">${String.fromCharCode(65 + i)}</span>
+            <span>${truncateText(opt, 100)}</span>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    optionsEl.querySelectorAll('.quiz-option').forEach(option => {
+        option.addEventListener('click', () => selectQuizAnswer(option, question.correctAnswer));
+    });
+}
+
+function selectQuizAnswer(optionEl, correctAnswer) {
+    if (quizAnswered) return;
+    quizAnswered = true;
+
+    const selectedAnswer = optionEl.dataset.answer;
+    const isCorrect = selectedAnswer === correctAnswer;
+    const feedback = document.getElementById('quiz-feedback');
+    const feedbackIcon = document.getElementById('feedback-icon');
+    const feedbackText = document.getElementById('feedback-text');
+    const nextBtn = document.getElementById('next-question-btn');
+
+    // Mark selected option
+    optionEl.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+    // Show correct answer if wrong
+    if (!isCorrect) {
+        document.querySelectorAll('.quiz-option').forEach(opt => {
+            if (opt.dataset.answer === correctAnswer) {
+                opt.classList.add('correct');
+            }
+        });
+    } else {
+        quizScore++;
+    }
+
+    // Show feedback
+    feedback.style.display = 'flex';
+    feedback.className = `quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+    feedbackIcon.textContent = isCorrect ? 'check_circle' : 'cancel';
+    feedbackText.textContent = isCorrect ? 'Correct!' : `Incorrect. The correct answer was: "${truncateText(correctAnswer, 50)}"`;
+
+    nextBtn.style.display = 'flex';
+    updateQuizScore();
+}
+
+function nextQuestion() {
+    currentQuestionIndex++;
+    document.getElementById('next-question-btn').style.display = 'none';
+
+    if (currentQuestionIndex >= quizQuestions.length) {
+        showQuizResults();
+    } else {
+        renderQuizQuestion();
+    }
+}
+
+function showQuizResults() {
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('quiz-results').style.display = 'flex';
+
+    const percentage = Math.round((quizScore / quizQuestions.length) * 100);
+    document.getElementById('results-percentage').textContent = `${percentage}%`;
+
+    let message = '';
+    if (percentage >= 90) message = '🌟 Excellent! You\'ve mastered this topic!';
+    else if (percentage >= 70) message = '👍 Great job! Keep studying to perfect your knowledge.';
+    else if (percentage >= 50) message = '📚 Good effort! Review the material and try again.';
+    else message = '💪 Keep practicing! Review the infographic and retake the quiz.';
+
+    document.getElementById('results-message').textContent = message;
+}
+
+function updateQuizScore() {
+    const scoreEl = document.getElementById('quiz-score');
+    if (scoreEl) {
+        scoreEl.textContent = `Score: ${quizScore}/${quizQuestions.length || 0}`;
+    }
+}
+
+/* ========================================
+   SLIDE DECK FEATURE
+   ======================================== */
+
+let slides = [];
+let currentSlideIndex = 0;
+
+function setupSlideDeck() {
+    const slideBtn = document.getElementById('slidedeck-btn');
+    const slideModal = document.getElementById('slidedeck-modal');
+    const closeBtn = document.getElementById('close-slidedeck-modal-btn');
+    const generateBtn = document.getElementById('generate-slides-btn');
+    const prevBtn = document.getElementById('slide-prev-btn');
+    const nextBtn = document.getElementById('slide-next-btn');
+    const presentBtn = document.getElementById('present-slides-btn');
+    const exportBtn = document.getElementById('export-slides-btn');
+
+    if (!slideBtn || !slideModal) return;
+
+    slideBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first.');
+            return;
+        }
+        slideModal.classList.add('active');
+    });
+
+    closeBtn?.addEventListener('click', () => slideModal.classList.remove('active'));
+    slideModal.addEventListener('click', (e) => {
+        if (e.target === slideModal) slideModal.classList.remove('active');
+    });
+
+    generateBtn?.addEventListener('click', generateSlides);
+    prevBtn?.addEventListener('click', () => navigateSlide(-1));
+    nextBtn?.addEventListener('click', () => navigateSlide(1));
+    presentBtn?.addEventListener('click', enterPresentationMode);
+    exportBtn?.addEventListener('click', exportSlidesAsHTML);
+}
+
+function generateSlides() {
+    if (!currentInfographicData) return;
+
+    const data = currentInfographicData;
+    slides = [];
+
+    // Title slide
+    slides.push({
+        type: 'title',
+        title: data.title,
+        subtitle: data.summary
+    });
+
+    // Content slides from sections
+    if (data.sections) {
+        data.sections.forEach(section => {
+            slides.push({
+                type: 'section',
+                title: section.title
+            });
+
+            slides.push({
+                type: 'content',
+                title: section.title,
+                content: section.content,
+                contentType: section.type
+            });
+        });
+    }
+
+    // Thank you slide
+    slides.push({
+        type: 'end',
+        title: 'Thank You',
+        subtitle: 'Questions?'
+    });
+
+    currentSlideIndex = 0;
+    renderSlide();
+    renderThumbnails();
+    updateSlideIndicator();
+
+    const presentBtn = document.getElementById('present-slides-btn');
+    const exportBtn = document.getElementById('export-slides-btn');
+    if (presentBtn) presentBtn.style.display = 'flex';
+    if (exportBtn) exportBtn.style.display = 'flex';
+}
+
+function renderSlide() {
+    if (slides.length === 0) return;
+
+    const slideContent = document.getElementById('slide-content');
+    const slide = slides[currentSlideIndex];
+
+    slideContent.className = 'slide-content';
+
+    if (slide.type === 'title') {
+        slideContent.classList.add('title-slide');
+        slideContent.innerHTML = `
+            <h1>${slide.title}</h1>
+            <p>${slide.subtitle || ''}</p>
+        `;
+    } else if (slide.type === 'section') {
+        slideContent.classList.add('section-slide');
+        slideContent.innerHTML = `<h2>${slide.title}</h2>`;
+    } else if (slide.type === 'end') {
+        slideContent.classList.add('title-slide');
+        slideContent.innerHTML = `
+            <h1>${slide.title}</h1>
+            <p>${slide.subtitle || ''}</p>
+        `;
+    } else {
+        slideContent.classList.add('content-slide');
+        let contentHtml = '';
+
+        if (Array.isArray(slide.content)) {
+            contentHtml = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+        } else if (typeof slide.content === 'object') {
+            if (slide.content.mnemonic) {
+                contentHtml = `<p><strong style="font-size: 2rem; color: #8b5cf6;">${slide.content.mnemonic}</strong></p>
+                    <p>${slide.content.explanation}</p>`;
+            } else if (slide.content.center) {
+                contentHtml = `<p><strong>${slide.content.center}</strong></p>`;
+                if (slide.content.branches) {
+                    contentHtml += `<ul>${slide.content.branches.map(b => `<li>${b}</li>`).join('')}</ul>`;
+                }
+            } else if (slide.content.data) {
+                contentHtml = `<ul>${slide.content.data.map(d => `<li>${d.label}: ${d.value}%</li>`).join('')}</ul>`;
+            }
+        } else {
+            contentHtml = `<p>${slide.content}</p>`;
+        }
+
+        slideContent.innerHTML = `
+            <h3>${slide.title}</h3>
+            ${contentHtml}
+        `;
+    }
+
+    // Update thumbnail active state
+    document.querySelectorAll('.slide-thumbnail').forEach((thumb, i) => {
+        thumb.classList.toggle('active', i === currentSlideIndex);
+    });
+}
+
+function renderThumbnails() {
+    const container = document.getElementById('slide-thumbnails');
+    if (!container) return;
+
+    container.innerHTML = slides.map((slide, i) => `
+        <div class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}">
+            ${slide.type === 'title' ? '📌 Title' : slide.type === 'section' ? '📂 Section' : slide.type === 'end' ? '🎉 End' : truncateText(slide.title, 15)}
+        </div>
+    `).join('');
+
+    container.querySelectorAll('.slide-thumbnail').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+            currentSlideIndex = parseInt(thumb.dataset.index);
+            renderSlide();
+            updateSlideIndicator();
+        });
+    });
+}
+
+function navigateSlide(direction) {
+    if (slides.length === 0) return;
+
+    currentSlideIndex += direction;
+    if (currentSlideIndex < 0) currentSlideIndex = slides.length - 1;
+    if (currentSlideIndex >= slides.length) currentSlideIndex = 0;
+
+    renderSlide();
+    updateSlideIndicator();
+}
+
+function updateSlideIndicator() {
+    const indicator = document.getElementById('slide-indicator');
+    if (indicator) {
+        indicator.textContent = slides.length > 0 
+            ? `Slide ${currentSlideIndex + 1} of ${slides.length}`
+            : 'Slide 0 of 0';
+    }
+}
+
+function enterPresentationMode() {
+    if (slides.length === 0) return;
+
+    const presentationDiv = document.createElement('div');
+    presentationDiv.className = 'presentation-mode';
+    presentationDiv.id = 'presentation-mode';
+
+    presentationDiv.innerHTML = `
+        <div class="slide-frame">
+            <div class="slide-content" id="presentation-slide-content"></div>
+        </div>
+        <div class="presentation-controls">
+            <button id="pres-prev"><span class="material-symbols-rounded">chevron_left</span></button>
+            <button id="pres-exit"><span class="material-symbols-rounded">close</span></button>
+            <button id="pres-next"><span class="material-symbols-rounded">chevron_right</span></button>
+        </div>
+    `;
+
+    document.body.appendChild(presentationDiv);
+    renderPresentationSlide();
+
+    document.getElementById('pres-prev').addEventListener('click', () => {
+        navigateSlide(-1);
+        renderPresentationSlide();
+    });
+    document.getElementById('pres-next').addEventListener('click', () => {
+        navigateSlide(1);
+        renderPresentationSlide();
+    });
+    document.getElementById('pres-exit').addEventListener('click', exitPresentationMode);
+
+    // Keyboard navigation
+    document.addEventListener('keydown', handlePresentationKeydown);
+}
+
+function renderPresentationSlide() {
+    const content = document.getElementById('presentation-slide-content');
+    if (!content) return;
+
+    const slide = slides[currentSlideIndex];
+    content.className = 'slide-content';
+
+    if (slide.type === 'title' || slide.type === 'end') {
+        content.classList.add('title-slide');
+        content.innerHTML = `
+            <h1>${slide.title}</h1>
+            <p>${slide.subtitle || ''}</p>
+        `;
+    } else if (slide.type === 'section') {
+        content.classList.add('section-slide');
+        content.innerHTML = `<h2>${slide.title}</h2>`;
+    } else {
+        content.classList.add('content-slide');
+        let contentHtml = '';
+
+        if (Array.isArray(slide.content)) {
+            contentHtml = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+        } else if (typeof slide.content === 'object') {
+            if (slide.content.mnemonic) {
+                contentHtml = `<p><strong style="font-size: 3rem; color: #8b5cf6;">${slide.content.mnemonic}</strong></p>
+                    <p>${slide.content.explanation}</p>`;
+            } else if (slide.content.center) {
+                contentHtml = `<p><strong>${slide.content.center}</strong></p>
+                    ${slide.content.branches ? `<ul>${slide.content.branches.map(b => `<li>${b}</li>`).join('')}</ul>` : ''}`;
+            }
+        } else {
+            contentHtml = `<p>${slide.content}</p>`;
+        }
+
+        content.innerHTML = `
+            <h3>${slide.title}</h3>
+            ${contentHtml}
+        `;
+    }
+}
+
+function handlePresentationKeydown(e) {
+    if (!document.getElementById('presentation-mode')) return;
+
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+        navigateSlide(1);
+        renderPresentationSlide();
+    } else if (e.key === 'ArrowLeft') {
+        navigateSlide(-1);
+        renderPresentationSlide();
+    } else if (e.key === 'Escape') {
+        exitPresentationMode();
+    }
+}
+
+function exitPresentationMode() {
+    const presentation = document.getElementById('presentation-mode');
+    if (presentation) {
+        presentation.remove();
+    }
+    document.removeEventListener('keydown', handlePresentationKeydown);
+}
+
+function exportSlidesAsHTML() {
+    if (slides.length === 0) return;
+
+    let html = `<!DOCTYPE html>
+<html>
+<head>
+    <title>${currentInfographicData.title} - Presentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; }
+        .slide { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; }
+        .title-slide { background: linear-gradient(135deg, #1e293b, #334155); color: white; text-align: center; }
+        .section-slide { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; text-align: center; }
+        .content-slide { background: white; color: #1f2937; align-items: flex-start; }
+        h1 { font-size: 3.5rem; margin-bottom: 1rem; }
+        h2 { font-size: 3rem; }
+        h3 { font-size: 2rem; color: #3b82f6; margin-bottom: 2rem; width: 100%; }
+        p { font-size: 1.5rem; opacity: 0.9; }
+        ul { font-size: 1.3rem; line-height: 2; list-style: none; }
+        li::before { content: "▸ "; color: #3b82f6; }
+        @media print { .slide { page-break-after: always; } }
+    </style>
+</head>
+<body>
+${slides.map(slide => {
+    if (slide.type === 'title' || slide.type === 'end') {
+        return `<div class="slide title-slide">
+            <h1>${slide.title}</h1>
+            <p>${slide.subtitle || ''}</p>
+        </div>`;
+    } else if (slide.type === 'section') {
+        return `<div class="slide section-slide">
+            <h2>${slide.title}</h2>
+        </div>`;
+    } else {
+        let content = '';
+        if (Array.isArray(slide.content)) {
+            content = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+        } else if (typeof slide.content === 'string') {
+            content = `<p>${slide.content}</p>`;
+        }
+        return `<div class="slide content-slide">
+            <h3>${slide.title}</h3>
+            ${content}
+        </div>`;
+    }
+}).join('\n')}
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentInfographicData.title.replace(/[^a-z0-9]/gi, '_')}_slides.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ========================================
+   INITIALIZE ALL STUDIO TOOLS
+   ======================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize all studio tools
+    setupAudioOverview();
+    setupVideoOverview();
+    setupMindMap();
+    setupReports();
+    setupFlashcards();
+    setupQuiz();
+    setupSlideDeck();
+
+    // Initially disable tools
+    disableStudioTools();
+});
