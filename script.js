@@ -525,16 +525,33 @@ const CHAPTERS_KEY = 'ophthalmic_infographic_chapters';
 // Default ophthalmic chapters
 const DEFAULT_CHAPTERS = [
     { id: 'uncategorized', name: 'Uncategorized', color: '#64748b' },
-    { id: 'cornea', name: 'Cornea & External Disease', color: '#3b82f6' },
-    { id: 'glaucoma', name: 'Glaucoma', color: '#10b981' },
-    { id: 'retina', name: 'Retina & Vitreous', color: '#f59e0b' },
-    { id: 'cataract', name: 'Cataract & Lens', color: '#8b5cf6' },
-    { id: 'oculoplastics', name: 'Oculoplastics & Orbit', color: '#ec4899' },
-    { id: 'neuro', name: 'Neuro-Ophthalmology', color: '#06b6d4' },
-    { id: 'pediatric', name: 'Pediatric Ophthalmology', color: '#f43f5e' },
-    { id: 'uveitis', name: 'Uveitis', color: '#84cc16' },
-    { id: 'refractive', name: 'Refractive Surgery', color: '#a855f7' },
-    { id: 'strabismus', name: 'Strabismus', color: '#f97316' }
+    { id: 'clinical_skills', name: 'Clinical Skills', color: '#3b82f6' },
+    { id: 'investigations', name: 'Investigations & Interpretation', color: '#10b981' },
+    { id: 'trauma', name: 'Ocular Trauma', color: '#ef4444' },
+    { id: 'lids', name: 'Lids', color: '#f59e0b' },
+    { id: 'lacrimal', name: 'Lacrimal', color: '#6366f1' },
+    { id: 'conjunctiva', name: 'Conjunctiva', color: '#8b5cf6' },
+    { id: 'cornea', name: 'Cornea', color: '#ec4899' },
+    { id: 'sclera', name: 'Sclera', color: '#06b6d4' },
+    { id: 'lens', name: 'Lens', color: '#14b8a6' },
+    { id: 'glaucoma', name: 'Glaucoma', color: '#22c55e' },
+    { id: 'uveitis', name: 'Uveitis', color: '#eab308' },
+    { id: 'vitreoretinal', name: 'Vitreoretinal', color: '#f97316' },
+    { id: 'medical_retina', name: 'Medical Retina', color: '#f43f5e' },
+    { id: 'orbit', name: 'Orbit', color: '#a855f7' },
+    { id: 'tumours', name: 'Intraocular Tumours', color: '#d946ef' },
+    { id: 'neuro', name: 'Neuro-ophthalmology', color: '#0ea5e9' },
+    { id: 'strabismus', name: 'Strabismus', color: '#84cc16' },
+    { id: 'paediatric', name: 'Paediatric Ophthalmology', color: '#fbbf24' },
+    { id: 'refractive', name: 'Refractive Ophthalmology', color: '#f472b6' },
+    { id: 'aids', name: 'Aids to Diagnosis', color: '#fb7185' },
+    { id: 'vision_context', name: 'Vision in Context', color: '#38bdf8' },
+    { id: 'surgery_care', name: 'Surgery: Anaesthetics & Care', color: '#4ade80' },
+    { id: 'theatre', name: 'Surgery: Theatre Notes', color: '#2dd4bf' },
+    { id: 'lasers', name: 'Lasers', color: '#f87171' },
+    { id: 'therapeutics', name: 'Therapeutics', color: '#c084fc' },
+    { id: 'evidence', name: 'Evidence-based Ophthalmology', color: '#94a3b8' },
+    { id: 'resources', name: 'Resources', color: '#64748b' }
 ];
 
 /* Safe Fetch Wrapper to handle file:// protocol */
@@ -719,19 +736,54 @@ function setupKnowledgeBase() {
             const response = await safeFetch('api/library/list');
             if (response.ok) {
                 const serverItems = await response.json();
-                const localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                 let addedCount = 0;
+                let updatedCount = 0;
+
+                // Create a map of local items for faster lookup
+                const localMap = new Map();
+                localLibrary.forEach(item => {
+                    // Use ID if available, otherwise fallback to title+date as key (legacy support)
+                    const key = item.id || (item.title + item.date);
+                    localMap.set(String(key), item);
+                });
 
                 serverItems.forEach(serverItem => {
-                    // Compare by TITLE (case-insensitive) instead of ID to prevent duplicates
-                    const exists = localLibrary.some(localItem =>
-                        localItem.title && serverItem.title &&
-                        localItem.title.toLowerCase().trim() === serverItem.title.toLowerCase().trim()
-                    );
-                    if (!exists) {
-                        // CRITICAL FIX: Strip the server's seqId so we assign a new LOCAL one
+                    const serverKey = String(serverItem.id || (serverItem.title + serverItem.date));
+
+                    if (localMap.has(serverKey)) {
+                        // Item exists locally. Check if we need to update.
+                        // We assume Server is the "Truth" for synchronization when fetching.
+                        // Ideally we would compare timestamps, but for now we update local to match server matches
+                        // to ensure chapter changes propagate.
+                        const localItem = localMap.get(serverKey);
+
+                        // Check for differences that matter (Chapter, Title, Data)
+                        if (localItem.chapterId !== serverItem.chapterId ||
+                            localItem.title !== serverItem.title ||
+                            localItem.summary !== serverItem.summary) {
+
+                            // Update local properties
+                            localItem.chapterId = serverItem.chapterId;
+                            localItem.title = serverItem.title;
+                            localItem.summary = serverItem.summary;
+                            localItem.data = serverItem.data; // Sync content too
+                            // Preserve local seqId if it exists, otherwise use server's or generate new
+                            if (!localItem.seqId && serverItem.seqId) localItem.seqId = serverItem.seqId;
+
+                            updatedCount++;
+                        }
+                    } else {
+                        // New Item from Server
+                        // CRITICAL: Strip the server's seqId so we assign a new LOCAL one
                         // This ensures hashtags are ordered strictly by the local server's sequence
                         const newItem = { ...serverItem };
+                        // We might want to keep seqId if we want global consistency, 
+                        // but the user requirement "sync chapterisation ... sequential hashtag numbers based on local library"
+                        // suggests we might want to keep local numbering. 
+                        // However, if we sync, we want the same numbers?
+                        // User said: "imported infographics are assigned sequential hashtag numbers based on the local library's order, rather than inheriting server-side numbering."
+                        // So we DELETE seqId.
                         delete newItem.seqId;
 
                         localLibrary.push(newItem);
@@ -739,25 +791,36 @@ function setupKnowledgeBase() {
                     }
                 });
 
-                if (addedCount > 0 || assignSequentialIds(localLibrary)) {
-                    // Sort by date desc for display (but IDs remain fixed)
+                if (addedCount > 0 || updatedCount > 0 || assignSequentialIds(localLibrary)) {
+                    // Sort by date desc
                     localLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
                     localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
                     renderLibraryList();
-                    if (!silent && addedCount > 0) alert(`Successfully imported ${addedCount} new items.`);
-                    console.log(`Auto-Sync: Imported ${addedCount} new items from server.`);
+                    if (!silent) {
+                        const msg = [];
+                        if (addedCount) msg.push(`${addedCount} new`);
+                        if (updatedCount) msg.push(`${updatedCount} updated`);
+                        alert(`Sync Complete: ${msg.join(', ')} items.`);
+                    }
+                    console.log(`Auto-Sync: Imported ${addedCount}, Updated ${updatedCount}.`);
                 } else {
-                    if (!silent) alert('Library is already up to date.');
+                    if (!silent) alert('Library is up to date.');
                     console.log("Auto-Sync: Library up to date.");
                 }
 
                 // BIDIRECTIONAL SYNC: Upload local-only items to server
+                // Also upload items that are newer locally? 
+                // For now, let's just upload items that don't exist on server.
+                // Re-read server items to be sure (or just use the list we got)
+                const serverIdMap = new Set(serverItems.map(i => String(i.id || (i.title + i.date))));
+
                 const localOnlyItems = localLibrary.filter(localItem =>
-                    !serverItems.some(serverItem =>
-                        serverItem.title && localItem.title &&
-                        serverItem.title.toLowerCase().trim() === localItem.title.toLowerCase().trim()
-                    )
+                    !serverIdMap.has(String(localItem.id || (localItem.title + localItem.date)))
                 );
+
+                // Also identify items that exist but might be newer locally? 
+                // That requires "Last Modified" timestamp which we don't have reliably yet.
+                // So we only push NEW items. Updates MUST be triggered manually by "Save" or "Rename" pushing.
 
                 if (localOnlyItems.length > 0) {
                     try {
@@ -1092,8 +1155,8 @@ function setupKnowledgeBase() {
                     });
                     localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
 
-                    // Auto-sync disabled
-                    // syncLibraryToServer();
+                    // Auto-sync enabled
+                    syncLibraryToServer();
 
                     selectionMode = false;
                     selectedItems.clear();
