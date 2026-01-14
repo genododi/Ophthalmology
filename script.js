@@ -1799,6 +1799,237 @@ function disableStudioTools() {
 }
 
 /* ========================================
+   AI-POWERED STUDIO TOOLS HELPER
+   Uses Gemini 2.0 Flash for enhanced content generation
+   ======================================== */
+
+async function callGeminiForStudioTool(prompt, fallbackFn = null) {
+    const apiKey = document.getElementById('api-key')?.value?.trim();
+    
+    if (!apiKey) {
+        console.log('No API key provided, using fallback method');
+        return fallbackFn ? fallbackFn() : null;
+    }
+    
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        
+        // Try Gemini 2.0 Flash first, then fallbacks
+        const modelsToTry = [
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-latest"
+        ];
+        
+        let lastError = null;
+        
+        for (const modelName of modelsToTry) {
+            try {
+                console.log(`Studio Tool: Trying model ${modelName}`);
+                const model = genAI.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(prompt);
+                const response = await result.response;
+                return response.text();
+            } catch (err) {
+                console.log(`Model ${modelName} failed:`, err.message);
+                lastError = err;
+            }
+        }
+        
+        throw lastError || new Error('All models failed');
+    } catch (error) {
+        console.error('Gemini API call failed:', error);
+        return fallbackFn ? fallbackFn() : null;
+    }
+}
+
+// AI-Enhanced Transcript Generation
+async function generateAITranscript() {
+    if (!currentInfographicData) return null;
+    
+    const voiceStyle = document.getElementById('voice-select')?.value || 'default';
+    const styleGuide = {
+        'default': 'professional and educational',
+        'friendly': 'warm, conversational, and engaging like talking to a colleague',
+        'formal': 'academic and authoritative like a medical lecture'
+    };
+    
+    const prompt = `You are creating an audio narration script for a medical education podcast.
+
+Topic: ${currentInfographicData.title}
+
+Content to cover:
+${JSON.stringify(currentInfographicData.sections?.map(s => ({ title: s.title, content: s.content })) || [], null, 2)}
+
+Summary: ${currentInfographicData.summary || ''}
+
+Create a ${styleGuide[voiceStyle]} narration script that:
+1. Opens with an engaging introduction
+2. Covers ALL key points from the content
+3. Uses clear transitions between topics
+4. Includes brief clinical pearls or memorable takeaways
+5. Ends with a concise summary
+
+Write the script as flowing paragraphs (not bullet points) suitable for text-to-speech. 
+Keep it under 800 words for a 5-minute audio overview.
+Do not include any stage directions or speaker labels - just the narration text.`;
+
+    return await callGeminiForStudioTool(prompt);
+}
+
+// AI-Enhanced Flashcard Generation
+async function generateAIFlashcards() {
+    if (!currentInfographicData) return null;
+    
+    const prompt = `You are creating medical education flashcards for ophthalmology students.
+
+Topic: ${currentInfographicData.title}
+
+Content:
+${JSON.stringify(currentInfographicData.sections?.map(s => ({ title: s.title, content: s.content })) || [], null, 2)}
+
+Create 10-15 high-quality flashcards in this exact JSON format:
+[
+    {
+        "question": "Clear, specific question testing understanding",
+        "answer": "Concise but complete answer"
+    }
+]
+
+Guidelines:
+1. Mix question types: definitions, comparisons, clinical scenarios, mechanisms
+2. Include questions about key facts, differential diagnosis, and management
+3. Make answers memorable and clinically relevant
+4. Include mnemonics where helpful
+5. Test both recall and application of knowledge
+
+Return ONLY valid JSON array, no other text.`;
+
+    const result = await callGeminiForStudioTool(prompt);
+    if (result) {
+        try {
+            // Extract JSON from response
+            const jsonMatch = result.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+        } catch (e) {
+            console.error('Failed to parse AI flashcards:', e);
+        }
+    }
+    return null;
+}
+
+// AI-Enhanced Quiz Generation
+async function generateAIQuiz() {
+    if (!currentInfographicData) return null;
+    
+    const prompt = `You are creating a medical knowledge quiz for ophthalmology education.
+
+Topic: ${currentInfographicData.title}
+
+Content:
+${JSON.stringify(currentInfographicData.sections?.map(s => ({ title: s.title, content: s.content })) || [], null, 2)}
+
+Create 8-10 multiple choice questions in this exact JSON format:
+[
+    {
+        "question": "Question text here?",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctAnswer": "The exact text of the correct option",
+        "explanation": "Brief explanation of why this answer is correct"
+    }
+]
+
+Guidelines:
+1. Questions should test understanding, not just memorization
+2. All 4 options should be plausible to someone who didn't study
+3. Avoid "all of the above" or "none of the above"
+4. Include clinical scenario questions where appropriate
+5. Vary difficulty from basic recall to clinical application
+6. Explanations should be educational and reinforce learning
+
+Return ONLY valid JSON array, no other text.`;
+
+    const result = await callGeminiForStudioTool(prompt);
+    if (result) {
+        try {
+            const jsonMatch = result.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+        } catch (e) {
+            console.error('Failed to parse AI quiz:', e);
+        }
+    }
+    return null;
+}
+
+// Simple Markdown to HTML converter
+function convertMarkdownToHTML(markdown) {
+    if (!markdown) return '';
+    
+    return markdown
+        // Headers
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        // Bold
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Bullet lists
+        .replace(/^\- (.*$)/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+        // Numbered lists
+        .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
+        // Paragraphs (double newlines)
+        .replace(/\n\n/g, '</p><p>')
+        // Single newlines
+        .replace(/\n/g, '<br>')
+        // Wrap in paragraph
+        .replace(/^(.+)$/gm, (match) => {
+            if (match.startsWith('<h') || match.startsWith('<ul') || match.startsWith('<li') || match.startsWith('<p')) {
+                return match;
+            }
+            return `<p>${match}</p>`;
+        });
+}
+
+// AI-Enhanced Report Generation
+async function generateAIReport(format) {
+    if (!currentInfographicData) return null;
+    
+    const formatGuides = {
+        'summary': 'Create a concise 2-3 paragraph executive summary highlighting the most critical clinical points.',
+        'detailed': 'Create a comprehensive study guide with detailed explanations of each topic, including pathophysiology and clinical correlations.',
+        'bullet': 'Create a well-organized bullet-point summary with clear headers and sub-points for quick review.',
+        'study-guide': 'Create a structured study guide with learning objectives, key concepts, clinical pearls, and review questions.'
+    };
+    
+    const prompt = `You are creating educational content for ophthalmology professionals.
+
+Topic: ${currentInfographicData.title}
+
+Source Content:
+${JSON.stringify(currentInfographicData, null, 2)}
+
+Task: ${formatGuides[format] || formatGuides['summary']}
+
+Requirements:
+1. Cover ALL information from the source content
+2. Use clear medical terminology
+3. Organize information logically
+4. Include clinical relevance where appropriate
+5. Format with proper headers using markdown (## for main sections, ### for subsections)
+
+Create the ${format} report now:`;
+
+    return await callGeminiForStudioTool(prompt);
+}
+
+/* ========================================
    AUDIO OVERVIEW FEATURE
    ======================================== */
 
@@ -1851,9 +2082,38 @@ function setupAudioOverview() {
     });
 }
 
-function generateTranscript() {
+async function generateTranscript() {
     if (!currentInfographicData) return;
-
+    
+    const transcriptEl = document.getElementById('audio-transcript-text');
+    const generateBtn = document.getElementById('generate-audio-btn');
+    
+    // Show loading state
+    if (transcriptEl) {
+        transcriptEl.innerHTML = '<em>Generating AI-powered transcript with Gemini...</em>';
+    }
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Generating...';
+    }
+    
+    // Try AI-powered transcript first
+    const aiTranscript = await generateAITranscript();
+    
+    if (aiTranscript) {
+        audioTranscript = aiTranscript;
+        if (transcriptEl) {
+            transcriptEl.textContent = audioTranscript;
+        }
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<span class="material-symbols-rounded">record_voice_over</span> Generate Audio';
+        }
+        return;
+    }
+    
+    // Fallback to basic transcript generation
+    console.log('Using fallback transcript generation');
     const data = currentInfographicData;
     let transcript = `${data.title}.\n\n`;
     transcript += `${data.summary}\n\n`;
@@ -1891,9 +2151,12 @@ function generateTranscript() {
     }
 
     audioTranscript = transcript;
-    const transcriptEl = document.getElementById('audio-transcript-text');
     if (transcriptEl) {
         transcriptEl.textContent = transcript;
+    }
+    if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span class="material-symbols-rounded">record_voice_over</span> Generate Audio';
     }
 }
 
@@ -2461,12 +2724,34 @@ function setupReports() {
     });
 }
 
-function generateReport(format) {
+async function generateReport(format) {
     if (!currentInfographicData) return;
 
     const data = currentInfographicData;
     const reportContainer = document.getElementById('report-content');
     if (!reportContainer) return;
+    
+    // Show loading state
+    reportContainer.innerHTML = `
+        <div class="report-placeholder">
+            <span class="material-symbols-rounded rotating">sync</span>
+            <p>Generating AI-powered ${format} report...</p>
+        </div>
+    `;
+    
+    // Try AI-powered report generation
+    const aiReport = await generateAIReport(format);
+    
+    if (aiReport) {
+        // Convert markdown to HTML
+        const htmlContent = convertMarkdownToHTML(aiReport);
+        reportContainer.innerHTML = `<div class="report-text">${htmlContent}</div>`;
+        currentReportContent = aiReport;
+        return;
+    }
+    
+    // Fallback to basic generation
+    console.log('Using fallback report generation');
 
     let html = '';
     let text = '';
@@ -2629,9 +2914,38 @@ function setupFlashcards() {
     });
 }
 
-function generateFlashcards() {
+async function generateFlashcards() {
     if (!currentInfographicData) return;
-
+    
+    const generateBtn = document.getElementById('generate-flashcards-btn');
+    const questionEl = document.getElementById('flashcard-question');
+    
+    // Show loading state
+    if (generateBtn) {
+        generateBtn.disabled = true;
+        generateBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Generating with AI...';
+    }
+    if (questionEl) {
+        questionEl.textContent = 'Generating AI-powered flashcards...';
+    }
+    
+    // Try AI-powered flashcards first
+    const aiFlashcards = await generateAIFlashcards();
+    
+    if (aiFlashcards && aiFlashcards.length > 0) {
+        flashcards = aiFlashcards;
+        currentFlashcardIndex = 0;
+        renderFlashcard();
+        updateFlashcardCounter();
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '<span class="material-symbols-rounded">auto_fix_high</span> Regenerate';
+        }
+        return;
+    }
+    
+    // Fallback to basic generation
+    console.log('Using fallback flashcard generation');
     const data = currentInfographicData;
     flashcards = [];
 
@@ -2674,6 +2988,11 @@ function generateFlashcards() {
     currentFlashcardIndex = 0;
     renderFlashcard();
     updateFlashcardCounter();
+    
+    if (generateBtn) {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '<span class="material-symbols-rounded">auto_fix_high</span> Regenerate';
+    }
 }
 
 function formatFlashcardAnswer(section) {
@@ -2866,15 +3185,43 @@ function resetQuiz() {
     updateQuizScore();
 }
 
-function startQuiz() {
-    generateQuizQuestions();
+async function startQuiz() {
+    const startBtn = document.getElementById('start-quiz-btn');
+    const questionEl = document.getElementById('quiz-question');
+    
+    // Show loading state
+    if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Generating AI Quiz...';
+    }
+    if (questionEl) {
+        questionEl.textContent = 'Generating AI-powered quiz questions...';
+    }
+    
+    // Try AI-powered quiz first
+    const aiQuiz = await generateAIQuiz();
+    
+    if (aiQuiz && aiQuiz.length > 0) {
+        quizQuestions = aiQuiz;
+        console.log(`Generated ${quizQuestions.length} AI quiz questions`);
+    } else {
+        // Fallback to basic quiz generation
+        console.log('Using fallback quiz generation');
+        generateQuizQuestions();
+    }
+    
     currentQuestionIndex = 0;
     quizScore = 0;
     quizAnswered = false;
     
     document.getElementById('quiz-results').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'block';
-    document.getElementById('start-quiz-btn').style.display = 'none';
+    
+    if (startBtn) {
+        startBtn.style.display = 'none';
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span> Start Quiz';
+    }
     
     renderQuizQuestion();
     updateQuizScore();
@@ -2934,11 +3281,20 @@ function selectQuizAnswer(optionEl, correctAnswer) {
         quizScore++;
     }
 
-    // Show feedback
+    // Show feedback with explanation if available
     feedback.style.display = 'flex';
     feedback.className = `quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
     feedbackIcon.textContent = isCorrect ? 'check_circle' : 'cancel';
-    feedbackText.textContent = isCorrect ? 'Correct!' : `Incorrect. The correct answer was: "${truncateText(correctAnswer, 50)}"`;
+    
+    const currentQuestion = quizQuestions[currentQuestionIndex];
+    let feedbackMessage = isCorrect ? 'Correct!' : `Incorrect. The correct answer was: "${truncateText(correctAnswer, 50)}"`;
+    
+    // Add explanation if available (from AI-generated questions)
+    if (currentQuestion.explanation) {
+        feedbackMessage += `\n\n💡 ${currentQuestion.explanation}`;
+    }
+    
+    feedbackText.textContent = feedbackMessage;
 
     nextBtn.style.display = 'flex';
     updateQuizScore();
@@ -3319,6 +3675,364 @@ ${slides.map(slide => {
 }
 
 /* ========================================
+   COMMUNITY HUB FUNCTIONALITY
+   ======================================== */
+
+function setupCommunityHub() {
+    const communityBtn = document.getElementById('community-btn');
+    const submitCommunityBtn = document.getElementById('submit-community-btn');
+    const communityModal = document.getElementById('community-modal');
+    const submitModal = document.getElementById('submit-community-modal');
+    const previewModal = document.getElementById('community-preview-modal');
+    
+    // Close buttons
+    const closeCommBtn = document.getElementById('close-community-modal-btn');
+    const closeSubmitBtn = document.getElementById('close-submit-modal-btn');
+    const closePreviewBtn = document.getElementById('close-preview-modal-btn');
+    const cancelSubmitBtn = document.getElementById('cancel-submit-btn');
+    
+    // Refresh button
+    const refreshBtn = document.getElementById('refresh-community-btn');
+    
+    // Tabs
+    const tabs = document.querySelectorAll('.community-tab');
+    const pendingContent = document.getElementById('pending-content');
+    const approvedContent = document.getElementById('approved-content');
+    
+    // Lists and counts
+    const pendingList = document.getElementById('pending-submissions-list');
+    const approvedList = document.getElementById('approved-submissions-list');
+    const pendingEmpty = document.getElementById('pending-empty');
+    const approvedEmpty = document.getElementById('approved-empty');
+    const pendingCount = document.getElementById('pending-count');
+    const approvedCount = document.getElementById('approved-count');
+    const communityCountBadge = document.getElementById('community-count-badge');
+    
+    // Submit form elements
+    const submitterNameInput = document.getElementById('submitter-name');
+    const submitPreviewTitle = document.getElementById('submit-preview-title');
+    const submitPreviewSummary = document.getElementById('submit-preview-summary');
+    const confirmSubmitBtn = document.getElementById('confirm-submit-btn');
+    
+    // Preview elements
+    const previewTitle = document.getElementById('preview-title');
+    const previewAuthor = document.getElementById('preview-author');
+    const previewContainer = document.getElementById('preview-infographic-container');
+    const previewLikeBtn = document.getElementById('preview-like-btn');
+    const previewDownloadBtn = document.getElementById('preview-download-btn');
+    
+    let currentPreviewId = null;
+    let cachedSubmissions = { submissions: [], approved: [] };
+    
+    // Check if CommunitySubmissions module is loaded
+    function isCommunityModuleLoaded() {
+        return typeof window.CommunitySubmissions !== 'undefined';
+    }
+    
+    // Open Community Modal
+    async function openCommunityModal() {
+        if (!isCommunityModuleLoaded()) {
+            alert('Community module not loaded. Please refresh the page.');
+            return;
+        }
+        
+        communityModal.classList.add('active');
+        await loadCommunitySubmissions();
+    }
+    
+    // Load submissions
+    async function loadCommunitySubmissions() {
+        try {
+            const data = await CommunitySubmissions.getAll();
+            cachedSubmissions = data;
+            
+            const pending = data.submissions || [];
+            const approved = data.approved || [];
+            
+            // Update counts
+            pendingCount.textContent = pending.length;
+            approvedCount.textContent = approved.length;
+            
+            // Update badge
+            if (pending.length > 0) {
+                communityCountBadge.textContent = pending.length;
+                communityCountBadge.style.display = 'inline';
+            } else {
+                communityCountBadge.style.display = 'none';
+            }
+            
+            // Render pending
+            renderSubmissionsList(pending, pendingList, pendingEmpty, false);
+            
+            // Render approved
+            renderSubmissionsList(approved, approvedList, approvedEmpty, true);
+            
+        } catch (err) {
+            console.error('Error loading community submissions:', err);
+        }
+    }
+    
+    // Render submissions list
+    function renderSubmissionsList(submissions, container, emptyElement, isApproved) {
+        if (submissions.length === 0) {
+            container.innerHTML = '';
+            emptyElement.style.display = 'flex';
+            return;
+        }
+        
+        emptyElement.style.display = 'none';
+        container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, false)).join('');
+    }
+    
+    // Tab switching
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            const tabName = tab.dataset.tab;
+            if (tabName === 'pending') {
+                pendingContent.style.display = 'block';
+                approvedContent.style.display = 'none';
+            } else {
+                pendingContent.style.display = 'none';
+                approvedContent.style.display = 'block';
+            }
+        });
+    });
+    
+    // Open Submit Modal
+    function openSubmitModal() {
+        if (!currentInfographicData) {
+            alert('Please generate an infographic first before submitting to the community.');
+            return;
+        }
+        
+        // Update preview
+        submitPreviewTitle.textContent = currentInfographicData.title || 'Untitled Infographic';
+        submitPreviewSummary.textContent = currentInfographicData.summary || 'No summary available.';
+        
+        // Clear previous name
+        submitterNameInput.value = localStorage.getItem('community_username') || '';
+        
+        submitModal.classList.add('active');
+    }
+    
+    // Submit to community
+    async function handleSubmitToCommunity() {
+        const userName = submitterNameInput.value.trim();
+        
+        if (!userName) {
+            alert('Please enter your name.');
+            submitterNameInput.focus();
+            return;
+        }
+        
+        if (!currentInfographicData) {
+            alert('No infographic data to submit.');
+            return;
+        }
+        
+        // Save username for future submissions
+        localStorage.setItem('community_username', userName);
+        
+        // Show loading state
+        const originalText = confirmSubmitBtn.innerHTML;
+        confirmSubmitBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Submitting...';
+        confirmSubmitBtn.disabled = true;
+        
+        try {
+            const result = await CommunitySubmissions.submit(currentInfographicData, userName);
+            
+            if (result.success) {
+                alert(result.message);
+                submitModal.classList.remove('active');
+                
+                // Refresh community list if modal is open
+                if (communityModal.classList.contains('active')) {
+                    await loadCommunitySubmissions();
+                }
+            } else {
+                alert('Submission failed: ' + result.message);
+            }
+        } catch (err) {
+            console.error('Submission error:', err);
+            alert('An error occurred while submitting. Please try again.');
+        } finally {
+            confirmSubmitBtn.innerHTML = originalText;
+            confirmSubmitBtn.disabled = false;
+        }
+    }
+    
+    // Preview submission
+    window.handlePreviewSubmission = async function(submissionId) {
+        currentPreviewId = submissionId;
+        
+        // Find submission
+        let submission = (cachedSubmissions.submissions || []).find(s => s.id === submissionId);
+        if (!submission) {
+            submission = (cachedSubmissions.approved || []).find(s => s.id === submissionId);
+        }
+        
+        if (!submission) {
+            alert('Could not find submission.');
+            return;
+        }
+        
+        // Update preview modal
+        previewTitle.textContent = submission.title;
+        previewAuthor.innerHTML = `<span class="material-symbols-rounded">person</span> ${submission.userName}`;
+        
+        // Render the infographic preview (simplified)
+        if (submission.data) {
+            previewContainer.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 12px;">
+                    <h2 style="margin-bottom: 1rem; color: #1f2937;">${submission.title}</h2>
+                    <p style="color: #6b7280; margin-bottom: 1.5rem;">${submission.summary || ''}</p>
+                    ${submission.data.sections ? `
+                        <div style="display: grid; gap: 1rem;">
+                            ${submission.data.sections.slice(0, 3).map(section => `
+                                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #334155;">${section.title || 'Section'}</h4>
+                                    <p style="margin: 0; font-size: 0.9rem; color: #64748b;">
+                                        ${Array.isArray(section.content) 
+                                            ? section.content.slice(0, 3).join(', ') + (section.content.length > 3 ? '...' : '')
+                                            : (typeof section.content === 'string' ? section.content.substring(0, 150) : 'Content available')}
+                                    </p>
+                                </div>
+                            `).join('')}
+                            ${submission.data.sections.length > 3 ? `
+                                <p style="text-align: center; color: #9ca3af; font-style: italic;">
+                                    ...and ${submission.data.sections.length - 3} more sections
+                                </p>
+                            ` : ''}
+                        </div>
+                    ` : '<p style="color: #9ca3af;">Full content available after download.</p>'}
+                </div>
+            `;
+        } else {
+            previewContainer.innerHTML = '<p style="text-align: center; color: #9ca3af;">Preview not available.</p>';
+        }
+        
+        previewModal.classList.add('active');
+    };
+    
+    // Like submission
+    window.handleLikeSubmission = async function(submissionId) {
+        try {
+            const result = await CommunitySubmissions.like(submissionId);
+            
+            if (result.success) {
+                // Update the like count in UI
+                const card = document.querySelector(`.community-card[data-id="${submissionId}"]`);
+                if (card) {
+                    const likesCount = card.querySelector('.likes-count');
+                    if (likesCount) {
+                        likesCount.innerHTML = `<span class="material-symbols-rounded">favorite</span> ${result.likes}`;
+                    }
+                }
+            } else {
+                alert(result.message || 'Could not like submission.');
+            }
+        } catch (err) {
+            console.error('Like error:', err);
+        }
+    };
+    
+    // Download submission to local library
+    window.handleDownloadSubmission = async function(submissionId) {
+        try {
+            const result = await CommunitySubmissions.downloadToLibrary(submissionId);
+            
+            if (result.success) {
+                alert(result.message);
+            } else {
+                alert(result.message || 'Could not download.');
+            }
+        } catch (err) {
+            console.error('Download error:', err);
+            alert('An error occurred while downloading.');
+        }
+    };
+    
+    // Event Listeners
+    if (communityBtn) {
+        communityBtn.addEventListener('click', openCommunityModal);
+    }
+    
+    if (submitCommunityBtn) {
+        submitCommunityBtn.addEventListener('click', openSubmitModal);
+    }
+    
+    if (closeCommBtn) {
+        closeCommBtn.addEventListener('click', () => {
+            communityModal.classList.remove('active');
+        });
+    }
+    
+    if (closeSubmitBtn) {
+        closeSubmitBtn.addEventListener('click', () => {
+            submitModal.classList.remove('active');
+        });
+    }
+    
+    if (cancelSubmitBtn) {
+        cancelSubmitBtn.addEventListener('click', () => {
+            submitModal.classList.remove('active');
+        });
+    }
+    
+    if (closePreviewBtn) {
+        closePreviewBtn.addEventListener('click', () => {
+            previewModal.classList.remove('active');
+            currentPreviewId = null;
+        });
+    }
+    
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            refreshBtn.classList.add('rotating');
+            await loadCommunitySubmissions();
+            setTimeout(() => refreshBtn.classList.remove('rotating'), 500);
+        });
+    }
+    
+    if (confirmSubmitBtn) {
+        confirmSubmitBtn.addEventListener('click', handleSubmitToCommunity);
+    }
+    
+    if (previewLikeBtn) {
+        previewLikeBtn.addEventListener('click', () => {
+            if (currentPreviewId) {
+                handleLikeSubmission(currentPreviewId);
+            }
+        });
+    }
+    
+    if (previewDownloadBtn) {
+        previewDownloadBtn.addEventListener('click', () => {
+            if (currentPreviewId) {
+                handleDownloadSubmission(currentPreviewId);
+                previewModal.classList.remove('active');
+            }
+        });
+    }
+    
+    // Close modals on overlay click
+    [communityModal, submitModal, previewModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        }
+    });
+    
+    console.log('Community Hub initialized.');
+}
+
+/* ========================================
    INITIALIZE ALL STUDIO TOOLS
    ======================================== */
 
@@ -3331,6 +4045,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFlashcards();
     setupQuiz();
     setupSlideDeck();
+    
+    // Initialize Community Hub
+    setupCommunityHub();
 
     // Initially disable tools
     disableStudioTools();

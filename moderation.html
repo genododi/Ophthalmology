@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderation Panel - Ophthalmic Infographic Creator</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            overflow: auto;
+            background: var(--bg-color);
+        }
+        
+        .moderation-page {
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s;
+        }
+        
+        .back-link:hover {
+            color: var(--primary-dark);
+            transform: translateX(-4px);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 2000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        
+        .toast.info {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+        
+        .empty-moderation {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .empty-moderation .material-symbols-rounded {
+            font-size: 4rem;
+            color: var(--text-tertiary);
+            opacity: 0.5;
+            margin-bottom: 1rem;
+        }
+        
+        .empty-moderation p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="moderation-page">
+        <a href="index.html" class="back-link">
+            <span class="material-symbols-rounded">arrow_back</span>
+            Back to Infographic Creator
+        </a>
+        
+        <div class="moderation-container">
+            <div class="moderation-header">
+                <h1>
+                    <span class="material-symbols-rounded">admin_panel_settings</span>
+                    Moderation Panel
+                </h1>
+                <div class="admin-login">
+                    <input type="password" id="admin-pin" placeholder="Admin PIN" maxlength="10">
+                    <button id="verify-btn" class="btn-primary" style="padding: 0.6rem 1.25rem;">
+                        <span class="material-symbols-rounded">lock_open</span>
+                        Unlock
+                    </button>
+                    <div id="admin-status" class="admin-status locked">
+                        <span class="material-symbols-rounded">lock</span>
+                        Locked
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="moderation-stats">
+                <div class="stat-card pending">
+                    <div class="stat-icon">
+                        <span class="material-symbols-rounded">pending</span>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Pending Review</h3>
+                        <span class="stat-number" id="pending-stat">0</span>
+                    </div>
+                </div>
+                <div class="stat-card approved">
+                    <div class="stat-icon">
+                        <span class="material-symbols-rounded">verified</span>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Approved</h3>
+                        <span class="stat-number" id="approved-stat">0</span>
+                    </div>
+                </div>
+                <div class="stat-card total">
+                    <div class="stat-icon">
+                        <span class="material-symbols-rounded">analytics</span>
+                    </div>
+                    <div class="stat-info">
+                        <h3>Total Submissions</h3>
+                        <span class="stat-number" id="total-stat">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pending Submissions Section -->
+            <div class="moderation-section">
+                <h2>
+                    <span class="material-symbols-rounded">pending_actions</span>
+                    Pending Submissions
+                </h2>
+                <div id="pending-list">
+                    <!-- Pending submissions will be rendered here -->
+                </div>
+                <div id="pending-empty" class="empty-moderation" style="display: none;">
+                    <span class="material-symbols-rounded">inbox</span>
+                    <p>No pending submissions to review.</p>
+                </div>
+            </div>
+            
+            <!-- Approved Submissions Section -->
+            <div class="moderation-section">
+                <h2>
+                    <span class="material-symbols-rounded">verified</span>
+                    Approved Submissions
+                </h2>
+                <div id="approved-list">
+                    <!-- Approved submissions will be rendered here -->
+                </div>
+                <div id="approved-empty" class="empty-moderation" style="display: none;">
+                    <span class="material-symbols-rounded">folder_off</span>
+                    <p>No approved submissions yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span class="material-symbols-rounded" id="toast-icon">check_circle</span>
+        <span id="toast-message">Action completed</span>
+    </div>
+
+    <script src="community-submissions.js"></script>
+    <script>
+        // DOM Elements
+        const adminPinInput = document.getElementById('admin-pin');
+        const verifyBtn = document.getElementById('verify-btn');
+        const adminStatus = document.getElementById('admin-status');
+        const pendingList = document.getElementById('pending-list');
+        const approvedList = document.getElementById('approved-list');
+        const pendingEmpty = document.getElementById('pending-empty');
+        const approvedEmpty = document.getElementById('approved-empty');
+        const pendingStat = document.getElementById('pending-stat');
+        const approvedStat = document.getElementById('approved-stat');
+        const totalStat = document.getElementById('total-stat');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toast-icon');
+        const toastMessage = document.getElementById('toast-message');
+        
+        let isAdminVerified = false;
+        let currentSubmissions = { submissions: [], approved: [] };
+        
+        // Show loading overlay
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+        
+        // Hide loading overlay
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            toastMessage.textContent = message;
+            toast.className = `toast ${type}`;
+            
+            if (type === 'success') {
+                toastIcon.textContent = 'check_circle';
+            } else if (type === 'error') {
+                toastIcon.textContent = 'error';
+            } else {
+                toastIcon.textContent = 'info';
+            }
+            
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Format date
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Verify admin PIN
+        verifyBtn.addEventListener('click', () => {
+            const pin = adminPinInput.value;
+            if (CommunitySubmissions.verifyAdmin(pin)) {
+                isAdminVerified = true;
+                adminStatus.innerHTML = '<span class="material-symbols-rounded">lock_open</span> Unlocked';
+                adminStatus.className = 'admin-status unlocked';
+                verifyBtn.style.display = 'none';
+                adminPinInput.style.display = 'none';
+                showToast('Admin access granted!', 'success');
+                renderSubmissions();
+            } else {
+                showToast('Invalid PIN. Access denied.', 'error');
+                adminPinInput.value = '';
+            }
+        });
+        
+        // Handle enter key on PIN input
+        adminPinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                verifyBtn.click();
+            }
+        });
+        
+        // Render submission card
+        function renderSubmissionCard(submission, isApprovedSection = false) {
+            const dateStr = formatDate(submission.submittedAt);
+            const approvedStr = submission.approvedAt ? formatDate(submission.approvedAt) : '';
+            
+            return `
+                <div class="admin-card" data-id="${submission.id}">
+                    <div class="admin-card-content">
+                        <h3 class="admin-card-title">${submission.title}</h3>
+                        <p class="admin-card-summary">${submission.summary || 'No summary provided.'}</p>
+                        <div class="admin-card-meta">
+                            <span>
+                                <span class="meta-label">Author:</span> ${submission.userName}
+                            </span>
+                            <span>
+                                <span class="meta-label">Submitted:</span> ${dateStr}
+                            </span>
+                            <span>
+                                <span class="meta-label">IP:</span> 
+                                <code style="background: #f1f5f9; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">
+                                    ${submission.userIP || 'Unknown'}
+                                </code>
+                            </span>
+                            <span>
+                                <span class="meta-label">Likes:</span> ${submission.likes || 0}
+                            </span>
+                            ${approvedStr ? `
+                            <span>
+                                <span class="meta-label">Approved:</span> ${approvedStr}
+                            </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="admin-card-actions">
+                        ${!isApprovedSection && isAdminVerified ? `
+                        <button class="community-btn approve-btn" onclick="handleApprove('${submission.id}')">
+                            <span class="material-symbols-rounded">check_circle</span>
+                            Approve
+                        </button>
+                        <button class="community-btn reject-btn" onclick="handleReject('${submission.id}')">
+                            <span class="material-symbols-rounded">cancel</span>
+                            Reject
+                        </button>
+                        ` : ''}
+                        <button class="community-btn preview-btn" onclick="handlePreview('${submission.id}')">
+                            <span class="material-symbols-rounded">visibility</span>
+                            Preview
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render all submissions
+        async function renderSubmissions() {
+            showLoading();
+            
+            try {
+                currentSubmissions = await CommunitySubmissions.getAll();
+                
+                const pending = currentSubmissions.submissions || [];
+                const approved = currentSubmissions.approved || [];
+                
+                // Update stats
+                pendingStat.textContent = pending.length;
+                approvedStat.textContent = approved.length;
+                totalStat.textContent = pending.length + approved.length;
+                
+                // Render pending
+                if (pending.length > 0) {
+                    pendingList.innerHTML = pending.map(s => renderSubmissionCard(s, false)).join('');
+                    pendingEmpty.style.display = 'none';
+                } else {
+                    pendingList.innerHTML = '';
+                    pendingEmpty.style.display = 'block';
+                }
+                
+                // Render approved
+                if (approved.length > 0) {
+                    approvedList.innerHTML = approved.map(s => renderSubmissionCard(s, true)).join('');
+                    approvedEmpty.style.display = 'none';
+                } else {
+                    approvedList.innerHTML = '';
+                    approvedEmpty.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('Error loading submissions:', err);
+                showToast('Error loading submissions. Please refresh.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Handle approve
+        window.handleApprove = async function(submissionId) {
+            if (!isAdminVerified) {
+                showToast('Please verify admin access first.', 'error');
+                return;
+            }
+            
+            if (!confirm('Approve this submission? It will become publicly visible in the gallery.')) {
+                return;
+            }
+            
+            showLoading();
+            
+            const result = await CommunitySubmissions.approve(submissionId, adminPinInput.value || '1234');
+            
+            if (result.success) {
+                showToast('Submission approved successfully!', 'success');
+                await renderSubmissions();
+            } else {
+                showToast(result.message || 'Failed to approve.', 'error');
+            }
+            
+            hideLoading();
+        };
+        
+        // Handle reject
+        window.handleReject = async function(submissionId) {
+            if (!isAdminVerified) {
+                showToast('Please verify admin access first.', 'error');
+                return;
+            }
+            
+            if (!confirm('Reject and remove this submission? This action cannot be undone.')) {
+                return;
+            }
+            
+            showLoading();
+            
+            const result = await CommunitySubmissions.reject(submissionId, adminPinInput.value || '1234');
+            
+            if (result.success) {
+                showToast('Submission rejected and removed.', 'success');
+                await renderSubmissions();
+            } else {
+                showToast(result.message || 'Failed to reject.', 'error');
+            }
+            
+            hideLoading();
+        };
+        
+        // Handle preview
+        window.handlePreview = function(submissionId) {
+            // Find the submission
+            let submission = (currentSubmissions.submissions || []).find(s => s.id === submissionId);
+            if (!submission) {
+                submission = (currentSubmissions.approved || []).find(s => s.id === submissionId);
+            }
+            
+            if (!submission || !submission.data) {
+                showToast('Could not load preview data.', 'error');
+                return;
+            }
+            
+            // Open in a new tab or create a preview modal
+            // For simplicity, we'll open a new window with the infographic data
+            const previewWindow = window.open('', '_blank');
+            previewWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Preview: ${submission.title}</title>
+                    <link rel="stylesheet" href="style.css">
+                    <style>
+                        body {
+                            padding: 2rem;
+                            background: #f0f2f5;
+                            display: flex;
+                            justify-content: center;
+                        }
+                        .preview-info {
+                            background: #1e293b;
+                            color: white;
+                            padding: 1rem 2rem;
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            z-index: 100;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        }
+                        .preview-info h2 {
+                            margin: 0;
+                            font-size: 1.1rem;
+                        }
+                        .preview-info span {
+                            font-size: 0.9rem;
+                            opacity: 0.8;
+                        }
+                        .poster-sheet {
+                            margin-top: 80px;
+                            max-width: 900px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="preview-info">
+                        <h2>Preview: ${submission.title}</h2>
+                        <span>By ${submission.userName} | ${formatDate(submission.submittedAt)}</span>
+                    </div>
+                    <div id="content"></div>
+                    <script>
+                        const data = ${JSON.stringify(submission.data)};
+                        // Simple rendering - would need full render function from main app
+                        document.getElementById('content').innerHTML = '<div style="background: white; padding: 2rem; border-radius: 16px; max-width: 800px;"><h1>' + data.title + '</h1><p>' + (data.summary || '') + '</p><hr><pre style="white-space: pre-wrap; font-family: inherit;">' + JSON.stringify(data, null, 2) + '</pre></div>';
+                    <\/script>
+                </body>
+                </html>
+            `);
+            previewWindow.document.close();
+        };
+        
+        // Initial load
+        renderSubmissions();
+    </script>
+</body>
+
+</html>

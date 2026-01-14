@@ -105,6 +105,9 @@
                     <button class="icon-btn" id="save-btn" title="Save to Knowledge Base">
                         <span class="material-symbols-rounded">bookmark_add</span>
                     </button>
+                    <button class="icon-btn" id="submit-community-btn" title="Submit to Community">
+                        <span class="material-symbols-rounded">group_add</span>
+                    </button>
                     <button class="icon-btn" id="download-pdf-btn" title="Download PDF" style="display: none;">
                         <span class="material-symbols-rounded">download</span>
                     </button>
@@ -120,6 +123,9 @@
                     </button>
                     <button class="icon-btn" id="ftp-btn" title="FTP Server Settings">
                         <span class="material-symbols-rounded">cloud_sync</span>
+                    </button>
+                    <button class="icon-btn" id="community-btn" title="Community Hub">
+                        <span class="material-symbols-rounded">groups</span>
                     </button>
                     <button class="icon-btn" id="library-btn" title="Open Knowledge Base">
                         <span class="material-symbols-rounded">inventory_2</span>
@@ -561,7 +567,162 @@
         </div>
     </div>
 
+    <!-- Community Hub Modal -->
+    <div id="community-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">groups</span>
+                    Community Hub
+                    <span id="community-count-badge" class="count-badge" style="display: none;">0</span>
+                </h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button id="refresh-community-btn" class="icon-btn-ghost" title="Refresh">
+                        <span class="material-symbols-rounded">refresh</span>
+                    </button>
+                    <button id="close-community-modal-btn" class="icon-btn-ghost">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body community-modal-body">
+                <!-- Tabs for Pending / Approved -->
+                <div class="community-tabs">
+                    <button class="community-tab active" data-tab="pending">
+                        <span class="material-symbols-rounded">pending</span>
+                        Pending Review
+                        <span class="tab-count" id="pending-count">0</span>
+                    </button>
+                    <button class="community-tab" data-tab="approved">
+                        <span class="material-symbols-rounded">verified</span>
+                        Approved Gallery
+                        <span class="tab-count" id="approved-count">0</span>
+                    </button>
+                </div>
+                
+                <!-- Pending Submissions View -->
+                <div class="community-content" id="pending-content">
+                    <div class="community-info-banner">
+                        <span class="material-symbols-rounded">info</span>
+                        <p>These infographics are submitted by community members and pending administrator review. You can preview, like, and add them to your local library.</p>
+                    </div>
+                    <div id="pending-submissions-list" class="community-grid">
+                        <!-- Submissions will be injected here -->
+                    </div>
+                    <div id="pending-empty" class="community-empty" style="display: none;">
+                        <span class="material-symbols-rounded">inbox</span>
+                        <p>No pending submissions at the moment.</p>
+                    </div>
+                </div>
+                
+                <!-- Approved Gallery View -->
+                <div class="community-content" id="approved-content" style="display: none;">
+                    <div class="community-info-banner success">
+                        <span class="material-symbols-rounded">verified</span>
+                        <p>These infographics have been reviewed and approved by the administrator. They are available for everyone to use!</p>
+                    </div>
+                    <div id="approved-submissions-list" class="community-grid">
+                        <!-- Approved items will be injected here -->
+                    </div>
+                    <div id="approved-empty" class="community-empty" style="display: none;">
+                        <span class="material-symbols-rounded">folder_off</span>
+                        <p>No approved infographics yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit to Community Modal -->
+    <div id="submit-community-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">cloud_upload</span>
+                    Submit to Community
+                </h2>
+                <button id="close-submit-modal-btn" class="icon-btn-ghost">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <div class="modal-body submit-modal-body">
+                <div class="submit-preview">
+                    <h3 id="submit-preview-title">Infographic Title</h3>
+                    <p id="submit-preview-summary">Summary will appear here...</p>
+                </div>
+                
+                <div class="submit-form">
+                    <div class="form-group">
+                        <label for="submitter-name">Your Name (Required)</label>
+                        <input type="text" id="submitter-name" placeholder="Enter your name or alias" maxlength="50">
+                        <small class="form-hint">This will be displayed publicly with your submission.</small>
+                    </div>
+                    
+                    <div class="submit-info">
+                        <h4>What happens next?</h4>
+                        <ul>
+                            <li><span class="material-symbols-rounded">upload</span> Your infographic will be uploaded to the community pool</li>
+                            <li><span class="material-symbols-rounded">visibility</span> Other users can view, like, and download it</li>
+                            <li><span class="material-symbols-rounded">admin_panel_settings</span> An administrator will review and approve it</li>
+                            <li><span class="material-symbols-rounded">verified</span> Once approved, it becomes part of the permanent gallery</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="submit-notice">
+                        <span class="material-symbols-rounded">info</span>
+                        <p>By submitting, you agree that your infographic may be shared publicly. Your IP address will be recorded for moderation purposes.</p>
+                    </div>
+                </div>
+                
+                <div class="submit-actions">
+                    <button id="cancel-submit-btn" class="btn-secondary">Cancel</button>
+                    <button id="confirm-submit-btn" class="btn-primary">
+                        <span class="material-symbols-rounded">send</span>
+                        Submit for Review
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Community Preview Modal -->
+    <div id="community-preview-modal" class="modal-overlay">
+        <div class="modal-content modal-xl">
+            <div class="modal-header">
+                <h2>
+                    <span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 8px;">preview</span>
+                    <span id="preview-title">Preview</span>
+                </h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="preview-meta" id="preview-author">
+                        <span class="material-symbols-rounded">person</span>
+                        Author
+                    </span>
+                    <button id="close-preview-modal-btn" class="icon-btn-ghost">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body preview-modal-body">
+                <div id="preview-infographic-container" class="preview-container">
+                    <!-- Infographic preview will be rendered here -->
+                </div>
+                <div class="preview-actions">
+                    <button id="preview-like-btn" class="btn-secondary">
+                        <span class="material-symbols-rounded">thumb_up</span>
+                        Like
+                    </button>
+                    <button id="preview-download-btn" class="btn-primary">
+                        <span class="material-symbols-rounded">download</span>
+                        Add to My Library
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Script -->
+    <script src="community-submissions.js"></script>
     <script type="module" src="script.js"></script>
 </body>
 
