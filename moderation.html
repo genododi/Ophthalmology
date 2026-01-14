@@ -129,6 +129,18 @@
         </a>
         
         <div class="moderation-container">
+            <div id="config-warning" class="community-info-banner" style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 0.75rem;">
+                <span class="material-symbols-rounded" style="color: #f97316;">warning</span>
+                <div>
+                    <strong style="display: block; margin-bottom: 0.25rem;">Remote Storage Not Configured</strong>
+                    <p style="font-size: 0.9rem; line-height: 1.4; margin: 0;">
+                        The system is currently running in <strong>Demo Mode (LocalStorage)</strong>. 
+                        Submissions are only visible on your own device. To see submissions from remote users, you must 
+                        configure JSONBin.io in <code>community-submissions.js</code>.
+                    </p>
+                </div>
+            </div>
+
             <div class="moderation-header">
                 <h1>
                     <span class="material-symbols-rounded">admin_panel_settings</span>
@@ -238,6 +250,7 @@
         const approvedStat = document.getElementById('approved-stat');
         const totalStat = document.getElementById('total-stat');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const configWarning = document.getElementById('config-warning');
         const toast = document.getElementById('toast');
         const toastIcon = document.getElementById('toast-icon');
         const toastMessage = document.getElementById('toast-message');
@@ -538,6 +551,14 @@
         
         // Initial load - clear cache to ensure fresh data
         localStorage.removeItem('ophthalmic_community_cache');
+        
+        // Check configuration status
+        if (!CommunitySubmissions.isConfigured()) {
+            configWarning.style.display = 'flex';
+        } else {
+            configWarning.style.display = 'none';
+        }
+        
         renderSubmissions();
     </script>
 </body>
