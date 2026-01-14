@@ -22,12 +22,12 @@
 // 4. Update these values
 
 const JSONBIN_CONFIG = {
-    // Public bin ID for submissions (you'll need to create this)
-    BIN_ID: 'YOUR_BIN_ID_HERE', // Replace with actual bin ID
-    // Master key for read/write (keep secret for admin operations)
-    MASTER_KEY: '$2a$10$YOUR_MASTER_KEY_HERE', // Replace with actual key
-    // Access key for public read (optional, for rate limiting)
-    ACCESS_KEY: '$2a$10$YOUR_ACCESS_KEY_HERE', // Replace with actual key
+    // Public bin ID for submissions
+    BIN_ID: '69679ff543b1c97be9303398',
+    // Master key for read/write operations
+    MASTER_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
+    // Access key for public read (using same as master key)
+    ACCESS_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
     BASE_URL: 'https://api.jsonbin.io/v3/b'
 };
 
