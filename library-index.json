@@ -202,7 +202,7 @@
         }
       ]
     },
-    "chapterId": "uncategorized",
+    "chapterId": "glaucoma",
     "communityId": "sub_1768399087319_i7gsfu5dv",
     "communityAuthor": "Dodi",
     "communityDate": "2026-01-14T13:58:07.319Z"
@@ -487,7 +487,7 @@
         }
       ]
     },
-    "chapterId": "uncategorized"
+    "chapterId": "glaucoma"
   },
   {
     "id": 1768314746795,
@@ -845,7 +845,7 @@
         }
       ]
     },
-    "chapterId": "uncategorized"
+    "chapterId": "glaucoma"
   },
   {
     "id": 1768314475181,
@@ -1118,7 +1118,7 @@
         }
       ]
     },
-    "chapterId": "uncategorized"
+    "chapterId": "glaucoma"
   },
   {
     "id": 1768232539677,
@@ -1403,7 +1403,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768232322230,
@@ -1689,7 +1689,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768232069381,
@@ -1999,7 +1999,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768231965217,
@@ -2177,7 +2177,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768231842707,
@@ -2555,7 +2555,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768231740770,
@@ -2910,7 +2910,7 @@
         }
       ]
     },
-    "chapterId": "cataract",
+    "chapterId": "lens",
     "seqId": 100
   },
   {
@@ -3350,7 +3350,7 @@
         }
       ]
     },
-    "chapterId": "cataract"
+    "chapterId": "lens"
   },
   {
     "id": 1768231246452,
