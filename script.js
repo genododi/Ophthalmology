@@ -676,21 +676,67 @@ function setupKnowledgeBase() {
         }
     }
 
-    // EXPORT TO SERVER
+    // EXPORT TO SERVER (or Community Pool for remote users)
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
             // Check removed to allow attempt
             if (selectedItems.size === 0) return;
 
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const itemsToExport = library.filter(item => selectedItems.has(item.id));
+
+            // REMOTE USER: Redirect to Community Pool instead of server
+            if (isGitHubPages()) {
+                if (itemsToExport.length > 1) {
+                    alert('On remote access, you can only submit one infographic at a time to the Community Pool for admin review.');
+                    return;
+                }
+                
+                if (!confirm('You are accessing remotely. Your infographic will be submitted to the Community Pool for admin review. Continue?')) return;
+
+                const item = itemsToExport[0];
+                const originalIcon = exportBtn.innerHTML;
+                exportBtn.innerHTML = '<span class="material-symbols-rounded">sync</span>';
+
+                try {
+                    // Prompt for username
+                    const savedUsername = localStorage.getItem('community_username') || '';
+                    const userName = prompt('Enter your name for the submission:', savedUsername);
+                    
+                    if (!userName || !userName.trim()) {
+                        alert('A name is required for community submissions.');
+                        return;
+                    }
+                    
+                    localStorage.setItem('community_username', userName.trim());
+
+                    // Submit to community pool
+                    const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
+                    
+                    if (result.success) {
+                        alert('✅ ' + result.message + '\n\nThe admin will review your submission.');
+                        selectionMode = false;
+                        selectedItems.clear();
+                        renderLibraryList();
+                    } else {
+                        alert('Submission failed: ' + result.message);
+                    }
+                } catch (err) {
+                    console.error('Community submission error:', err);
+                    alert('Error submitting to community pool: ' + err.message);
+                } finally {
+                    exportBtn.innerHTML = originalIcon;
+                }
+                return;
+            }
+
+            // LOCAL SERVER: Original behavior
             if (!confirm(`Export ${selectedItems.size} selected items to the server knowledge base?`)) return;
 
             const originalIcon = exportBtn.innerHTML;
             exportBtn.innerHTML = '<span class="material-symbols-rounded">sync</span>';
 
             try {
-                const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-                const itemsToExport = library.filter(item => selectedItems.has(item.id));
-
                 const response = await safeFetch('api/library/upload', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -793,6 +839,12 @@ function setupKnowledgeBase() {
                         // User said: "imported infographics are assigned sequential hashtag numbers based on the local library's order, rather than inheriting server-side numbering."
                         // So we DELETE seqId.
                         delete newItem.seqId;
+
+                        // PRESERVE CHAPTER: Keep the server's chapterId if available
+                        // Do NOT reset to 'uncategorized' - respect admin categorization
+                        if (!newItem.chapterId) {
+                            newItem.chapterId = 'uncategorized';
+                        }
 
                         localLibrary.push(newItem);
                         addedCount++;
