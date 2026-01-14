@@ -191,19 +191,43 @@ def push_to_github():
 
 def copy_library_to_root():
     """Copy library JSON files to root for GitHub Pages access."""
-    log("Copying library files to root Library folder...")
+    import shutil
     
     # Create Library folder in root (GitHub uses this)
     root_library = SCRIPT_DIR / "Library"
+    
+    # On macOS (case-insensitive filesystem), library/ and Library/ are the same
+    # Check if they resolve to the same path using samefile
+    try:
+        if root_library.exists() and LIBRARY_DIR.exists():
+            if os.path.samefile(str(LIBRARY_DIR), str(root_library)):
+                log("library/ and Library/ are the same folder (case-insensitive filesystem). Skipping copy.", "INFO")
+                return
+    except Exception:
+        pass
+    
+    log("Copying library files to root Library folder...")
     root_library.mkdir(exist_ok=True)
     
     # Copy all JSON files
-    import shutil
+    copied_count = 0
     for json_file in LIBRARY_DIR.glob("*.json"):
         dest = root_library / json_file.name
-        shutil.copy2(json_file, dest)
+        try:
+            # Skip if source and dest are the same file
+            if dest.exists() and os.path.samefile(str(json_file), str(dest)):
+                continue
+            shutil.copy2(json_file, dest)
+            copied_count += 1
+        except shutil.SameFileError:
+            continue
+        except Exception as e:
+            log(f"Could not copy {json_file.name}: {e}", "WARNING")
     
-    log(f"Copied files to {root_library}", "SUCCESS")
+    if copied_count > 0:
+        log(f"Copied {copied_count} files to {root_library}", "SUCCESS")
+    else:
+        log("No files needed copying (same folder or identical files).", "INFO")
 
 
 def main():
