@@ -133,6 +133,9 @@
                 <h1>
                     <span class="material-symbols-rounded">admin_panel_settings</span>
                     Moderation Panel
+                    <button id="refresh-btn" onclick="refreshSubmissions()" style="margin-left: 1rem; padding: 0.5rem; border: none; background: transparent; cursor: pointer; vertical-align: middle;">
+                        <span class="material-symbols-rounded" style="color: var(--primary-color);">refresh</span>
+                    </button>
                 </h1>
                 <div class="admin-login">
                     <input type="password" id="admin-pin" placeholder="Admin PIN" maxlength="10">
@@ -240,6 +243,7 @@
         const toastMessage = document.getElementById('toast-message');
         
         let isAdminVerified = false;
+        let adminPIN = ''; // Store the verified PIN
         let currentSubmissions = { submissions: [], approved: [] };
         
         // Show loading overlay
@@ -288,6 +292,7 @@
             const pin = adminPinInput.value;
             if (CommunitySubmissions.verifyAdmin(pin)) {
                 isAdminVerified = true;
+                adminPIN = pin; // Store the verified PIN for later use
                 adminStatus.innerHTML = '<span class="material-symbols-rounded">lock_open</span> Unlocked';
                 adminStatus.className = 'admin-status unlocked';
                 verifyBtn.style.display = 'none';
@@ -413,7 +418,7 @@
             
             showLoading();
             
-            const result = await CommunitySubmissions.approve(submissionId, adminPinInput.value || '1234');
+            const result = await CommunitySubmissions.approve(submissionId, adminPIN);
             
             if (result.success) {
                 showToast('Submission approved successfully!', 'success');
@@ -438,7 +443,7 @@
             
             showLoading();
             
-            const result = await CommunitySubmissions.reject(submissionId, adminPinInput.value || '1234');
+            const result = await CommunitySubmissions.reject(submissionId, adminPIN);
             
             if (result.success) {
                 showToast('Submission rejected and removed.', 'success');
@@ -523,7 +528,16 @@
             previewWindow.document.close();
         };
         
-        // Initial load
+        // Refresh function - clears cache and reloads
+        window.refreshSubmissions = async function() {
+            // Clear cache to force fresh data
+            localStorage.removeItem('ophthalmic_community_cache');
+            showToast('Refreshing submissions...', 'info');
+            await renderSubmissions();
+        };
+        
+        // Initial load - clear cache to ensure fresh data
+        localStorage.removeItem('ophthalmic_community_cache');
         renderSubmissions();
     </script>
 </body>
