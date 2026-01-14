@@ -1000,6 +1000,12 @@ function setupKnowledgeBase() {
         // 3. Apply Sorting
         if (currentSortMode === 'date') {
             filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
+        } else if (currentSortMode === 'name') {
+            filteredLibrary.sort((a, b) => {
+                const nameA = (a.title || '').toLowerCase();
+                const nameB = (b.title || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
         } else if (currentSortMode === 'chapter') {
             const chapterOrder = new Map(chapters.map((ch, idx) => [ch.id, idx]));
             filteredLibrary.sort((a, b) => {
@@ -1062,6 +1068,7 @@ function setupKnowledgeBase() {
                 <div class="sort-wrapper">
                     <select id="sort-select" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; background-color: white; cursor: pointer;">
                         <option value="date" ${currentSortMode === 'date' ? 'selected' : ''}>Sort by Date</option>
+                        <option value="name" ${currentSortMode === 'name' ? 'selected' : ''}>Sort by Name</option>
                         <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
                     </select>
                 </div>
