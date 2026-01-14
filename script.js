@@ -622,10 +622,17 @@ function assignSequentialIds(library) {
 }
 
 // Auto-Sync to Server Logic
+// Track if we've already shown the GitHub Pages message
+let _gitHubPagesMessageShown = false;
+
 async function syncLibraryToServer() {
     // Skip sync on GitHub Pages (static hosting, no backend)
     if (isGitHubPages()) {
-        console.log("Running on GitHub Pages - sync to server skipped (use sync_to_github.py locally)");
+        // Only log once per session to avoid console spam
+        if (!_gitHubPagesMessageShown) {
+            console.log("GitHub Pages detected - server sync disabled (expected behavior for static hosting)");
+            _gitHubPagesMessageShown = true;
+        }
         return;
     }
     
@@ -802,6 +809,9 @@ function setupKnowledgeBase() {
                     localMap.set(String(key), item);
                 });
 
+                // Track what changed for detailed logging
+                const updateDetails = [];
+                
                 serverItems.forEach(serverItem => {
                     const serverKey = String(serverItem.id || (serverItem.title + serverItem.date));
 
@@ -813,10 +823,18 @@ function setupKnowledgeBase() {
                         const localItem = localMap.get(serverKey);
 
                         // Check for differences that matter (Chapter, Title, Data)
-                        if (localItem.chapterId !== serverItem.chapterId ||
-                            localItem.title !== serverItem.title ||
-                            localItem.summary !== serverItem.summary) {
-
+                        const changes = [];
+                        if (localItem.chapterId !== serverItem.chapterId) {
+                            changes.push(`chapter: ${localItem.chapterId || 'none'} → ${serverItem.chapterId || 'none'}`);
+                        }
+                        if (localItem.title !== serverItem.title) {
+                            changes.push(`title changed`);
+                        }
+                        if (localItem.summary !== serverItem.summary) {
+                            changes.push(`summary changed`);
+                        }
+                        
+                        if (changes.length > 0) {
                             // Update local properties
                             localItem.chapterId = serverItem.chapterId;
                             localItem.title = serverItem.title;
@@ -826,6 +844,7 @@ function setupKnowledgeBase() {
                             if (!localItem.seqId && serverItem.seqId) localItem.seqId = serverItem.seqId;
 
                             updatedCount++;
+                            updateDetails.push({ title: serverItem.title?.substring(0, 30), changes });
                         }
                     } else {
                         // New Item from Server
@@ -862,10 +881,18 @@ function setupKnowledgeBase() {
                         if (updatedCount) msg.push(`${updatedCount} updated`);
                         alert(`Sync Complete: ${msg.join(', ')} items.`);
                     }
+                    
+                    // Detailed logging for debugging
                     console.log(`Auto-Sync: Imported ${addedCount}, Updated ${updatedCount}.`);
+                    if (updateDetails.length > 0) {
+                        console.log('Updated items:');
+                        updateDetails.forEach(item => {
+                            console.log(`  • "${item.title}..." - ${item.changes.join(', ')}`);
+                        });
+                    }
                 } else {
                     if (!silent) alert('Library is up to date.');
-                    console.log("Auto-Sync: Library up to date.");
+                    console.log("Auto-Sync: Library is up to date (no changes needed).");
                 }
 
                 // BIDIRECTIONAL SYNC: Upload local-only items to server

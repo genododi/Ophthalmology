@@ -468,7 +468,7 @@
             hideLoading();
         };
         
-        // Handle preview
+        // Handle preview - renders full graphical infographic
         window.handlePreview = function(submissionId) {
             // Find the submission
             let submission = (currentSubmissions.submissions || []).find(s => s.id === submissionId);
@@ -481,24 +481,31 @@
                 return;
             }
             
-            // Open in a new tab or create a preview modal
-            // For simplicity, we'll open a new window with the infographic data
+            const data = submission.data;
+            
+            // Build full graphical preview
             const previewWindow = window.open('', '_blank');
             previewWindow.document.write(`
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>Preview: ${submission.title}</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
                     <link rel="stylesheet" href="style.css">
                     <style>
                         body {
                             padding: 2rem;
-                            background: #f0f2f5;
+                            padding-top: 80px;
+                            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+                            min-height: 100vh;
                             display: flex;
                             justify-content: center;
                         }
                         .preview-info {
-                            background: #1e293b;
+                            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
                             color: white;
                             padding: 1rem 2rem;
                             position: fixed;
@@ -509,31 +516,172 @@
                             display: flex;
                             justify-content: space-between;
                             align-items: center;
+                            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
                         }
                         .preview-info h2 {
                             margin: 0;
                             font-size: 1.1rem;
+                            display: flex;
+                            align-items: center;
+                            gap: 0.5rem;
                         }
                         .preview-info span {
                             font-size: 0.9rem;
                             opacity: 0.8;
                         }
                         .poster-sheet {
-                            margin-top: 80px;
                             max-width: 900px;
+                            width: 100%;
+                        }
+                        .preview-badge {
+                            background: #f59e0b;
+                            color: #1e293b;
+                            padding: 0.25rem 0.75rem;
+                            border-radius: 20px;
+                            font-size: 0.75rem;
+                            font-weight: 600;
+                            text-transform: uppercase;
                         }
                     </style>
                 </head>
                 <body>
                     <div class="preview-info">
-                        <h2>Preview: ${submission.title}</h2>
+                        <h2>
+                            <span class="material-symbols-rounded">preview</span>
+                            ${submission.title}
+                            <span class="preview-badge">Preview</span>
+                        </h2>
                         <span>By ${submission.userName} | ${formatDate(submission.submittedAt)}</span>
                     </div>
-                    <div id="content"></div>
+                    <div id="output-container" class="output-wrapper"></div>
                     <script>
-                        const data = ${JSON.stringify(submission.data)};
-                        // Simple rendering - would need full render function from main app
-                        document.getElementById('content').innerHTML = '<div style="background: white; padding: 2rem; border-radius: 16px; max-width: 800px;"><h1>' + data.title + '</h1><p>' + (data.summary || '') + '</p><hr><pre style="white-space: pre-wrap; font-family: inherit;">' + JSON.stringify(data, null, 2) + '</pre></div>';
+                        const data = ${JSON.stringify(data)};
+                        
+                        function renderInfographic(data) {
+                            const outputContainer = document.getElementById('output-container');
+                            outputContainer.innerHTML = '';
+
+                            const posterSheet = document.createElement('div');
+                            posterSheet.className = 'poster-sheet';
+
+                            // Header
+                            const header = document.createElement('header');
+                            header.className = 'poster-header';
+                            
+                            let illustrationHtml = '';
+                            if (data.summary_illustration) {
+                                illustrationHtml = '<div class="poster-illustration">' + data.summary_illustration + '</div>';
+                            }
+
+                            header.innerHTML = 
+                                '<div class="header-decoration"></div>' +
+                                '<h1 class="poster-title">' + data.title + '</h1>' +
+                                '<div class="header-content-wrapper" style="display: flex; gap: 2rem; align-items: start;">' +
+                                    '<p class="poster-summary" style="flex: 1;">' + data.summary + '</p>' +
+                                    illustrationHtml +
+                                '</div>';
+                            posterSheet.appendChild(header);
+
+                            // Grid
+                            const grid = document.createElement('div');
+                            grid.className = 'poster-grid';
+
+                            if (data.sections && Array.isArray(data.sections)) {
+                                data.sections.forEach((section, index) => {
+                                    const card = document.createElement('div');
+                                    const layoutClass = section.layout === 'full_width' ? 'col-span-2' : '';
+                                    const colorClass = 'theme-' + (section.color_theme || 'blue');
+                                    card.className = 'poster-card card-' + section.type + ' ' + layoutClass + ' ' + colorClass;
+                                    card.style.animationDelay = (index * 100) + 'ms';
+
+                                    const iconName = section.icon || 'circle';
+                                    let contentHtml = '';
+
+                                    switch (section.type) {
+                                        case 'red_flag':
+                                            const flags = Array.isArray(section.content) ? section.content : [section.content];
+                                            contentHtml = '<ul class="warning-list">' +
+                                                flags.map(item => '<li><span class="material-symbols-rounded warning-icon">warning</span>' + item + '</li>').join('') +
+                                                '</ul>';
+                                            break;
+
+                                        case 'chart':
+                                            const chartContent = section.content || {};
+                                            const chartData = chartContent.data || [];
+                                            contentHtml = '<div class="bar-chart">' +
+                                                chartData.map(d => 
+                                                    '<div class="chart-row">' +
+                                                        '<div class="chart-label">' + d.label + '</div>' +
+                                                        '<div class="chart-bar-container">' +
+                                                            '<div class="chart-bar" style="width: ' + d.value + '%"></div>' +
+                                                            '<span class="chart-val">' + d.value + '%</span>' +
+                                                        '</div>' +
+                                                    '</div>'
+                                                ).join('') +
+                                                '</div>';
+                                            break;
+
+                                        case 'remember':
+                                            const mem = section.content || {};
+                                            contentHtml = '<div class="mnemonic-box">' +
+                                                '<div class="mnemonic-title">' + (mem.mnemonic || 'REMEMBER') + '</div>' +
+                                                '<div class="mnemonic-text">' + mem.explanation + '</div>' +
+                                                '</div>';
+                                            break;
+
+                                        case 'mindmap':
+                                            const map = section.content || {};
+                                            const branches = map.branches || [];
+                                            contentHtml = '<div class="mindmap-container">' +
+                                                '<div class="mindmap-center">' + map.center + '</div>' +
+                                                '<div class="mindmap-branches">' +
+                                                    branches.map(b => '<div class="mindmap-branch">' + b + '</div>').join('') +
+                                                '</div>' +
+                                                '</div>';
+                                            break;
+
+                                        case 'key_point':
+                                        case 'process':
+                                            const points = Array.isArray(section.content) ? section.content : [section.content];
+                                            contentHtml = '<ul class="card-list">' +
+                                                points.map(item => '<li>' + item + '</li>').join('') +
+                                                '</ul>';
+                                            break;
+
+                                        case 'table':
+                                            if (section.content && section.content.headers && section.content.rows) {
+                                                const headers = section.content.headers || [];
+                                                const rows = section.content.rows || [];
+                                                contentHtml = '<div class="table-wrapper"><table class="data-table">' +
+                                                    '<thead><tr>' + headers.map(h => '<th>' + h + '</th>').join('') + '</tr></thead>' +
+                                                    '<tbody>' + rows.map(row => '<tr>' + row.map(cell => '<td>' + cell + '</td>').join('') + '</tr>').join('') + '</tbody>' +
+                                                    '</table></div>';
+                                            } else {
+                                                contentHtml = '<p class="plain-text">Invalid table data.</p>';
+                                            }
+                                            break;
+
+                                        default:
+                                            contentHtml = '<p class="plain-text">' + section.content + '</p>';
+                                    }
+
+                                    card.innerHTML = 
+                                        '<h3 class="card-title">' +
+                                            '<div class="icon-box"><span class="material-symbols-rounded">' + iconName + '</span></div>' +
+                                            section.title +
+                                        '</h3>' +
+                                        '<div class="card-content">' + contentHtml + '</div>' +
+                                        '<div class="card-deco"></div>';
+                                    
+                                    grid.appendChild(card);
+                                });
+                            }
+
+                            posterSheet.appendChild(grid);
+                            outputContainer.appendChild(posterSheet);
+                        }
+                        
+                        renderInfographic(data);
                     <\/script>
                 </body>
                 </html>
