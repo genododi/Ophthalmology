@@ -47,6 +47,51 @@ const COMMUNITY_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 // ============================================
 
 /**
+ * Auto-detect chapter from title keywords
+ * Simplified version of the main script's autoDetectChapter function
+ */
+function autoDetectChapterFromTitle(title) {
+    if (!title) return 'uncategorized';
+    
+    const titleLower = title.toLowerCase();
+    
+    const rules = [
+        { keywords: ['neuro', 'optic nerve', 'papill', 'visual field', 'pupil', 'nystagmus', 'intracranial', 'iih'], chapter: 'neuro' },
+        { keywords: ['glaucoma', 'iop', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs'], chapter: 'glaucoma' },
+        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd'], chapter: 'vitreoretinal' },
+        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'retinal vein', 'macular edema', 'dme'], chapter: 'medical_retina' },
+        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'pterygium', 'dry eye'], chapter: 'cornea' },
+        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule'], chapter: 'lens' },
+        { keywords: ['uveitis', 'iritis', 'choroiditis', 'panuveitis'], chapter: 'uveitis' },
+        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular'], chapter: 'strabismus' },
+        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop'], chapter: 'paediatric' },
+        { keywords: ['orbit', 'proptosis', 'thyroid eye', 'graves'], chapter: 'orbit' },
+        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion'], chapter: 'lids' },
+        { keywords: ['lacrimal', 'tear', 'dacryocyst', 'nasolacrimal', 'epiphora'], chapter: 'lacrimal' },
+        { keywords: ['conjunctiv', 'pinguecula'], chapter: 'conjunctiva' },
+        { keywords: ['scler', 'episcler'], chapter: 'sclera' },
+        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk'], chapter: 'refractive' },
+        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema'], chapter: 'trauma' },
+        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma'], chapter: 'tumours' },
+        { keywords: ['surgery', 'surgical', 'anaesthe'], chapter: 'surgery_care' },
+        { keywords: ['laser', 'yag', 'photocoagulation'], chapter: 'lasers' },
+        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'anti-vegf'], chapter: 'therapeutics' },
+        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry'], chapter: 'clinical_skills' },
+        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa'], chapter: 'investigations' },
+    ];
+    
+    for (const rule of rules) {
+        for (const keyword of rule.keywords) {
+            if (titleLower.includes(keyword)) {
+                return rule.chapter;
+            }
+        }
+    }
+    
+    return 'uncategorized';
+}
+
+/**
  * Get user's IP address using ipify.org
  */
 async function getUserIP() {
@@ -452,23 +497,39 @@ async function downloadToLocalLibrary(submissionId) {
             library = [];
         }
 
-        // Check if already exists
-        const exists = library.some(item => 
+        // DUPLICATE CHECK: Normalize title for comparison
+        const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+        const submissionTitleNorm = normalizeTitle(submission.title);
+        
+        // Check if already exists by communityId, exact match, OR normalized title
+        const existsExact = library.some(item => 
             item.communityId === submissionId ||
             (item.title === submission.title && item.date === submission.submittedAt)
         );
+        
+        const existsByTitle = library.some(item => {
+            const itemTitleNorm = normalizeTitle(item.title);
+            return itemTitleNorm === submissionTitleNorm && itemTitleNorm.length > 0;
+        });
 
-        if (exists) {
+        if (existsExact) {
             return { success: false, message: 'This infographic is already in your library.' };
         }
+        
+        if (existsByTitle) {
+            return { success: false, message: `An infographic with a similar title "${submission.title}" already exists in your library.` };
+        }
 
-        // Calculate next seqId
+        // Calculate next seqId (highest number for newest)
         let nextSeqId = 1;
         if (library.length > 0) {
             const maxSeqId = library.reduce((max, item) => 
                 (item.seqId > max ? item.seqId : max), 0);
             nextSeqId = maxSeqId + 1;
         }
+
+        // Auto-detect chapter from title
+        const autoChapter = autoDetectChapterFromTitle(submission.title);
 
         // Create local library item
         const newItem = {
@@ -478,7 +539,8 @@ async function downloadToLocalLibrary(submissionId) {
             summary: submission.summary,
             date: new Date().toISOString(),
             data: submission.data,
-            chapterId: 'uncategorized',
+            chapterId: autoChapter, // Auto-chapterize instead of uncategorized
+            _newlyImported: Date.now(), // Mark as newly imported for green highlight
             // Track community origin
             communityId: submissionId,
             communityAuthor: submission.userName,

@@ -662,51 +662,54 @@ function autoDetectChapter(title) {
     const titleLower = title.toLowerCase();
     
     // Chapter detection rules (order matters - more specific first)
+    // Expanded keywords for better auto-detection
     const rules = [
         // Neuro-ophthalmology
-        { keywords: ['neuro', 'optic nerve', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm'], chapter: 'neuro' },
+        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'papilledema', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'pseudotumor', 'third nerve', 'fourth nerve', 'sixth nerve', 'horner', 'anisocoria', 'optic atrophy', 'disc edema', 'gaze palsy', 'internuclear'], chapter: 'neuro' },
         // Glaucoma
-        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'open angle'], chapter: 'glaucoma' },
+        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'open angle', 'poag', 'pacg', 'pigmentary', 'pseudoexfoliation', 'pxf', 'migs', 'tube shunt', 'ahmed', 'baerveldt', 'filtering surgery', 'goniotomy', 'trabectome', 'istent', 'optic disc cupping', 'nfl', 'rnfl'], chapter: 'glaucoma' },
         // Vitreoretinal
-        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'epiretinal', 'macular hole', 'pvd', 'floaters'], chapter: 'vitreoretinal' },
+        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'epiretinal', 'macular hole', 'pvd', 'floaters', 'rhegmatogenous', 'tractional', 'proliferative vitreoretinopathy', 'pvr', 'silicone oil', 'gas tamponade', 'scleral buckle', 'retinal tear', 'lattice degeneration'], chapter: 'vitreoretinal' },
         // Medical Retina
-        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'oct', 'csr', 'retinal vein', 'retinal artery', 'macular edema', 'epiretinal membrane'], chapter: 'medical_retina' },
+        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'drusen', 'geographic atrophy', 'wet amd', 'dry amd', 'cnv', 'choroidal neovascularization', 'brvo', 'crvo', 'brao', 'crao', 'macular', 'fovea', 'retinal pigment'], chapter: 'medical_retina' },
         // Cornea
-        { keywords: ['cornea', 'keratitis', 'keratoconus', 'fuchs', 'bullous', 'endothelial', 'transplant', 'pterygium', 'dry eye'], chapter: 'cornea' },
+        { keywords: ['cornea', 'keratitis', 'keratoconus', 'fuchs', 'bullous', 'endothelial', 'corneal transplant', 'pterygium', 'dry eye', 'dsaek', 'dmek', 'dalk', 'pk', 'penetrating keratoplasty', 'corneal ulcer', 'corneal dystrophy', 'epithelial', 'stromal', 'map dot', 'reis bucklers', 'lattice dystrophy', 'granular dystrophy', 'ectasia', 'corneal edema', 'graft rejection', 'herpetic', 'acanthamoeba', 'fungal keratitis', 'bacterial keratitis'], chapter: 'cornea' },
         // Lens / Cataract
-        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'zonul'], chapter: 'lens' },
+        { keywords: ['cataract', 'lens', 'phaco', 'phacoemulsification', 'iol', 'intraocular lens', 'posterior capsule', 'zonul', 'nuclear', 'cortical', 'subcapsular', 'pcr', 'posterior capsule rupture', 'yag capsulotomy', 'nd:yag', 'pseudophakia', 'aphakia', 'ectopia lentis', 'subluxation', 'dislocated lens', 'femtosecond'], chapter: 'lens' },
         // Uveitis
-        { keywords: ['uveitis', 'iritis', 'cyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid'], chapter: 'uveitis' },
+        { keywords: ['uveitis', 'iritis', 'cyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'anterior uveitis', 'intermediate uveitis', 'posterior uveitis', 'hypopyon', 'keratic precipitate', 'kp', 'synechia', 'vogt koyanagi', 'vkh', 'birdshot', 'serpiginous', 'toxoplasma', 'tuberculosis eye', 'cmv retinitis'], chapter: 'uveitis' },
         // Strabismus & Motility
-        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular'], chapter: 'strabismus' },
+        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'hypotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'prism', 'duane', 'brown syndrome', 'superior oblique', 'inferior oblique', 'medial rectus', 'lateral rectus', 'convergence', 'divergence', 'accommodation', 'vergence'], chapter: 'strabismus' },
         // Paediatric
-        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'amblyopia', 'lazy eye'], chapter: 'paediatric' },
+        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'lazy eye', 'nasolacrimal duct obstruction', 'neonatal', 'infant', 'developmental', 'persistent fetal', 'leukocoria', 'red reflex'], chapter: 'paediatric' },
         // Orbit
-        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital tumor', 'blow out'], chapter: 'orbit' },
+        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital tumor', 'blow out', 'orbital fracture', 'enophthalmos', 'orbital cellulitis', 'preseptal', 'postseptal', 'cavernous sinus', 'optic nerve sheath', 'decompression', 'orbital inflammation', 'tolosa hunt'], chapter: 'orbit' },
         // Lids
-        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'stye', 'tarsus', 'levator'], chapter: 'lids' },
+        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'blepharitis', 'chalazion', 'stye', 'hordeolum', 'tarsus', 'levator', 'meibomian', 'trichiasis', 'distichiasis', 'lagophthalmos', 'dermatochalasis', 'blepharoplasty', 'lid retraction', 'floppy eyelid', 'bell palsy', 'facial nerve'], chapter: 'lids' },
         // Lacrimal
-        { keywords: ['lacrimal', 'tear', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dry eye', 'punctum'], chapter: 'lacrimal' },
+        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'punctum', 'canalicul', 'lacrimal gland', 'dacryoadenitis', 'dcr', 'dacryocystorhinostomy', 'tearing', 'watery eye', 'tear film'], chapter: 'lacrimal' },
         // Conjunctiva
-        { keywords: ['conjunctiv', 'pinguecula', 'subconjunctival', 'allergic eye'], chapter: 'conjunctiva' },
+        { keywords: ['conjunctiv', 'pinguecula', 'subconjunctival', 'allergic eye', 'vernal', 'atopic', 'giant papillary', 'gpc', 'viral conjunctivitis', 'bacterial conjunctivitis', 'chlamydial', 'trachoma', 'symblepharon', 'cicatricial', 'stevens johnson', 'pemphigoid'], chapter: 'conjunctiva' },
         // Sclera
-        { keywords: ['scler', 'episcler'], chapter: 'sclera' },
+        { keywords: ['scler', 'episcler', 'scleritis', 'episcleritis', 'scleromalacia', 'necrotizing scleritis', 'posterior scleritis'], chapter: 'sclera' },
         // Refractive
-        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'presbyopia', 'spectacle'], chapter: 'refractive' },
+        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'hypermetropia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'spectacle', 'glasses', 'contact lens', 'icl', 'phakic iol', 'relex', 'excimer', 'wavefront', 'aberration', 'topography', 'keratometry', 'axial length', 'biometry'], chapter: 'refractive' },
         // Trauma
-        { keywords: ['trauma', 'injury', 'foreign body', 'penetrating', 'blunt', 'chemical burn', 'hyphema'], chapter: 'trauma' },
+        { keywords: ['trauma', 'injury', 'foreign body', 'penetrating', 'blunt', 'chemical burn', 'hyphema', 'iofb', 'ruptured globe', 'open globe', 'closed globe', 'commotio', 'berlin edema', 'angle recession', 'traumatic cataract', 'lens dislocation', 'vitreous hemorrhage', 'choroidal rupture', 'siderosis', 'chalcosis'], chapter: 'trauma' },
         // Tumours
-        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'nevus', 'naevus'], chapter: 'tumours' },
+        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'nevus', 'naevus', 'choroidal melanoma', 'iris melanoma', 'ciliary body', 'sebaceous carcinoma', 'basal cell', 'squamous cell', 'kaposi', 'hemangioma', 'plaque brachytherapy', 'enucleation', 'evisceration', 'exenteration'], chapter: 'tumours' },
         // Surgery
-        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'post-op', 'preop', 'complication'], chapter: 'surgery_care' },
+        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'post-op', 'preop', 'complication', 'theatre', 'operating', 'intraoperative', 'perioperative', 'block', 'retrobulbar', 'peribulbar', 'sub-tenon', 'topical anesthesia', 'sedation', 'general anesthesia'], chapter: 'surgery_care' },
         // Lasers
-        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'ppr'], chapter: 'lasers' },
+        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'alt', 'ppr', 'panretinal', 'focal laser', 'micropulse', 'pascal', 'diode', 'green laser', 'photodynamic', 'pdt', 'verteporfin'], chapter: 'lasers' },
         // Therapeutics
-        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid', 'anti-vegf', 'therapeutic'], chapter: 'therapeutics' },
+        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid', 'anti-vegf', 'therapeutic', 'pharmacology', 'intravitreal', 'injection', 'avastin', 'lucentis', 'eylea', 'ozurdex', 'triamcinolone', 'dexamethasone', 'timolol', 'latanoprost', 'brimonidine', 'dorzolamide', 'pilocarpine', 'atropine', 'cyclopentolate', 'tropicamide', 'fluorescein', 'mydriatic', 'miotic', 'preservative free'], chapter: 'therapeutics' },
         // Clinical Skills
-        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'refraction', 'tonometry', 'gonioscopy', 'clinical skill'], chapter: 'clinical_skills' },
+        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'fundus examination', 'tonometry', 'gonioscopy', 'clinical skill', 'direct ophthalmoscopy', 'indirect ophthalmoscopy', 'biomicroscopy', 'applanation', 'goldmann', 'pachymetry', 'specular microscopy', 'history taking', 'red eye', 'visual acuity', 'snellen', 'logmar', 'pinhole', 'confrontation'], chapter: 'clinical_skills' },
         // Investigations
-        { keywords: ['investigation', 'imaging', 'angiography', 'ultrasound', 'b-scan', 'visual field', 'oct', 'ffa', 'icg'], chapter: 'investigations' },
+        { keywords: ['investigation', 'imaging', 'angiography', 'ultrasound', 'b-scan', 'a-scan', 'oct', 'ffa', 'icg', 'fluorescein angiography', 'indocyanine', 'octa', 'oct angiography', 'visual field test', 'perimetry', 'humphrey', 'goldmann perimetry', 'electrophysiology', 'erg', 'vep', 'eog', 'mferg', 'uf', 'corneal topography', 'scheimpflug', 'pentacam', 'orbscan', 'anterior segment oct', 'ubm'], chapter: 'investigations' },
+        // Evidence-based
+        { keywords: ['trial', 'study', 'evidence', 'guideline', 'protocol', 'systematic review', 'meta-analysis', 'rct', 'randomized', 'outcome', 'efficacy', 'drcr', 'catt', 'comparison', 'areds'], chapter: 'evidence' },
     ];
     
     for (const rule of rules) {
@@ -792,14 +795,8 @@ function setupKnowledgeBase() {
             const itemsToExport = library.filter(item => selectedItems.has(item.id));
 
             // REMOTE USER: Redirect to Community Pool instead of server
+            // No limit on number of items - users can submit as many as they want
             if (isGitHubPages()) {
-                const MAX_EXPORT_ITEMS = 10;
-                
-                if (itemsToExport.length > MAX_EXPORT_ITEMS) {
-                    alert(`You can submit up to ${MAX_EXPORT_ITEMS} infographics at a time to the Community Pool.\n\nYou selected ${itemsToExport.length}. Please deselect some items.`);
-                    return;
-                }
-                
                 const itemWord = itemsToExport.length === 1 ? 'infographic' : 'infographics';
                 if (!confirm(`You are accessing remotely. ${itemsToExport.length} ${itemWord} will be submitted to the Community Pool for admin review. Continue?`)) return;
 
@@ -1532,6 +1529,43 @@ function setupKnowledgeBase() {
             countBadge.textContent = library.length;
             countBadge.style.display = library.length > 0 ? 'inline-block' : 'none';
         }
+        
+        // Detect uncategorized infographics
+        const uncategorizedCount = library.filter(item => !item.chapterId || item.chapterId === 'uncategorized').length;
+        let uncategorizedBanner = modal.querySelector('.uncategorized-banner');
+        
+        if (uncategorizedCount > 0 && library.length > 0) {
+            if (!uncategorizedBanner) {
+                uncategorizedBanner = document.createElement('div');
+                uncategorizedBanner.className = 'uncategorized-banner';
+                const modalHeader = modal.querySelector('.modal-header');
+                if (modalHeader && modalHeader.nextSibling) {
+                    modalHeader.parentNode.insertBefore(uncategorizedBanner, modalHeader.nextSibling);
+                }
+            }
+            uncategorizedBanner.innerHTML = `
+                <span class="material-symbols-rounded">category</span>
+                <span><strong>${uncategorizedCount}</strong> infographic${uncategorizedCount > 1 ? 's' : ''} uncategorized</span>
+                <button class="btn-small btn-categorize-all" style="margin-left: auto;">
+                    <span class="material-symbols-rounded">auto_awesome</span>
+                    Auto-Categorize
+                </button>
+            `;
+            uncategorizedBanner.style.display = 'flex';
+            
+            // Add click handler for auto-categorize button
+            const categorizeBtn = uncategorizedBanner.querySelector('.btn-categorize-all');
+            if (categorizeBtn) {
+                categorizeBtn.onclick = () => {
+                    const autoChapterBtn = document.getElementById('auto-chapter-btn');
+                    if (autoChapterBtn) {
+                        autoChapterBtn.click();
+                    }
+                };
+            }
+        } else if (uncategorizedBanner) {
+            uncategorizedBanner.style.display = 'none';
+        }
 
         const chapters = getChapters();
 
@@ -1566,6 +1600,14 @@ function setupKnowledgeBase() {
                 if (idxA !== idxB) return idxA - idxB;
                 // Secondary sort by date
                 return new Date(b.date) - new Date(a.date);
+            });
+        } else if (currentSortMode === 'newly_added') {
+            // Sort by _newlyImported timestamp (most recent first), then by date
+            filteredLibrary.sort((a, b) => {
+                const aNew = a._newlyImported || 0;
+                const bNew = b._newlyImported || 0;
+                if (aNew !== bNew) return bNew - aNew; // Newly imported first
+                return new Date(b.date) - new Date(a.date); // Then by date
             });
         }
 
@@ -1622,6 +1664,7 @@ function setupKnowledgeBase() {
                         <option value="date" ${currentSortMode === 'date' ? 'selected' : ''}>Sort by Date</option>
                         <option value="name" ${currentSortMode === 'name' ? 'selected' : ''}>Sort by Name</option>
                         <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
+                        <option value="newly_added" ${currentSortMode === 'newly_added' ? 'selected' : ''}>Sort by Newly Added</option>
                     </select>
                 </div>
             </div>
@@ -4609,6 +4652,171 @@ function setupCommunityHub() {
 }
 
 /* ========================================
+   BACKGROUND MUSIC PLAYER
+   ======================================== */
+
+function setupMusicPlayer() {
+    const musicToggle = document.getElementById('music-toggle');
+    const musicPanel = document.getElementById('music-panel');
+    const musicIcon = document.getElementById('music-icon');
+    const musicAudio = document.getElementById('music-audio');
+    const playPauseBtn = document.getElementById('music-play-pause');
+    const volumeSlider = document.getElementById('music-volume');
+    const musicStatus = document.getElementById('music-status');
+    const stationBtns = document.querySelectorAll('.station-btn');
+    
+    if (!musicToggle || !musicAudio) return;
+    
+    // Radio station URLs (public streams)
+    const stations = {
+        classical: {
+            name: 'Classical FM',
+            // Using Classic FM UK stream
+            url: 'https://media-ice.musicradio.com/ClassicFMMP3',
+            fallback: 'https://stream.classicfm.com/classicfm.mp3'
+        },
+        quran: {
+            name: 'Quran - Al Minshawi',
+            // Quran radio stream - Al Minshawi recitation
+            url: 'https://Qurango.net/radio/minshawi_mjwad',
+            fallback: 'https://backup.qurango.net/radio/minshawi_mjwad'
+        }
+    };
+    
+    let currentStation = null;
+    let isPlaying = false;
+    
+    // Toggle panel
+    musicToggle.addEventListener('click', () => {
+        musicPanel.classList.toggle('hidden');
+    });
+    
+    // Close panel when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.music-player')) {
+            musicPanel.classList.add('hidden');
+        }
+    });
+    
+    // Station selection
+    stationBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const stationId = btn.dataset.station;
+            const station = stations[stationId];
+            
+            if (!station) return;
+            
+            // Update UI
+            stationBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            currentStation = stationId;
+            playPauseBtn.disabled = false;
+            
+            // Set status
+            musicStatus.textContent = `Loading ${station.name}...`;
+            musicStatus.className = 'music-status loading';
+            
+            // Try to load the stream
+            try {
+                musicAudio.src = station.url;
+                musicAudio.volume = volumeSlider.value / 100;
+                
+                await musicAudio.play();
+                isPlaying = true;
+                updatePlayPauseIcon();
+                musicStatus.textContent = `Playing: ${station.name}`;
+                musicStatus.className = 'music-status playing';
+                musicToggle.classList.add('playing');
+                
+            } catch (err) {
+                console.log('Primary stream failed, trying fallback...', err);
+                
+                // Try fallback
+                try {
+                    musicAudio.src = station.fallback;
+                    await musicAudio.play();
+                    isPlaying = true;
+                    updatePlayPauseIcon();
+                    musicStatus.textContent = `Playing: ${station.name}`;
+                    musicStatus.className = 'music-status playing';
+                    musicToggle.classList.add('playing');
+                    
+                } catch (fallbackErr) {
+                    console.error('Fallback also failed:', fallbackErr);
+                    musicStatus.textContent = 'Stream unavailable. Try again later.';
+                    musicStatus.className = 'music-status error';
+                    isPlaying = false;
+                    updatePlayPauseIcon();
+                }
+            }
+        });
+    });
+    
+    // Play/Pause
+    playPauseBtn.addEventListener('click', () => {
+        if (!currentStation) return;
+        
+        if (isPlaying) {
+            musicAudio.pause();
+            isPlaying = false;
+            musicStatus.textContent = 'Paused';
+            musicStatus.className = 'music-status';
+            musicToggle.classList.remove('playing');
+        } else {
+            musicAudio.play().then(() => {
+                isPlaying = true;
+                musicStatus.textContent = `Playing: ${stations[currentStation].name}`;
+                musicStatus.className = 'music-status playing';
+                musicToggle.classList.add('playing');
+            }).catch(err => {
+                console.error('Play failed:', err);
+                musicStatus.textContent = 'Playback failed';
+                musicStatus.className = 'music-status error';
+            });
+        }
+        updatePlayPauseIcon();
+    });
+    
+    function updatePlayPauseIcon() {
+        const icon = playPauseBtn.querySelector('.material-symbols-rounded');
+        if (icon) {
+            icon.textContent = isPlaying ? 'pause' : 'play_arrow';
+        }
+        musicIcon.textContent = isPlaying ? 'music_note' : 'music_off';
+    }
+    
+    // Volume control
+    volumeSlider.addEventListener('input', () => {
+        musicAudio.volume = volumeSlider.value / 100;
+    });
+    
+    // Handle audio errors
+    musicAudio.addEventListener('error', () => {
+        musicStatus.textContent = 'Stream error. Try another station.';
+        musicStatus.className = 'music-status error';
+        isPlaying = false;
+        updatePlayPauseIcon();
+        musicToggle.classList.remove('playing');
+    });
+    
+    // Handle stream end/stall
+    musicAudio.addEventListener('stalled', () => {
+        musicStatus.textContent = 'Buffering...';
+        musicStatus.className = 'music-status loading';
+    });
+    
+    musicAudio.addEventListener('playing', () => {
+        if (currentStation) {
+            musicStatus.textContent = `Playing: ${stations[currentStation].name}`;
+            musicStatus.className = 'music-status playing';
+        }
+    });
+    
+    console.log('Music player initialized.');
+}
+
+/* ========================================
    INITIALIZE ALL STUDIO TOOLS
    ======================================== */
 
@@ -4624,6 +4832,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize Community Hub
     setupCommunityHub();
+    
+    // Initialize Music Player
+    setupMusicPlayer();
 
     // Initially disable tools
     disableStudioTools();

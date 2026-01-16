@@ -746,6 +746,38 @@
         </div>
     </div>
 
+    <!-- Background Music Player -->
+    <div id="music-player" class="music-player">
+        <button id="music-toggle" class="music-toggle" title="Toggle Music">
+            <span class="material-symbols-rounded" id="music-icon">music_note</span>
+        </button>
+        <div id="music-panel" class="music-panel hidden">
+            <div class="music-header">
+                <span class="material-symbols-rounded">radio</span>
+                <span>Background Music</span>
+            </div>
+            <div class="music-stations">
+                <button class="station-btn" data-station="classical" title="Classical FM">
+                    <span class="material-symbols-rounded">piano</span>
+                    <span>Classical FM</span>
+                </button>
+                <button class="station-btn" data-station="quran" title="Quran Radio - Al Minshawi">
+                    <span class="material-symbols-rounded">menu_book</span>
+                    <span>Quran - Minshawi</span>
+                </button>
+            </div>
+            <div class="music-controls">
+                <button id="music-play-pause" class="music-btn" disabled>
+                    <span class="material-symbols-rounded">play_arrow</span>
+                </button>
+                <input type="range" id="music-volume" min="0" max="100" value="30" class="volume-slider">
+                <span class="material-symbols-rounded volume-icon">volume_up</span>
+            </div>
+            <div id="music-status" class="music-status">Select a station</div>
+        </div>
+        <audio id="music-audio" crossorigin="anonymous"></audio>
+    </div>
+
     <!-- Script -->
     <script src="community-submissions.js"></script>
     <!-- Load Google Generative AI as fallback for local file:// protocol -->
