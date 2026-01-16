@@ -238,5 +238,7 @@
       }
     ]
   },
-  "chapterId": "refractive"
+  "chapterId": "refractive",
+  "_serverSynced": true,
+  "seqId": 50
 }

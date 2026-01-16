@@ -1,6 +1,5 @@
 {
   "id": 1768055580844,
-  "seqId": 57,
   "title": "Excimer & Femtosecond Laser Refractive Surgery: The Ultimate Clinical Guide",
   "summary": "An exhaustive clinical reference covering ophthalmic and medical contraindications, surface treatments (PRK, LASEK, Epi-LASEK), lamellar surgery (LASIK), and lenticule extraction (SMILE). This guide details indications, methods, advantages, and disadvantages for all major corneal refractive procedures.",
   "date": "2026-01-10T14:33:00.844Z",
@@ -265,5 +264,6 @@
     ]
   },
   "chapterId": "refractive",
+  "seqId": 56,
   "_serverSynced": true
 }

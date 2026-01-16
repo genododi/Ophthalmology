@@ -1,6 +1,5 @@
 {
   "id": 1768146554180,
-  "seqId": 81,
   "title": "Herpes Viruses in Ophthalmology: HSV & HZO Clinical Guide",
   "summary": "An exhaustive clinical reference for the diagnosis and management of Herpes Simplex Keratitis and Herpes Zoster Ophthalmicus. This poster details viral pathogenesis, the spectrum of corneal involvement from epithelial to neurotrophic stages, and precise pharmacological treatment protocols.",
   "date": "2026-01-11T15:49:14.180Z",
@@ -381,5 +380,6 @@
     ]
   },
   "chapterId": "cornea",
+  "seqId": 80,
   "_serverSynced": true
 }

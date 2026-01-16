@@ -614,7 +614,7 @@ async function fetchLibraryFromStatic() {
         return [];
     } catch (err) {
         console.log('Could not fetch static library index:', err.message);
-        return [];
+        return null; // Return null on error to distinguish from empty library
     }
 }
 
@@ -1447,8 +1447,17 @@ function setupKnowledgeBase() {
             if (isGitHubPages()) {
                 console.log("Running on GitHub Pages. Fetching from static library index...");
                 serverItems = await fetchLibraryFromStatic();
+
+                // Safety Check: If serverItems is null, it means fetch failed (network error or file missing).
+                // Do NOT proceed with sync or deletion to avoid wiping data accidentally.
+                if (serverItems === null) {
+                    console.error("Failed to fetch library index. Aborting sync.");
+                    if (!silent) alert("Could not fetch library from server. Sync aborted to protect local data.");
+                    return;
+                }
+
                 if (serverItems.length === 0 && !silent) {
-                    console.log("No items found in static library index.");
+                    console.log("Static library index is empty.");
                 }
 
                 // Also fetch approved community submissions (the cloud pool)
@@ -1501,7 +1510,31 @@ function setupKnowledgeBase() {
                 const skippedTitles = [];
                 const deletedTitles = [];
 
-                // ADMIN DELETION SYNC: Check for items deleted by admin
+                // 1. AUTO-DELETE: Check for items that were on server (synced) but are now missing
+                // This means the Admin deleted them from the server, so we must remove them locally.
+                if (serverItems.length > 0) { // Only run if we have a valid server list
+                    const serverIdMap = new Set(serverItems.map(i => String(i.id)));
+                    const originalLength = localLibrary.length;
+
+                    localLibrary = localLibrary.filter(item => {
+                        // Only check items that CAME from server (marked as synced)
+                        // User-created local items (not synced) are preserved
+                        if (item._serverSynced) {
+                            // If item ID is NOT in the new server list, it was deleted by Admin
+                            if (item.id && !serverIdMap.has(String(item.id))) {
+                                console.log(`[Auto-Delete] Removing "${item.title}" because it was deleted from server.`);
+                                deletedTitles.push(item.title);
+                                return false; // Delete it
+                            }
+                        }
+                        return true; // Keep it
+                    });
+
+                    const autoDeleteCount = originalLength - localLibrary.length;
+                    deletedCount += autoDeleteCount;
+                }
+
+                // 2. ADMIN DELETION SYNC (Community Tracking): Check for explicitly tracked deletions
                 // Remote users will have these items removed from their library
                 try {
                     if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.getDeletedItems) {
