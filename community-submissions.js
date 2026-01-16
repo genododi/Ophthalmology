@@ -48,36 +48,61 @@ const COMMUNITY_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Auto-detect chapter from title keywords
- * Simplified version of the main script's autoDetectChapter function
+ * Enhanced clinical ophthalmology keywords
  */
 function autoDetectChapterFromTitle(title) {
     if (!title) return 'uncategorized';
     
     const titleLower = title.toLowerCase();
     
+    // Clinical ophthalmology auto-categorization rules
     const rules = [
-        { keywords: ['neuro', 'optic nerve', 'papill', 'visual field', 'pupil', 'nystagmus', 'intracranial', 'iih'], chapter: 'neuro' },
-        { keywords: ['glaucoma', 'iop', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs'], chapter: 'glaucoma' },
-        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd'], chapter: 'vitreoretinal' },
-        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'retinal vein', 'macular edema', 'dme'], chapter: 'medical_retina' },
-        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'pterygium', 'dry eye'], chapter: 'cornea' },
-        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule'], chapter: 'lens' },
-        { keywords: ['uveitis', 'iritis', 'choroiditis', 'panuveitis'], chapter: 'uveitis' },
-        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular'], chapter: 'strabismus' },
-        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop'], chapter: 'paediatric' },
-        { keywords: ['orbit', 'proptosis', 'thyroid eye', 'graves'], chapter: 'orbit' },
-        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion'], chapter: 'lids' },
-        { keywords: ['lacrimal', 'tear', 'dacryocyst', 'nasolacrimal', 'epiphora'], chapter: 'lacrimal' },
-        { keywords: ['conjunctiv', 'pinguecula'], chapter: 'conjunctiva' },
-        { keywords: ['scler', 'episcler'], chapter: 'sclera' },
-        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk'], chapter: 'refractive' },
-        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema'], chapter: 'trauma' },
-        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma'], chapter: 'tumours' },
-        { keywords: ['surgery', 'surgical', 'anaesthe'], chapter: 'surgery_care' },
-        { keywords: ['laser', 'yag', 'photocoagulation'], chapter: 'lasers' },
-        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'anti-vegf'], chapter: 'therapeutics' },
-        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry'], chapter: 'clinical_skills' },
-        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa'], chapter: 'investigations' },
+        // Neuro-ophthalmology
+        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'horner', 'anisocoria', 'gaze palsy', 'diplopia cranial', 'aion', 'naion'], chapter: 'neuro' },
+        // Glaucoma
+        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs', 'tube shunt', 'filtering', 'rnfl', 'optic disc cupping', 'visual field glaucoma', 'pigmentary glaucoma', 'pseudoexfoliation'], chapter: 'glaucoma' },
+        // Vitreoretinal
+        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd', 'epiretinal membrane', 'erm', 'scleral buckle', 'rhegmatogenous', 'tractional', 'pvr', 'silicone oil', 'floaters'], chapter: 'vitreoretinal' },
+        // Medical Retina
+        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'brvo', 'crvo', 'drusen', 'cnv', 'anti-vegf', 'intravitreal', 'wet amd', 'dry amd', 'geographic atrophy'], chapter: 'medical_retina' },
+        // Cornea
+        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'dsaek', 'dmek', 'pterygium', 'dry eye', 'fuchs', 'corneal dystrophy', 'corneal ulcer', 'herpetic', 'acanthamoeba', 'cross-linking', 'graft rejection'], chapter: 'cornea' },
+        // Lens / Cataract
+        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'pco', 'yag capsulotomy', 'femtosecond', 'ectopia lentis', 'aphakia', 'pseudophakia'], chapter: 'lens' },
+        // Uveitis
+        { keywords: ['uveitis', 'iritis', 'iridocyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'vkh', 'birdshot', 'hypopyon', 'synechia', 'toxoplasm', 'cmv retinitis'], chapter: 'uveitis' },
+        // Strabismus
+        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'duane', 'brown syndrome'], chapter: 'strabismus' },
+        // Paediatric
+        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'leukocoria', 'retinoblastoma child', 'infantile', 'neonatal'], chapter: 'paediatric' },
+        // Orbit
+        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital cellulitis', 'blow out', 'orbital fracture', 'orbital tumor', 'decompression'], chapter: 'orbit' },
+        // Lids
+        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'hordeolum', 'trichiasis', 'lagophthalmos', 'lid tumor', 'bcc eyelid', 'levator', 'blepharoplasty'], chapter: 'lids' },
+        // Lacrimal
+        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dcr', 'punctum', 'canalicul', 'watery eye'], chapter: 'lacrimal' },
+        // Conjunctiva
+        { keywords: ['conjunctiv', 'pinguecula', 'allergic eye', 'vernal', 'trachoma', 'subconjunctival', 'chemosis', 'pemphigoid ocular', 'stevens-johnson'], chapter: 'conjunctiva' },
+        // Sclera
+        { keywords: ['scleritis', 'episcleritis', 'sclera', 'necrotizing scleritis'], chapter: 'sclera' },
+        // Refractive
+        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'icl', 'phakic iol', 'biometry', 'iol calculation'], chapter: 'refractive' },
+        // Trauma
+        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema', 'open globe', 'chemical burn', 'penetrating', 'iofb', 'commotio'], chapter: 'trauma' },
+        // Tumours
+        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'choroidal nevus', 'enucleation', 'plaque'], chapter: 'tumours' },
+        // Surgery
+        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'perioperative', 'complication', 'post-op', 'intraoperative'], chapter: 'surgery_care' },
+        // Lasers
+        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'prp', 'panretinal', 'micropulse', 'pdt'], chapter: 'lasers' },
+        // Therapeutics
+        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid eye', 'anti-vegf', 'pharmacology', 'intravitreal injection', 'eylea', 'lucentis', 'avastin'], chapter: 'therapeutics' },
+        // Clinical Skills
+        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry', 'gonioscopy', 'visual acuity', 'ophthalmoscopy', 'clinical assessment'], chapter: 'clinical_skills' },
+        // Investigations
+        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa', 'icg', 'visual field test', 'perimetry', 'ultrasound eye', 'b-scan', 'topography', 'electrophysiology'], chapter: 'investigations' },
+        // Evidence
+        { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr'], chapter: 'evidence' },
     ];
     
     for (const rule of rules) {
@@ -609,10 +634,12 @@ function generateSubmissionCardHTML(submission, isAdmin = false) {
                     <span class="material-symbols-rounded">visibility</span>
                     Preview
                 </button>
+                ${isAdmin ? `
                 <button class="community-btn download-btn" onclick="handleDownloadSubmission('${submission.id}')">
-                    <span class="material-symbols-rounded">download</span>
+                    <span class="material-symbols-rounded">admin_panel_settings</span>
                     Add to Library
                 </button>
+                ` : ''}
                 ${isAdmin ? `
                 <button class="community-btn approve-btn" onclick="handleApproveSubmission('${submission.id}')">
                     <span class="material-symbols-rounded">check_circle</span>
@@ -626,6 +653,65 @@ function generateSubmissionCardHTML(submission, isAdmin = false) {
             </div>
         </div>
     `;
+}
+
+// ============================================
+// DELETION TRACKING (Admin sync)
+// ============================================
+
+/**
+ * Track a deleted item so remote users will also delete it
+ * @param {string} normalizedTitle - Normalized title of the deleted item
+ */
+async function trackDeletion(normalizedTitle) {
+    if (!isJSONBinConfigured()) {
+        console.log('JSONBin not configured, cannot track deletion for remote sync.');
+        return { success: false };
+    }
+    
+    try {
+        const data = await fetchSubmissions();
+        
+        // Initialize deleted array if it doesn't exist
+        if (!data.deleted) {
+            data.deleted = [];
+        }
+        
+        // Add to deleted list if not already there
+        if (!data.deleted.includes(normalizedTitle)) {
+            data.deleted.push(normalizedTitle);
+            
+            // Keep only last 100 deletions to prevent unbounded growth
+            if (data.deleted.length > 100) {
+                data.deleted = data.deleted.slice(-100);
+            }
+            
+            await updateSubmissions(data);
+            console.log(`[Deletion Sync] Tracked deletion of: ${normalizedTitle}`);
+        }
+        
+        return { success: true };
+    } catch (err) {
+        console.error('Error tracking deletion:', err);
+        return { success: false };
+    }
+}
+
+/**
+ * Get list of deleted item titles for sync
+ */
+async function getDeletedItems() {
+    if (!isJSONBinConfigured()) {
+        return [];
+    }
+    
+    try {
+        const data = await fetchSubmissions();
+        return data.deleted || [];
+    } catch (err) {
+        console.error('Error getting deleted items:', err);
+        return [];
+    }
 }
 
 // ============================================
@@ -651,6 +737,10 @@ window.CommunitySubmissions = {
     verifyAdmin: verifyAdminPIN,
     approve: approveSubmission,
     reject: rejectSubmission,
+    
+    // Deletion sync
+    trackDeletion: trackDeletion,
+    getDeletedItems: getDeletedItems,
     
     // Utilities
     getUserIP,

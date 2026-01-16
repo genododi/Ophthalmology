@@ -656,60 +656,560 @@ function assignSequentialIds(library) {
 }
 
 // Auto-chapterize: Detect chapter from title keywords
+// Organized by clinical ophthalmology subspecialties with comprehensive terminology
 function autoDetectChapter(title) {
     if (!title) return 'uncategorized';
     
     const titleLower = title.toLowerCase();
     
-    // Chapter detection rules (order matters - more specific first)
-    // Expanded keywords for better auto-detection
+    // CLINICAL OPHTHALMOLOGY AUTO-CATEGORIZATION RULES
+    // Order matters: more specific conditions first, then broader categories
+    // Based on standard ophthalmology subspecialty organization
     const rules = [
-        // Neuro-ophthalmology
-        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'papilledema', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'pseudotumor', 'third nerve', 'fourth nerve', 'sixth nerve', 'horner', 'anisocoria', 'optic atrophy', 'disc edema', 'gaze palsy', 'internuclear'], chapter: 'neuro' },
-        // Glaucoma
-        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'open angle', 'poag', 'pacg', 'pigmentary', 'pseudoexfoliation', 'pxf', 'migs', 'tube shunt', 'ahmed', 'baerveldt', 'filtering surgery', 'goniotomy', 'trabectome', 'istent', 'optic disc cupping', 'nfl', 'rnfl'], chapter: 'glaucoma' },
-        // Vitreoretinal
-        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'epiretinal', 'macular hole', 'pvd', 'floaters', 'rhegmatogenous', 'tractional', 'proliferative vitreoretinopathy', 'pvr', 'silicone oil', 'gas tamponade', 'scleral buckle', 'retinal tear', 'lattice degeneration'], chapter: 'vitreoretinal' },
-        // Medical Retina
-        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'drusen', 'geographic atrophy', 'wet amd', 'dry amd', 'cnv', 'choroidal neovascularization', 'brvo', 'crvo', 'brao', 'crao', 'macular', 'fovea', 'retinal pigment'], chapter: 'medical_retina' },
-        // Cornea
-        { keywords: ['cornea', 'keratitis', 'keratoconus', 'fuchs', 'bullous', 'endothelial', 'corneal transplant', 'pterygium', 'dry eye', 'dsaek', 'dmek', 'dalk', 'pk', 'penetrating keratoplasty', 'corneal ulcer', 'corneal dystrophy', 'epithelial', 'stromal', 'map dot', 'reis bucklers', 'lattice dystrophy', 'granular dystrophy', 'ectasia', 'corneal edema', 'graft rejection', 'herpetic', 'acanthamoeba', 'fungal keratitis', 'bacterial keratitis'], chapter: 'cornea' },
-        // Lens / Cataract
-        { keywords: ['cataract', 'lens', 'phaco', 'phacoemulsification', 'iol', 'intraocular lens', 'posterior capsule', 'zonul', 'nuclear', 'cortical', 'subcapsular', 'pcr', 'posterior capsule rupture', 'yag capsulotomy', 'nd:yag', 'pseudophakia', 'aphakia', 'ectopia lentis', 'subluxation', 'dislocated lens', 'femtosecond'], chapter: 'lens' },
-        // Uveitis
-        { keywords: ['uveitis', 'iritis', 'cyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'anterior uveitis', 'intermediate uveitis', 'posterior uveitis', 'hypopyon', 'keratic precipitate', 'kp', 'synechia', 'vogt koyanagi', 'vkh', 'birdshot', 'serpiginous', 'toxoplasma', 'tuberculosis eye', 'cmv retinitis'], chapter: 'uveitis' },
-        // Strabismus & Motility
-        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'hypotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'prism', 'duane', 'brown syndrome', 'superior oblique', 'inferior oblique', 'medial rectus', 'lateral rectus', 'convergence', 'divergence', 'accommodation', 'vergence'], chapter: 'strabismus' },
-        // Paediatric
-        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'lazy eye', 'nasolacrimal duct obstruction', 'neonatal', 'infant', 'developmental', 'persistent fetal', 'leukocoria', 'red reflex'], chapter: 'paediatric' },
-        // Orbit
-        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital tumor', 'blow out', 'orbital fracture', 'enophthalmos', 'orbital cellulitis', 'preseptal', 'postseptal', 'cavernous sinus', 'optic nerve sheath', 'decompression', 'orbital inflammation', 'tolosa hunt'], chapter: 'orbit' },
-        // Lids
-        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'blepharitis', 'chalazion', 'stye', 'hordeolum', 'tarsus', 'levator', 'meibomian', 'trichiasis', 'distichiasis', 'lagophthalmos', 'dermatochalasis', 'blepharoplasty', 'lid retraction', 'floppy eyelid', 'bell palsy', 'facial nerve'], chapter: 'lids' },
-        // Lacrimal
-        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'punctum', 'canalicul', 'lacrimal gland', 'dacryoadenitis', 'dcr', 'dacryocystorhinostomy', 'tearing', 'watery eye', 'tear film'], chapter: 'lacrimal' },
-        // Conjunctiva
-        { keywords: ['conjunctiv', 'pinguecula', 'subconjunctival', 'allergic eye', 'vernal', 'atopic', 'giant papillary', 'gpc', 'viral conjunctivitis', 'bacterial conjunctivitis', 'chlamydial', 'trachoma', 'symblepharon', 'cicatricial', 'stevens johnson', 'pemphigoid'], chapter: 'conjunctiva' },
-        // Sclera
-        { keywords: ['scler', 'episcler', 'scleritis', 'episcleritis', 'scleromalacia', 'necrotizing scleritis', 'posterior scleritis'], chapter: 'sclera' },
-        // Refractive
-        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'hypermetropia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'spectacle', 'glasses', 'contact lens', 'icl', 'phakic iol', 'relex', 'excimer', 'wavefront', 'aberration', 'topography', 'keratometry', 'axial length', 'biometry'], chapter: 'refractive' },
-        // Trauma
-        { keywords: ['trauma', 'injury', 'foreign body', 'penetrating', 'blunt', 'chemical burn', 'hyphema', 'iofb', 'ruptured globe', 'open globe', 'closed globe', 'commotio', 'berlin edema', 'angle recession', 'traumatic cataract', 'lens dislocation', 'vitreous hemorrhage', 'choroidal rupture', 'siderosis', 'chalcosis'], chapter: 'trauma' },
-        // Tumours
-        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'nevus', 'naevus', 'choroidal melanoma', 'iris melanoma', 'ciliary body', 'sebaceous carcinoma', 'basal cell', 'squamous cell', 'kaposi', 'hemangioma', 'plaque brachytherapy', 'enucleation', 'evisceration', 'exenteration'], chapter: 'tumours' },
-        // Surgery
-        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'post-op', 'preop', 'complication', 'theatre', 'operating', 'intraoperative', 'perioperative', 'block', 'retrobulbar', 'peribulbar', 'sub-tenon', 'topical anesthesia', 'sedation', 'general anesthesia'], chapter: 'surgery_care' },
-        // Lasers
-        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'alt', 'ppr', 'panretinal', 'focal laser', 'micropulse', 'pascal', 'diode', 'green laser', 'photodynamic', 'pdt', 'verteporfin'], chapter: 'lasers' },
-        // Therapeutics
-        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid', 'anti-vegf', 'therapeutic', 'pharmacology', 'intravitreal', 'injection', 'avastin', 'lucentis', 'eylea', 'ozurdex', 'triamcinolone', 'dexamethasone', 'timolol', 'latanoprost', 'brimonidine', 'dorzolamide', 'pilocarpine', 'atropine', 'cyclopentolate', 'tropicamide', 'fluorescein', 'mydriatic', 'miotic', 'preservative free'], chapter: 'therapeutics' },
-        // Clinical Skills
-        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'fundus examination', 'tonometry', 'gonioscopy', 'clinical skill', 'direct ophthalmoscopy', 'indirect ophthalmoscopy', 'biomicroscopy', 'applanation', 'goldmann', 'pachymetry', 'specular microscopy', 'history taking', 'red eye', 'visual acuity', 'snellen', 'logmar', 'pinhole', 'confrontation'], chapter: 'clinical_skills' },
-        // Investigations
-        { keywords: ['investigation', 'imaging', 'angiography', 'ultrasound', 'b-scan', 'a-scan', 'oct', 'ffa', 'icg', 'fluorescein angiography', 'indocyanine', 'octa', 'oct angiography', 'visual field test', 'perimetry', 'humphrey', 'goldmann perimetry', 'electrophysiology', 'erg', 'vep', 'eog', 'mferg', 'uf', 'corneal topography', 'scheimpflug', 'pentacam', 'orbscan', 'anterior segment oct', 'ubm'], chapter: 'investigations' },
-        // Evidence-based
-        { keywords: ['trial', 'study', 'evidence', 'guideline', 'protocol', 'systematic review', 'meta-analysis', 'rct', 'randomized', 'outcome', 'efficacy', 'drcr', 'catt', 'comparison', 'areds'], chapter: 'evidence' },
+        // ══════════════════════════════════════════════════════════════════
+        // NEURO-OPHTHALMOLOGY - Disorders of visual pathway & cranial nerves
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Optic nerve conditions
+            'optic neuritis', 'optic neuropathy', 'optic atrophy', 'papilledema', 'papilloedema',
+            'disc swelling', 'disc edema', 'disc oedema', 'aion', 'naion', 'pion', 'lhon',
+            'ischaemic optic', 'ischemic optic', 'optic nerve head', 'optic disc drusen',
+            // Cranial nerve palsies
+            'third nerve', 'fourth nerve', 'sixth nerve', 'cn iii', 'cn iv', 'cn vi',
+            'oculomotor', 'trochlear', 'abducens', 'cranial nerve pals',
+            // Pupil disorders
+            'anisocoria', 'pupil', 'horner', 'adie', 'argyll robertson', 'rapd', 'apd',
+            'relative afferent', 'marcus gunn',
+            // Visual pathway
+            'chiasm', 'optic tract', 'optic radiation', 'visual cortex', 'hemianop',
+            'quadrantanop', 'bitemporal', 'homonymous',
+            // Nystagmus & eye movements
+            'nystagmus', 'gaze palsy', 'ino', 'internuclear', 'one-and-a-half',
+            'supranuclear', 'infranuclear', 'saccad',
+            // Intracranial conditions
+            'iih', 'pseudotumor', 'benign intracranial', 'idiopathic intracranial',
+            'raised icp', 'intracranial pressure', 'pituitary', 'sellar',
+            // General neuro-ophth
+            'neuro-ophth', 'neuroophth', 'visual pathway', 'afferent', 'efferent'
+        ], chapter: 'neuro' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // GLAUCOMA - IOP-related optic neuropathy & angle disorders
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Types of glaucoma
+            'glaucoma', 'poag', 'pacg', 'primary open angle', 'primary angle closure',
+            'normal tension', 'ntg', 'low tension', 'ocular hypertension', 'oht',
+            'secondary glaucoma', 'neovascular glaucoma', 'nvg', 'uveitic glaucoma',
+            'pigmentary glaucoma', 'pigment dispersion', 'pseudoexfoliation', 'pxf', 'pex',
+            'exfoliation syndrome', 'steroid-induced', 'traumatic glaucoma',
+            'congenital glaucoma', 'juvenile glaucoma', 'developmental glaucoma',
+            'angle recession glaucoma', 'inflammatory glaucoma', 'lens-induced',
+            // IOP & anatomy
+            'intraocular pressure', 'iop', 'aqueous', 'trabecular meshwork',
+            'schlemm', 'angle closure', 'narrow angle', 'plateau iris',
+            'pupillary block', 'appositional', 'synechial',
+            // Glaucoma surgery
+            'trabeculectomy', 'tube shunt', 'ahmed', 'baerveldt', 'molteno',
+            'migs', 'istent', 'hydrus', 'xen', 'preserflo', 'goniotomy',
+            'trabeculotomy', 'trabectome', 'kahook', 'gonioscopy-assisted',
+            'cyclophotocoagulation', 'cyclodiode', 'filtering surgery', 'bleb',
+            // Diagnostic
+            'rnfl', 'ganglion cell', 'optic disc cupping', 'cup-to-disc', 'c:d ratio',
+            'visual field loss', 'arcuate scotoma', 'nasal step'
+        ], chapter: 'glaucoma' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // VITREORETINAL - Surgical retina conditions
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Retinal detachment
+            'retinal detachment', 'rd', 'rhegmatogenous', 'tractional', 'exudative',
+            'macula-off', 'macula-on', 'pvr', 'proliferative vitreoretinopathy',
+            // Vitreous conditions
+            'vitreous', 'pvd', 'posterior vitreous', 'vitreous hemorrhage', 'vit haem',
+            'vitreous opacities', 'floaters', 'asteroid hyalosis', 'synchysis',
+            // Macular surgery
+            'macular hole', 'epiretinal membrane', 'erm', 'macular pucker',
+            'vitreomacular traction', 'vmt', 'lamellar hole',
+            // Surgical procedures
+            'vitrectomy', 'ppv', 'pars plana', 'scleral buckle', 'pneumatic retinopexy',
+            'silicone oil', 'gas tamponade', 'sf6', 'c3f8', 'endolaser', 'cryotherapy',
+            'internal limiting membrane', 'ilm peel',
+            // Peripheral retina
+            'retinal tear', 'retinal break', 'horseshoe tear', 'lattice degeneration',
+            'retinoschisis', 'peripheral retinal', 'prophylactic laser'
+        ], chapter: 'vitreoretinal' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // MEDICAL RETINA - Non-surgical retinal conditions
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Diabetic eye disease
+            'diabetic retinopathy', 'dr', 'npdr', 'pdr', 'proliferative diabetic',
+            'non-proliferative', 'diabetic macular', 'dme', 'csme', 'clinically significant',
+            'microaneurysm', 'hard exudate', 'cotton wool', 'irma', 'nve', 'nvd',
+            // AMD
+            'age-related macular', 'amd', 'armd', 'macular degeneration',
+            'drusen', 'geographic atrophy', 'wet amd', 'dry amd', 'neovascular amd',
+            'cnv', 'choroidal neovascul', 'polypoidal', 'pcv', 'rac', 'rpe detachment',
+            // Vascular conditions
+            'retinal vein occlusion', 'rvo', 'brvo', 'crvo', 'hemi-rvo',
+            'retinal artery occlusion', 'rao', 'brao', 'crao', 'branch retinal',
+            'central retinal', 'ocular ischemic', 'venous stasis',
+            // Macular conditions
+            'macular edema', 'cme', 'cystoid macular', 'irvine-gass',
+            'central serous', 'csr', 'csc', 'cscr', 'pachychoroid',
+            'myopic maculopathy', 'pathological myopia', 'macular atrophy',
+            'epiretinal', 'macular dystrophy', 'vitelliform', 'best disease',
+            'stargardt', 'pattern dystrophy',
+            // Other medical retina
+            'retinitis pigmentosa', 'rp', 'rod-cone', 'cone-rod', 'choroideremia',
+            'retinal dystrophy', 'inherited retinal', 'ird',
+            'hypertensive retinopathy', 'radiation retinopathy', 'solar retinopathy',
+            'chloroquine', 'hydroxychloroquine', 'drug toxicity retina',
+            // Anti-VEGF related
+            'anti-vegf', 'intravitreal injection', 'aflibercept', 'ranibizumab',
+            'bevacizumab', 'faricimab', 'brolucizumab'
+        ], chapter: 'medical_retina' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // CORNEA & EXTERNAL - Corneal conditions & ocular surface
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Infections
+            'keratitis', 'corneal ulcer', 'microbial keratitis', 'bacterial keratitis',
+            'fungal keratitis', 'acanthamoeba', 'herpetic keratitis', 'hsv keratitis',
+            'herpes simplex', 'herpes zoster ophthalmicus', 'hzo', 'disciform',
+            'dendrit', 'geographic ulcer',
+            // Dystrophies
+            'corneal dystrophy', 'fuchs', 'endothelial dystrophy', 'fced',
+            'keratoconus', 'pellucid', 'ectasia', 'corneal ectasia',
+            'lattice dystrophy', 'granular dystrophy', 'macular dystrophy',
+            'map-dot-fingerprint', 'ebmd', 'reis-bucklers', 'thiel-behnke',
+            'posterior polymorphous', 'congenital hereditary endothelial',
+            // Degenerations
+            'pterygium', 'pinguecula', 'band keratopathy', 'salzmann',
+            'terrien', 'mooren', 'dellen', 'arcus senilis',
+            // Dry eye & ocular surface
+            'dry eye', 'ded', 'meibomian gland', 'mgd', 'blepharitis',
+            'ocular surface disease', 'osd', 'tear film', 'schirmer',
+            'tbut', 'tear break-up', 'sjogren', 'sicca', 'gvhd ocular',
+            // Surgery
+            'corneal transplant', 'keratoplasty', 'pk', 'penetrating keratoplasty',
+            'dsaek', 'dsek', 'dmek', 'dalk', 'endothelial keratoplasty',
+            'corneal graft', 'graft rejection', 'graft failure',
+            'cross-linking', 'cxl', 'collagen cross', 'intacs', 'corneal ring',
+            // Other corneal
+            'corneal opacity', 'corneal scar', 'corneal edema', 'bullous keratopathy',
+            'exposure keratopathy', 'neurotrophic', 'persistent epithelial defect',
+            'recurrent erosion', 'epithelial basement membrane'
+        ], chapter: 'cornea' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // LENS & CATARACT
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Cataract types
+            'cataract', 'nuclear sclerosis', 'cortical cataract', 'posterior subcapsular',
+            'psc', 'mature cataract', 'hypermature', 'morgagnian', 'brunescent',
+            'white cataract', 'intumescent', 'traumatic cataract', 'congenital cataract',
+            'developmental cataract', 'metabolic cataract', 'drug-induced cataract',
+            // Surgery
+            'phacoemulsification', 'phaco', 'ecce', 'icce', 'sics', 'msics',
+            'femtosecond', 'flacs', 'cataract surgery', 'cataract extraction',
+            // IOL
+            'intraocular lens', 'iol', 'monofocal', 'multifocal', 'toric',
+            'edof', 'accommodating iol', 'iol calculation', 'biometry',
+            'iol power', 'a-constant', 'srk', 'barrett', 'holladay', 'haigis',
+            'piggyback iol', 'sulcus iol', 'secondary iol', 'scleral fixated',
+            // Complications
+            'posterior capsule opacification', 'pco', 'after-cataract',
+            'nd:yag capsulotomy', 'yag capsulotomy', 'pcr', 'posterior capsule rupture',
+            'vitreous loss', 'dropped nucleus', 'endophthalmitis', 'tass',
+            'cme post cataract', 'iol dislocation', 'iol decentration',
+            // Lens conditions
+            'lens', 'crystalline lens', 'ectopia lentis', 'lens subluxation',
+            'lens dislocation', 'marfan lens', 'homocystinuria', 'weill-marchesani',
+            'microspherophakia', 'lenticonus', 'lentiglobus', 'aphakia', 'pseudophakia',
+            'zonular weakness', 'zonulopathy'
+        ], chapter: 'lens' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // UVEITIS & OCULAR INFLAMMATION
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Anatomical classification
+            'uveitis', 'iritis', 'iridocyclitis', 'anterior uveitis', 'aau',
+            'intermediate uveitis', 'pars planitis', 'posterior uveitis',
+            'panuveitis', 'choroiditis', 'chorioretinitis', 'retinochoroiditis',
+            // Specific entities
+            'hla-b27', 'ankylosing spondylitis', 'reactive arthritis', 'psoriatic',
+            'inflammatory bowel', 'crohn', 'ulcerative colitis',
+            'behcet', 'sarcoid', 'sarcoidosis', 'vogt-koyanagi-harada', 'vkh',
+            'sympathetic ophthalmia', 'birdshot', 'multifocal choroiditis', 'mcp',
+            'serpiginous', 'acute posterior multifocal', 'apmppe', 'mewds',
+            'punctate inner choroidopathy', 'pic', 'white dot syndrome',
+            // Infectious uveitis
+            'toxoplasm', 'toxocara', 'cmv retinitis', 'cytomegalovirus',
+            'herpes uveitis', 'arn', 'acute retinal necrosis', 'porn',
+            'tuberculosis uveitis', 'tb uveitis', 'ocular tb', 'syphilitic uveitis',
+            'endogenous endophthalmitis', 'fungal endophthalmitis',
+            // Signs & complications
+            'hypopyon', 'keratic precipitate', 'kp', 'mutton fat', 'stellate',
+            'synechia', 'posterior synechia', 'peripheral anterior synechia',
+            'iris bombe', 'seclusio pupillae', 'cyclitic membrane',
+            'band keratopathy uveitis', 'uveitic glaucoma', 'uveitic cataract',
+            // Treatment-related
+            'immunosuppression', 'steroid-sparing', 'biologic', 'adalimumab', 'infliximab'
+        ], chapter: 'uveitis' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // STRABISMUS & OCULAR MOTILITY
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Types of strabismus
+            'strabismus', 'squint', 'heterotropia', 'esotropia', 'exotropia',
+            'hypertropia', 'hypotropia', 'infantile esotropia', 'accommodative',
+            'non-accommodative', 'partially accommodative', 'sensory strabismus',
+            'consecutive', 'divergence excess', 'convergence insufficiency',
+            'convergence excess', 'divergence insufficiency',
+            // Specific patterns
+            'a-pattern', 'v-pattern', 'duane syndrome', 'duane retraction',
+            'brown syndrome', 'superior oblique palsy', 'inferior oblique overaction',
+            'double elevator palsy', 'monocular elevation deficiency',
+            'congenital fibrosis', 'cfeom', 'mobius',
+            // Motility & binocularity
+            'ocular motility', 'eom', 'extraocular muscle', 'eye movement',
+            'binocular vision', 'binocular single vision', 'bsv', 'diplopia',
+            'suppression', 'anomalous correspondence', 'arc',
+            // Amblyopia
+            'amblyopia', 'lazy eye', 'anisometropic', 'strabismic amblyopia',
+            'deprivation amblyopia', 'occlusion therapy', 'penalization',
+            // Assessment & surgery
+            'cover test', 'prism cover', 'hirschberg', 'krimsky',
+            'hess chart', 'lancaster', 'diplopia chart',
+            'strabismus surgery', 'recession', 'resection', 'transposition',
+            'adjustable suture', 'botulinum strabismus'
+        ], chapter: 'strabismus' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // PAEDIATRIC OPHTHALMOLOGY
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // General paediatric
+            'paediatric', 'pediatric', 'child', 'children', 'infant', 'neonatal',
+            'congenital', 'developmental', 'hereditary eye',
+            // ROP
+            'retinopathy of prematurity', 'rop', 'zone i', 'zone ii', 'plus disease',
+            'threshold rop', 'pre-threshold', 'aggressive rop', 'arop',
+            // Congenital conditions
+            'congenital cataract', 'congenital glaucoma', 'buphthalmos',
+            'persistent fetal vasculature', 'pfv', 'phpv', 'coloboma',
+            'aniridia', 'peters anomaly', 'axenfeld-rieger', 'anterior segment dysgenesis',
+            // Childhood conditions
+            'leukocoria', 'white pupil', 'red reflex', 'bruckner',
+            'nasolacrimal duct obstruction', 'nldo', 'dacryocele', 'congenital dacryocystocele',
+            'childhood blindness', 'cortical visual impairment', 'cvi',
+            // Genetic/metabolic
+            'retinoblastoma', 'coats disease', 'norrie', 'familial exudative',
+            'fevr', 'incontinentia pigmenti', 'albinism ocular'
+        ], chapter: 'paediatric' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // ORBIT & OCULOPLASTICS - ORBIT
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Thyroid eye disease
+            'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'graves orbitopathy',
+            'dysthyroid', 'thyroid-associated', 'tao', 'exophthalmos', 'proptosis',
+            'lid retraction thyroid', 'compressive optic neuropathy', 'con',
+            'orbital decompression',
+            // Orbital inflammation
+            'orbital cellulitis', 'preseptal cellulitis', 'postseptal',
+            'orbital abscess', 'subperiosteal abscess', 'cavernous sinus thrombosis',
+            'idiopathic orbital inflammation', 'orbital pseudotumor', 'tolosa-hunt',
+            'igg4-related', 'dacryoadenitis', 'myositis orbital',
+            // Orbital tumors
+            'orbital tumor', 'orbital mass', 'lacrimal gland tumor',
+            'cavernous hemangioma', 'lymphangioma', 'dermoid', 'orbital dermoid',
+            'optic nerve glioma', 'optic nerve meningioma', 'orbital meningioma',
+            'rhabdomyosarcoma', 'orbital lymphoma', 'orbital metastasis',
+            // Trauma & other
+            'orbital fracture', 'blow-out fracture', 'medial wall fracture',
+            'floor fracture', 'enophthalmos', 'orbital reconstruction',
+            'orbital hemorrhage', 'retrobulbar hemorrhage',
+            'orbit', 'orbital anatomy', 'extraocular muscle anatomy'
+        ], chapter: 'orbit' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OCULOPLASTICS - LIDS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Lid position
+            'ptosis', 'blepharoptosis', 'congenital ptosis', 'aponeurotic ptosis',
+            'myogenic ptosis', 'neurogenic ptosis', 'mechanical ptosis',
+            'ectropion', 'entropion', 'cicatricial ectropion', 'involutional',
+            'paralytic ectropion', 'spastic entropion',
+            'lid retraction', 'lagophthalmos', 'exposure keratopathy lid',
+            // Lid tumors
+            'eyelid tumor', 'lid tumor', 'basal cell carcinoma', 'bcc',
+            'squamous cell carcinoma eyelid', 'sebaceous carcinoma',
+            'meibomian gland carcinoma', 'merkel cell', 'eyelid melanoma',
+            'chalazion', 'hordeolum', 'stye', 'lid cyst', 'dermoid cyst lid',
+            'papilloma lid', 'xanthelasma', 'syringoma',
+            // Inflammation
+            'blepharitis', 'anterior blepharitis', 'posterior blepharitis',
+            'meibomian gland dysfunction', 'mgd', 'rosacea ocular',
+            'demodex', 'preseptal', 'lid margin disease',
+            // Structural
+            'trichiasis', 'distichiasis', 'madarosis', 'epicanthus',
+            'telecanthus', 'blepharophimosis', 'coloboma lid', 'ankyloblepharon',
+            'floppy eyelid syndrome', 'dermatochalasis',
+            // Surgery
+            'blepharoplasty', 'ptosis surgery', 'levator', 'muller muscle',
+            'frontalis sling', 'tarsal strip', 'lid reconstruction',
+            'mohs', 'hughes flap', 'cutler-beard', 'lid sharing',
+            'botulinum toxin lid', 'facial palsy', 'bell palsy eye'
+        ], chapter: 'lids' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // LACRIMAL SYSTEM
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'lacrimal', 'tear duct', 'nasolacrimal', 'nldo',
+            'dacryocystitis', 'dacryocystocele', 'dacryoadenitis',
+            'epiphora', 'watery eye', 'tearing', 'lacrimation',
+            'punctal stenosis', 'punctum', 'canalicular', 'canaliculitis',
+            'dcr', 'dacryocystorhinostomy', 'endonasal dcr', 'external dcr',
+            'jones tube', 'lacrimal stent', 'intubation lacrimal',
+            'lacrimal gland', 'lacrimal sac', 'lacrimal drainage',
+            'dry eye lacrimal', 'tear production', 'reflex tearing'
+        ], chapter: 'lacrimal' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // CONJUNCTIVA
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'conjunctivitis', 'red eye', 'pink eye', 'viral conjunctivitis',
+            'bacterial conjunctivitis', 'allergic conjunctivitis',
+            'vernal keratoconjunctivitis', 'vkc', 'atopic keratoconjunctivitis', 'akc',
+            'giant papillary', 'gpc', 'seasonal allergic', 'perennial allergic',
+            'chlamydial', 'trachoma', 'ophthalmia neonatorum', 'gonococcal',
+            'adenoviral', 'epidemic keratoconjunctivitis', 'ekc',
+            'subconjunctival hemorrhage', 'chemosis', 'follicles', 'papillae',
+            'pinguecula', 'conjunctival degeneration',
+            'ocular cicatricial pemphigoid', 'ocp', 'mucous membrane pemphigoid',
+            'stevens-johnson syndrome', 'sjs', 'toxic epidermal', 'ten',
+            'symblepharon', 'fornix shortening', 'conjunctival scarring',
+            'conjunctival tumor', 'ocular surface squamous', 'ossn', 'cin',
+            'conjunctival melanoma', 'conjunctival nevus', 'pan'
+        ], chapter: 'conjunctiva' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // SCLERA
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'scleritis', 'episcleritis', 'anterior scleritis', 'posterior scleritis',
+            'nodular scleritis', 'necrotizing scleritis', 'scleromalacia',
+            'diffuse scleritis', 'scleral inflammation',
+            'blue sclera', 'scleral thinning', 'staphyloma',
+            'scleral buckle complication', 'scleral perforation'
+        ], chapter: 'sclera' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // REFRACTIVE SURGERY & ERRORS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Refractive errors
+            'refractive error', 'refraction', 'ametropia',
+            'myopia', 'short-sighted', 'near-sighted', 'high myopia', 'pathological myopia',
+            'hyperopia', 'hypermetropia', 'long-sighted', 'far-sighted',
+            'astigmatism', 'regular astigmatism', 'irregular astigmatism',
+            'anisometropia', 'aniseikonia', 'presbyopia',
+            // Refractive surgery
+            'lasik', 'lasek', 'prk', 'photorefractive', 'smile', 'relex',
+            'femtosecond laser refractive', 'excimer', 'refractive surgery',
+            'enhancement', 'retreatment', 'regression',
+            'icl', 'phakic iol', 'implantable collamer', 'artisan', 'artiflex',
+            'refractive lens exchange', 'rle', 'clear lens extraction',
+            // Complications
+            'ectasia post-lasik', 'dry eye post-lasik', 'flap complication',
+            'epithelial ingrowth', 'interface inflammation', 'dlk',
+            // Assessment
+            'wavefront', 'aberrometry', 'topography', 'tomography',
+            'keratometry', 'corneal power', 'axial length', 'biometry',
+            'spectacle', 'glasses', 'contact lens'
+        ], chapter: 'refractive' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OCULAR TRAUMA
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'ocular trauma', 'eye injury', 'eye trauma',
+            'open globe', 'ruptured globe', 'penetrating injury', 'perforating injury',
+            'closed globe', 'blunt trauma', 'contusion',
+            'foreign body', 'iofb', 'intraocular foreign body', 'corneal foreign body',
+            'hyphema', 'traumatic hyphema', 'eight ball hyphema',
+            'chemical burn', 'chemical injury', 'alkali burn', 'acid burn',
+            'thermal burn', 'radiation injury',
+            'commotio retinae', 'berlin edema', 'choroidal rupture',
+            'traumatic cataract', 'lens dislocation trauma', 'iridodialysis',
+            'cyclodialysis', 'angle recession', 'vitreous hemorrhage trauma',
+            'traumatic optic neuropathy', 'retinal detachment trauma',
+            'siderosis', 'chalcosis', 'sympathetic ophthalmia trauma'
+        ], chapter: 'trauma' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OCULAR TUMORS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Intraocular tumors
+            'uveal melanoma', 'choroidal melanoma', 'iris melanoma', 'ciliary body melanoma',
+            'choroidal nevus', 'iris nevus', 'choroidal metastasis', 'ocular metastasis',
+            'retinoblastoma', 'choroidal hemangioma', 'retinal hemangioblastoma',
+            'intraocular lymphoma', 'vitreoretinal lymphoma',
+            'melanocytoma', 'adenoma', 'medulloepithelioma',
+            // Treatments
+            'plaque brachytherapy', 'proton beam', 'gamma knife', 'stereotactic',
+            'transpupillary thermotherapy', 'ttt', 'photodynamic tumor',
+            'enucleation', 'evisceration', 'exenteration', 'orbital implant',
+            // General
+            'ocular tumor', 'intraocular tumor', 'eye cancer', 'ocular oncology'
+        ], chapter: 'tumours' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OPHTHALMIC SURGERY & ANAESTHESIA
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Anaesthesia
+            'ophthalmic anaesthesia', 'ocular anesthesia', 'local anaesthetic',
+            'topical anaesthesia', 'sub-tenon', 'subtenon', 'peribulbar',
+            'retrobulbar', 'block', 'orbital block',
+            'general anaesthesia eye', 'sedation eye',
+            // Surgical principles
+            'surgical technique', 'intraoperative', 'perioperative',
+            'post-operative', 'postoperative', 'complication',
+            'surgical complication', 'informed consent',
+            'ophthalmic instruments', 'microsurgery', 'operating microscope',
+            // Specific mentions
+            'theatre', 'operating room', 'aseptic technique', 'sterile'
+        ], chapter: 'surgery_care' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OPHTHALMIC LASERS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'laser', 'argon laser', 'yag laser', 'nd:yag',
+            'diode laser', 'green laser', 'micropulse',
+            'photocoagulation', 'panretinal photocoagulation', 'prp',
+            'focal laser', 'grid laser', 'macular laser',
+            'laser trabeculoplasty', 'slt', 'alt', 'selective laser',
+            'peripheral iridotomy', 'pi', 'laser iridotomy',
+            'yag capsulotomy', 'posterior capsulotomy',
+            'photodynamic therapy', 'pdt', 'verteporfin',
+            'laser retinopexy', 'barrage laser'
+        ], chapter: 'lasers' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OCULAR PHARMACOLOGY & THERAPEUTICS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Drug delivery
+            'eye drop', 'topical', 'intravitreal', 'subconjunctival',
+            'intracameral', 'periocular', 'sustained release', 'implant',
+            // Anti-infectives
+            'antibiotic eye', 'antifungal eye', 'antiviral eye',
+            'fluoroquinolone', 'aminoglycoside', 'chloramphenicol',
+            'acyclovir', 'ganciclovir', 'valganciclovir',
+            // Anti-inflammatories
+            'corticosteroid', 'prednisolone', 'dexamethasone',
+            'fluorometholone', 'loteprednol', 'difluprednate',
+            'nsaid eye', 'ketorolac', 'nepafenac', 'bromfenac',
+            // Glaucoma medications
+            'prostaglandin analogue', 'latanoprost', 'travoprost', 'bimatoprost',
+            'beta-blocker eye', 'timolol', 'betaxolol',
+            'alpha-agonist', 'brimonidine', 'apraclonidine',
+            'carbonic anhydrase inhibitor', 'dorzolamide', 'brinzolamide',
+            'acetazolamide', 'rho kinase', 'netarsudil',
+            // Other
+            'cycloplegic', 'mydriatic', 'miotic', 'pilocarpine',
+            'atropine', 'cyclopentolate', 'tropicamide', 'phenylephrine',
+            'artificial tears', 'lubricant', 'preservative-free',
+            'anti-vegf', 'vegf inhibitor', 'ranibizumab', 'aflibercept',
+            'bevacizumab', 'faricimab', 'ozurdex', 'iluvien',
+            'pharmacology', 'drug interaction', 'adverse effect', 'toxicity'
+        ], chapter: 'therapeutics' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // CLINICAL EXAMINATION SKILLS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // History & examination
+            'history taking', 'clinical examination', 'ocular examination',
+            'systematic examination', 'ophthalmic assessment',
+            // Visual assessment
+            'visual acuity', 'snellen', 'logmar', 'etdrs', 'pinhole',
+            'near vision', 'reading addition', 'contrast sensitivity',
+            'colour vision', 'ishihara', 'farnsworth',
+            // Anterior segment
+            'slit lamp', 'biomicroscopy', 'anterior segment examination',
+            'external examination', 'lid examination',
+            // Posterior segment
+            'fundoscopy', 'ophthalmoscopy', 'direct ophthalmoscopy',
+            'indirect ophthalmoscopy', 'fundus examination', 'dilated examination',
+            '90d', '78d', 'volk lens', 'panfundoscope',
+            // IOP
+            'tonometry', 'goldmann tonometry', 'applanation', 'icare',
+            'tonopen', 'non-contact tonometry',
+            // Gonioscopy
+            'gonioscopy', 'angle examination', 'shaffer', 'spaeth',
+            // Other
+            'confrontation field', 'amsler grid', 'red desaturation',
+            'swinging flashlight', 'cover test examination'
+        ], chapter: 'clinical_skills' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // OPHTHALMIC INVESTIGATIONS
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            // Imaging
+            'oct', 'optical coherence tomography', 'oct-a', 'octa',
+            'angiography', 'ffa', 'fluorescein angiography', 'fa',
+            'icg', 'indocyanine green', 'fundus autofluorescence', 'faf',
+            'fundus photography', 'colour fundus', 'red-free',
+            'ultrasound eye', 'b-scan', 'a-scan', 'ubm', 'ultrasound biomicroscopy',
+            'ct orbit', 'mri orbit', 'neuroimaging',
+            // Corneal assessment
+            'topography', 'tomography', 'pentacam', 'orbscan', 'galilei',
+            'scheimpflug', 'placido', 'keratometry', 'pachymetry',
+            'specular microscopy', 'endothelial cell count',
+            // Visual field
+            'perimetry', 'visual field', 'humphrey', 'octopus', 'goldmann perimetry',
+            'automated perimetry', 'kinetic perimetry', 'esterman',
+            // Electrophysiology
+            'electrophysiology', 'erg', 'electroretinogram', 'full-field erg',
+            'pattern erg', 'multifocal erg', 'vep', 'visual evoked potential',
+            'eog', 'electro-oculogram',
+            // Biometry
+            'biometry', 'iol master', 'lenstar', 'axial length measurement',
+            // Other
+            'exophthalmometry', 'hertel', 'tear osmolarity', 'meibography'
+        ], chapter: 'investigations' },
+        
+        // ══════════════════════════════════════════════════════════════════
+        // EVIDENCE-BASED OPHTHALMOLOGY
+        // ══════════════════════════════════════════════════════════════════
+        { keywords: [
+            'clinical trial', 'randomized controlled', 'rct', 'evidence-based',
+            'systematic review', 'meta-analysis', 'cochrane',
+            'guideline', 'nice guideline', 'aao preferred practice',
+            'drcr', 'catt trial', 'comparison trial', 'areds', 'areds2',
+            'emgt', 'ohts', 'agis', 'cigts', 'cntgs',
+            'etdrs', 'drs', 'ukpds', 'dcct', 'field study',
+            'marina', 'anchor', 'view', 'rise', 'ride', 'vivid', 'vista',
+            'hawk', 'harrier', 'tenaya', 'lucerne'
+        ], chapter: 'evidence' },
     ];
     
     for (const rule of rules) {
@@ -951,7 +1451,38 @@ function setupKnowledgeBase() {
                 let addedCount = 0;
                 let updatedCount = 0;
                 let skippedDuplicates = 0;
+                let deletedCount = 0;
                 const skippedTitles = [];
+                const deletedTitles = [];
+                
+                // ADMIN DELETION SYNC: Check for items deleted by admin
+                // Remote users will have these items removed from their library
+                try {
+                    if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.getDeletedItems) {
+                        const deletedItems = await CommunitySubmissions.getDeletedItems();
+                        if (deletedItems && deletedItems.length > 0) {
+                            const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                            const originalLength = localLibrary.length;
+                            
+                            localLibrary = localLibrary.filter(item => {
+                                const normTitle = normalizeTitle(item.title);
+                                if (deletedItems.includes(normTitle)) {
+                                    deletedTitles.push(item.title?.substring(0, 30) || 'Unknown');
+                                    return false; // Remove this item
+                                }
+                                return true; // Keep this item
+                            });
+                            
+                            deletedCount = originalLength - localLibrary.length;
+                            if (deletedCount > 0) {
+                                console.log(`[Sync] Removed ${deletedCount} item(s) deleted by admin.`);
+                                localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.log('Could not check for admin deletions:', err.message);
+                }
 
                 // Create a map of local items for faster lookup (by ID)
                 const localMap = new Map();
@@ -1096,6 +1627,7 @@ function setupKnowledgeBase() {
                         const msg = [];
                         if (addedCount) msg.push(`${addedCount} new`);
                         if (updatedCount) msg.push(`${updatedCount} updated`);
+                        if (deletedCount) msg.push(`${deletedCount} removed (admin deleted)`);
                         if (skippedDuplicates) msg.push(`${skippedDuplicates} skipped (duplicates)`);
                         
                         // Build detailed message showing what was updated
@@ -1108,6 +1640,16 @@ function setupKnowledgeBase() {
                             });
                             if (updateDetails.length > 10) {
                                 detailMsg += `\n...and ${updateDetails.length - 10} more`;
+                            }
+                        }
+                        
+                        if (deletedTitles.length > 0) {
+                            detailMsg += '\n\nRemoved by admin:';
+                            deletedTitles.slice(0, 5).forEach(title => {
+                                detailMsg += `\n• ${title}...`;
+                            });
+                            if (deletedTitles.length > 5) {
+                                detailMsg += `\n...and ${deletedTitles.length - 5} more`;
                             }
                         }
                         
@@ -1943,13 +2485,14 @@ function setupKnowledgeBase() {
 
             // Delete handlers
             listContainer.querySelectorAll('.btn-delete').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     const button = e.target.closest('.btn-delete');
                     const id = parseInt(button.dataset.id);
+                    const itemToDelete = library.find(i => i.id === id);
 
                     const password = prompt('Enter admin password to delete:');
                     if (password === '309030') {
-                        if (confirm('Are you sure you want to delete this item?')) {
+                        if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from all remote users\' libraries on their next sync.')) {
                             const newLibrary = library.filter(i => i.id !== id);
                             
                             // Reassign sequential IDs after deletion (no gaps)
@@ -1957,10 +2500,24 @@ function setupKnowledgeBase() {
                             
                             localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
+                            // Track deletion for remote sync (by normalized title)
+                            if (itemToDelete && itemToDelete.title) {
+                                const normalizedTitle = (itemToDelete.title || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                                if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.trackDeletion) {
+                                    try {
+                                        await CommunitySubmissions.trackDeletion(normalizedTitle);
+                                        console.log(`[Admin Delete] Tracked deletion for remote sync: "${itemToDelete.title}"`);
+                                    } catch (err) {
+                                        console.log('Could not track deletion for remote sync:', err.message);
+                                    }
+                                }
+                            }
+
                             // Auto-Sync
                             syncLibraryToServer();
 
                             renderLibraryList();
+                            alert('Item deleted. Remote users will have this item removed on their next sync.');
                         }
                     } else if (password !== null) {
                         alert('Incorrect password. Deletion requires admin access.');
@@ -4658,6 +5215,14 @@ function setupCommunityHub() {
     if (previewDownloadBtn) {
         previewDownloadBtn.addEventListener('click', () => {
             if (currentPreviewId) {
+                // Only admin can add community submissions to library
+                const password = prompt('Enter admin password to add this infographic to library:');
+                if (password !== '309030') {
+                    if (password !== null) {
+                        alert('Only administrators can add community submissions to the library.');
+                    }
+                    return;
+                }
                 handleDownloadSubmission(currentPreviewId);
                 previewModal.classList.remove('active');
             }
