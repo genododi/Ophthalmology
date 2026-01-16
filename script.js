@@ -831,6 +831,7 @@ function setupKnowledgeBase() {
 
         try {
             let serverItems = [];
+            let communityApproved = [];
             
             // GitHub Pages: Use static JSON file instead of API
             if (isGitHubPages()) {
@@ -838,6 +839,20 @@ function setupKnowledgeBase() {
                 serverItems = await fetchLibraryFromStatic();
                 if (serverItems.length === 0 && !silent) {
                     console.log("No items found in static library index.");
+                }
+                
+                // Also fetch approved community submissions (the cloud pool)
+                try {
+                    if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.isConfigured()) {
+                        console.log("Fetching approved community submissions...");
+                        const communityData = await CommunitySubmissions.getAll();
+                        communityApproved = communityData.approved || [];
+                        if (communityApproved.length > 0) {
+                            console.log(`Found ${communityApproved.length} approved community infographics.`);
+                        }
+                    }
+                } catch (communityErr) {
+                    console.log("Could not fetch community submissions:", communityErr.message);
                 }
             } else {
                 // Local/Server mode: Use API
@@ -848,6 +863,24 @@ function setupKnowledgeBase() {
                     throw new Error('API response not ok');
                 }
             }
+            
+            // Merge community approved items into serverItems for unified processing
+            // Convert community format to library format
+            communityApproved.forEach(submission => {
+                if (submission.data) {
+                    const libraryItem = {
+                        id: submission.id || Date.now(),
+                        title: submission.title || submission.data.title || 'Community Infographic',
+                        summary: submission.summary || submission.data.summary || '',
+                        date: submission.approvedAt || submission.submittedAt || new Date().toISOString(),
+                        data: submission.data,
+                        chapterId: submission.chapterId || 'uncategorized',
+                        communitySource: true, // Mark as from community
+                        author: submission.userName
+                    };
+                    serverItems.push(libraryItem);
+                }
+            });
             
             if (serverItems.length > 0 || isGitHubPages()) {
                 let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');

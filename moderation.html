@@ -57,6 +57,37 @@
             z-index: 1000;
         }
         
+        .approve-all-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+        
+        .approve-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .approve-all-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .approve-all-btn .material-symbols-rounded {
+            font-size: 1.2rem;
+        }
+
         .loading-spinner {
             width: 50px;
             height: 50px;
@@ -197,10 +228,16 @@
             
             <!-- Pending Submissions Section -->
             <div class="moderation-section">
-                <h2>
-                    <span class="material-symbols-rounded">pending_actions</span>
-                    Pending Submissions
-                </h2>
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">
+                        <span class="material-symbols-rounded">pending_actions</span>
+                        Pending Submissions
+                    </h2>
+                    <button id="approve-all-btn" class="approve-all-btn" style="display: none;" onclick="handleApproveAll()">
+                        <span class="material-symbols-rounded">done_all</span>
+                        Approve All
+                    </button>
+                </div>
                 <div id="pending-list">
                     <!-- Pending submissions will be rendered here -->
                 </div>
@@ -395,6 +432,12 @@
                 approvedStat.textContent = approved.length;
                 totalStat.textContent = pending.length + approved.length;
                 
+                // Show/hide Approve All button
+                const approveAllBtn = document.getElementById('approve-all-btn');
+                if (approveAllBtn) {
+                    approveAllBtn.style.display = (isAdminVerified && pending.length > 1) ? 'flex' : 'none';
+                }
+                
                 // Render pending
                 if (pending.length > 0) {
                     pendingList.innerHTML = pending.map(s => renderSubmissionCard(s, false)).join('');
@@ -468,6 +511,58 @@
             }
             
             hideLoading();
+        };
+        
+        // Handle approve all pending submissions
+        window.handleApproveAll = async function() {
+            if (!isAdminVerified) {
+                showToast('Please verify admin access first.', 'error');
+                return;
+            }
+            
+            const pending = currentSubmissions.submissions || [];
+            if (pending.length === 0) {
+                showToast('No pending submissions to approve.', 'info');
+                return;
+            }
+            
+            if (!confirm(`Approve all ${pending.length} pending submissions? They will become publicly visible.`)) {
+                return;
+            }
+            
+            showLoading();
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            // Approve each submission
+            for (const submission of pending) {
+                try {
+                    const result = await CommunitySubmissions.approve(submission.id, adminPIN);
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        console.error('Failed to approve:', submission.id, result.message);
+                    }
+                } catch (err) {
+                    failCount++;
+                    console.error('Error approving:', submission.id, err);
+                }
+            }
+            
+            hideLoading();
+            
+            if (successCount > 0) {
+                const msg = failCount > 0 
+                    ? `✅ ${successCount} approved, ❌ ${failCount} failed.`
+                    : `✅ All ${successCount} submissions approved successfully!`;
+                showToast(msg, successCount > 0 ? 'success' : 'error');
+            } else {
+                showToast('Failed to approve submissions.', 'error');
+            }
+            
+            await renderSubmissions();
         };
         
         // Handle preview - renders full graphical infographic
