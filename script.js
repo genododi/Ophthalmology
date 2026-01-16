@@ -998,11 +998,16 @@ function setupKnowledgeBase() {
                         const changes = [];
                         
                         // CHAPTER SYNC: Server is source of truth for chapters
+                        // BUT: We never revert a categorized item to 'uncategorized'
                         const localChapter = normalizeStr(localItem.chapterId) || 'uncategorized';
                         let serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
                         
-                        // If server has 'uncategorized', try auto-detecting from title
-                        if (serverChapter === 'uncategorized' && localChapter === 'uncategorized') {
+                        // If server is uncategorized but local ALREADY has a category, preserve the local one
+                        if (serverChapter === 'uncategorized' && localChapter !== 'uncategorized') {
+                            serverChapter = localChapter;
+                            serverItem.chapterId = localItem.chapterId;
+                        } else if (serverChapter === 'uncategorized' && localChapter === 'uncategorized') {
+                            // Both are uncategorized, try auto-detecting from title
                             const autoChapter = autoDetectChapter(serverItem.title || localItem.title);
                             if (autoChapter !== 'uncategorized') {
                                 serverChapter = autoChapter;
@@ -1222,11 +1227,21 @@ function setupKnowledgeBase() {
                     const currentDate = new Date(item.date);
                     
                     if (currentDate < existingDate) {
-                        // Current is older, remove the existing (newer) one
+                        // Current is older, we are keeping 'item' (index) and removing library[existingIndex]
+                        // Transfer category if keeping uncategorized but removing categorized
+                        if ((!library[index].chapterId || library[index].chapterId === 'uncategorized') && 
+                            (library[existingIndex].chapterId && library[existingIndex].chapterId !== 'uncategorized')) {
+                            library[index].chapterId = library[existingIndex].chapterId;
+                        }
                         indicesToRemove.add(existingIndex);
                         seenTitles.set(normTitle, index);
                     } else {
-                        // Existing is older, remove current (newer) one
+                        // Existing is older, we are keeping library[existingIndex] and removing 'item' (index)
+                        // Transfer category if keeping uncategorized but removing categorized
+                        if ((!library[existingIndex].chapterId || library[existingIndex].chapterId === 'uncategorized') && 
+                            (item.chapterId && item.chapterId !== 'uncategorized')) {
+                            library[existingIndex].chapterId = item.chapterId;
+                        }
                         indicesToRemove.add(index);
                     }
                 } else {
@@ -1339,6 +1354,18 @@ function setupKnowledgeBase() {
                 
                 // Get IDs to delete (the newer duplicates)
                 const idsToDelete = new Set(duplicates.map(d => d.duplicateId));
+                
+                // Transfer categories before deleting
+                duplicates.forEach(dup => {
+                    const originalItem = library[dup.originalIndex];
+                    const duplicateItem = library[dup.duplicateIndex];
+                    
+                    // If original is uncategorized but duplicate is categorized, transfer the category
+                    if ((!originalItem.chapterId || originalItem.chapterId === 'uncategorized') && 
+                        (duplicateItem.chapterId && duplicateItem.chapterId !== 'uncategorized')) {
+                        originalItem.chapterId = duplicateItem.chapterId;
+                    }
+                });
                 
                 // Filter out duplicates
                 const cleanedLibrary = library.filter(item => !idsToDelete.has(item.id));
@@ -4677,9 +4704,9 @@ function setupMusicPlayer() {
         },
         quran: {
             name: 'Quran - Al Minshawi',
-            // Quran radio stream - Al Minshawi recitation
-            url: 'https://Qurango.net/radio/minshawi_mjwad',
-            fallback: 'https://backup.qurango.net/radio/minshawi_mjwad'
+            // Correct Quran radio stream - Mohammed Siddiq Al-Minshawi (Mujawwad)
+            url: 'https://backup.qurango.net/radio/mohammed_siddiq_alminshawi_mojawwad',
+            fallback: 'https://qurango.net/radio/mohammed_siddiq_alminshawi_mojawwad'
         }
     };
     
