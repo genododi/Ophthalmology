@@ -956,12 +956,23 @@ function setupKnowledgeBase() {
                 let skippedDuplicates = 0;
                 const skippedTitles = [];
 
-                // Create a map of local items for faster lookup
+                // Create a map of local items for faster lookup (by ID)
                 const localMap = new Map();
                 localLibrary.forEach(item => {
                     // Use ID if available, otherwise fallback to title+date as key (legacy support)
                     const key = item.id || (item.title + item.date);
                     localMap.set(String(key), item);
+                });
+                
+                // DUPLICATE PREVENTION: Build a normalized title index for ALL local items
+                // This prevents importing ANY item with a duplicate title
+                const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                const localTitleIndex = new Set();
+                localLibrary.forEach(item => {
+                    const normTitle = normalizeTitle(item.title);
+                    if (normTitle.length > 0) {
+                        localTitleIndex.add(normTitle);
+                    }
                 });
 
                 // Track what changed for detailed logging
@@ -1021,20 +1032,17 @@ function setupKnowledgeBase() {
                         }
                     } else {
                         // New Item from Server - CHECK FOR DUPLICATES FIRST
-                        // Normalize title for duplicate detection
-                        const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                        // Use pre-built title index for fast duplicate detection
                         const serverTitleNorm = normalizeTitle(serverItem.title);
                         
-                        // Check if any existing local item has the same normalized title
-                        const isDuplicate = localLibrary.some(localItem => {
-                            const localTitleNorm = normalizeTitle(localItem.title);
-                            return localTitleNorm === serverTitleNorm && localTitleNorm.length > 0;
-                        });
+                        // Check if this title already exists in local library
+                        const isDuplicate = serverTitleNorm.length > 0 && localTitleIndex.has(serverTitleNorm);
                         
                         if (isDuplicate) {
                             // Skip this item - it's a duplicate
                             skippedDuplicates++;
                             skippedTitles.push(serverItem.title?.substring(0, 30) || 'Untitled');
+                            console.log(`[Sync] Skipping duplicate: "${serverItem.title}"`);
                         } else {
                             // Not a duplicate - safe to add
                             // CRITICAL: Strip the server's seqId so we assign a new LOCAL one
@@ -1048,6 +1056,11 @@ function setupKnowledgeBase() {
 
                             localLibrary.push(newItem);
                             addedCount++;
+                            
+                            // Add to title index to prevent duplicates within same sync batch
+                            if (serverTitleNorm.length > 0) {
+                                localTitleIndex.add(serverTitleNorm);
+                            }
                         }
                     }
                 });

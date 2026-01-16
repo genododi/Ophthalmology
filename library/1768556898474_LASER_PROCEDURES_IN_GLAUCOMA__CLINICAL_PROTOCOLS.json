@@ -1,6 +1,6 @@
 {
   "id": 1768556898474,
-  "seqId": 108,
+  "seqId": 104,
   "title": "LASER PROCEDURES IN GLAUCOMA: CLINICAL PROTOCOLS",
   "summary": "Laser procedures represent a vital component in the treatment landscape for many forms of glaucoma. This comprehensive guide outlines the essence, indications, and complications for primary laser modalities including Iridotomy, Trabeculoplasty, Iridoplasty, and Cyclophotocoagulation.",
   "date": "2026-01-16T09:48:18.474Z",
@@ -248,5 +248,6 @@
   "chapterId": "glaucoma",
   "communityId": "sub_1768552122946_092is8b2m",
   "communityAuthor": "Dodi",
-  "communityDate": "2026-01-16T08:28:42.946Z"
+  "communityDate": "2026-01-16T08:28:42.946Z",
+  "_serverSynced": true
 }
