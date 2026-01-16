@@ -624,19 +624,21 @@ function getChapters() {
     return DEFAULT_CHAPTERS;
 }
 
-// Helper: Reassign Sequential IDs in descending order (newest = 1, oldest = highest number)
+// Helper: Reassign Sequential IDs 
+// Newest item = HIGHEST number (library.length), Oldest = 1
 // Called after any addition or deletion to ensure no gaps or duplicates
 function reassignSequentialIds(library) {
     if (!library || library.length === 0) return false;
     
-    // Sort by date DESCENDING (newest first)
-    const sortedByDate = [...library].sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Sort by date ASCENDING (oldest first gets #1)
+    const sortedByDate = [...library].sort((a, b) => new Date(a.date) - new Date(b.date));
     
     let modified = false;
+    const totalCount = library.length;
     
-    // Assign sequential numbers: newest = 1, next = 2, etc.
+    // Assign sequential numbers: oldest = 1, newest = totalCount
     sortedByDate.forEach((sortedItem, index) => {
-        const newSeqId = index + 1;
+        const newSeqId = index + 1; // oldest gets 1, newest gets totalCount
         // Find the original item in library and update its seqId
         const originalItem = library.find(item => item.id === sortedItem.id);
         if (originalItem && originalItem.seqId !== newSeqId) {
@@ -651,6 +653,71 @@ function reassignSequentialIds(library) {
 // Legacy function - now calls reassignSequentialIds for full reordering
 function assignSequentialIds(library) {
     return reassignSequentialIds(library);
+}
+
+// Auto-chapterize: Detect chapter from title keywords
+function autoDetectChapter(title) {
+    if (!title) return 'uncategorized';
+    
+    const titleLower = title.toLowerCase();
+    
+    // Chapter detection rules (order matters - more specific first)
+    const rules = [
+        // Neuro-ophthalmology
+        { keywords: ['neuro', 'optic nerve', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm'], chapter: 'neuro' },
+        // Glaucoma
+        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'open angle'], chapter: 'glaucoma' },
+        // Vitreoretinal
+        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'epiretinal', 'macular hole', 'pvd', 'floaters'], chapter: 'vitreoretinal' },
+        // Medical Retina
+        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'oct', 'csr', 'retinal vein', 'retinal artery', 'macular edema', 'epiretinal membrane'], chapter: 'medical_retina' },
+        // Cornea
+        { keywords: ['cornea', 'keratitis', 'keratoconus', 'fuchs', 'bullous', 'endothelial', 'transplant', 'pterygium', 'dry eye'], chapter: 'cornea' },
+        // Lens / Cataract
+        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'zonul'], chapter: 'lens' },
+        // Uveitis
+        { keywords: ['uveitis', 'iritis', 'cyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid'], chapter: 'uveitis' },
+        // Strabismus & Motility
+        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular'], chapter: 'strabismus' },
+        // Paediatric
+        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'amblyopia', 'lazy eye'], chapter: 'paediatric' },
+        // Orbit
+        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital tumor', 'blow out'], chapter: 'orbit' },
+        // Lids
+        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'stye', 'tarsus', 'levator'], chapter: 'lids' },
+        // Lacrimal
+        { keywords: ['lacrimal', 'tear', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dry eye', 'punctum'], chapter: 'lacrimal' },
+        // Conjunctiva
+        { keywords: ['conjunctiv', 'pinguecula', 'subconjunctival', 'allergic eye'], chapter: 'conjunctiva' },
+        // Sclera
+        { keywords: ['scler', 'episcler'], chapter: 'sclera' },
+        // Refractive
+        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'presbyopia', 'spectacle'], chapter: 'refractive' },
+        // Trauma
+        { keywords: ['trauma', 'injury', 'foreign body', 'penetrating', 'blunt', 'chemical burn', 'hyphema'], chapter: 'trauma' },
+        // Tumours
+        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'nevus', 'naevus'], chapter: 'tumours' },
+        // Surgery
+        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'post-op', 'preop', 'complication'], chapter: 'surgery_care' },
+        // Lasers
+        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'ppr'], chapter: 'lasers' },
+        // Therapeutics
+        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid', 'anti-vegf', 'therapeutic'], chapter: 'therapeutics' },
+        // Clinical Skills
+        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'refraction', 'tonometry', 'gonioscopy', 'clinical skill'], chapter: 'clinical_skills' },
+        // Investigations
+        { keywords: ['investigation', 'imaging', 'angiography', 'ultrasound', 'b-scan', 'visual field', 'oct', 'ffa', 'icg'], chapter: 'investigations' },
+    ];
+    
+    for (const rule of rules) {
+        for (const keyword of rule.keywords) {
+            if (titleLower.includes(keyword)) {
+                return rule.chapter;
+            }
+        }
+    }
+    
+    return 'uncategorized';
 }
 
 // Auto-Sync to Server Logic
@@ -899,9 +966,14 @@ function setupKnowledgeBase() {
                 const updateDetails = [];
                 
                 // Helper function to normalize strings for comparison
+                // Aggressive normalization to prevent false positives
                 const normalizeStr = (str) => {
                     if (!str) return '';
-                    return String(str).trim().normalize('NFC');
+                    return String(str)
+                        .trim()
+                        .normalize('NFC')
+                        .replace(/\s+/g, ' ')  // Collapse multiple spaces
+                        .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width chars
                 };
                 
                 serverItems.forEach(serverItem => {
@@ -912,7 +984,7 @@ function setupKnowledgeBase() {
                         // We assume Server is the "Truth" for synchronization when fetching.
                         const localItem = localMap.get(serverKey);
 
-                        // Check for REAL differences that matter (normalize strings to avoid false positives)
+                        // Check for REAL differences that matter
                         const changes = [];
                         
                         // Only flag chapter change if actually different
@@ -920,31 +992,28 @@ function setupKnowledgeBase() {
                         const serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
                         if (localChapter !== serverChapter) {
                             changes.push(`chapter: ${localChapter} → ${serverChapter}`);
+                            localItem.chapterId = serverItem.chapterId;
                         }
                         
-                        // Only flag title change if NORMALIZED titles differ
-                        const localTitle = normalizeStr(localItem.title);
-                        const serverTitle = normalizeStr(serverItem.title);
-                        if (localTitle !== serverTitle) {
-                            changes.push(`title changed`);
+                        // For title/summary: Only update if item has a "lastServerSync" marker older than server
+                        // OR if this is first sync. Skip title/summary comparison to avoid false positives.
+                        // Trust that server title is correct - update once and mark as synced
+                        if (!localItem._serverSynced) {
+                            // First time syncing this item - accept server values
+                            if (localItem.title !== serverItem.title) {
+                                localItem.title = serverItem.title;
+                            }
+                            if (localItem.summary !== serverItem.summary) {
+                                localItem.summary = serverItem.summary;
+                            }
+                            localItem.data = serverItem.data;
+                            localItem._serverSynced = true;
                         }
                         
-                        // Only flag summary change if NORMALIZED summaries differ
-                        const localSummary = normalizeStr(localItem.summary);
-                        const serverSummary = normalizeStr(serverItem.summary);
-                        if (localSummary !== serverSummary) {
-                            changes.push(`summary changed`);
-                        }
+                        // Preserve local seqId if it exists, otherwise use server's or generate new
+                        if (!localItem.seqId && serverItem.seqId) localItem.seqId = serverItem.seqId;
                         
                         if (changes.length > 0) {
-                            // Update local properties (use server values)
-                            localItem.chapterId = serverItem.chapterId;
-                            localItem.title = serverItem.title;
-                            localItem.summary = serverItem.summary;
-                            localItem.data = serverItem.data; // Sync content too
-                            // Preserve local seqId if it exists, otherwise use server's or generate new
-                            if (!localItem.seqId && serverItem.seqId) localItem.seqId = serverItem.seqId;
-
                             updatedCount++;
                             updateDetails.push({ title: serverItem.title?.substring(0, 30), changes });
                         }
@@ -1167,6 +1236,72 @@ function setupKnowledgeBase() {
         });
     }
 
+    // AUTO-CHAPTERIZE
+    const autoChapterBtn = document.getElementById('auto-chapter-btn');
+    if (autoChapterBtn) {
+        autoChapterBtn.addEventListener('click', () => {
+            // Admin password required
+            const password = prompt('Enter admin password to auto-chapterize:');
+            if (password !== '309030') {
+                if (password !== null) {
+                    alert('Incorrect password. Auto-chapterization requires admin access.');
+                }
+                return;
+            }
+            
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            
+            if (library.length === 0) {
+                alert('Library is empty. Nothing to chapterize.');
+                return;
+            }
+            
+            let changedCount = 0;
+            const changes = [];
+            
+            library.forEach(item => {
+                // Only auto-chapterize if currently uncategorized
+                if (item.chapterId === 'uncategorized' || !item.chapterId) {
+                    const detectedChapter = autoDetectChapter(item.title);
+                    if (detectedChapter !== 'uncategorized') {
+                        const oldChapter = item.chapterId || 'uncategorized';
+                        item.chapterId = detectedChapter;
+                        changedCount++;
+                        
+                        // Get chapter name for display
+                        const chapterObj = DEFAULT_CHAPTERS.find(c => c.id === detectedChapter);
+                        changes.push({
+                            title: item.title.substring(0, 40),
+                            chapter: chapterObj ? chapterObj.name : detectedChapter
+                        });
+                    }
+                }
+            });
+            
+            if (changedCount === 0) {
+                alert('✅ All items are already categorized or no matches found.');
+                return;
+            }
+            
+            // Build summary message
+            let msg = `Auto-chapterized ${changedCount} item(s):\n\n`;
+            changes.slice(0, 15).forEach((c, i) => {
+                msg += `${i + 1}. "${c.title}..." → ${c.chapter}\n`;
+            });
+            if (changes.length > 15) {
+                msg += `\n...and ${changes.length - 15} more`;
+            }
+            msg += '\n\nApply these changes?';
+            
+            if (confirm(msg)) {
+                localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                alert(`✅ ${changedCount} item(s) auto-chapterized!`);
+                renderLibraryList();
+                syncLibraryToServer();
+            }
+        });
+    }
+
     // SAVE
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
@@ -1176,20 +1311,24 @@ function setupKnowledgeBase() {
             }
 
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            
+            // Auto-detect chapter from title
+            const itemTitle = currentInfographicData.title || "Untitled Infographic";
+            const autoChapter = autoDetectChapter(itemTitle);
 
             const newItem = {
                 id: Date.now(),
                 seqId: 1, // Will be reassigned below
-                title: currentInfographicData.title || "Untitled Infographic",
+                title: itemTitle,
                 summary: currentInfographicData.summary || "",
                 date: new Date().toISOString(),
                 data: currentInfographicData,
-                chapterId: 'uncategorized'
+                chapterId: autoChapter // Auto-assigned based on title keywords
             };
 
             library.unshift(newItem);
             
-            // Reassign all sequential IDs (newest = 1, oldest = highest)
+            // Reassign all sequential IDs (oldest = 1, newest = highest)
             reassignSequentialIds(library);
             
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
