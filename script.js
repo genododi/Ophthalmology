@@ -1182,6 +1182,56 @@ function setupKnowledgeBase() {
     // Sync Button Logic
     const syncBtn = document.getElementById('sync-btn');
 
+    // SILENT DUPLICATE CLEANUP ON STARTUP
+    // This removes any existing duplicates from localStorage without showing alerts
+    (function silentDuplicateCleanup() {
+        try {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            if (library.length === 0) return;
+            
+            const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            const seenTitles = new Map(); // normalized title -> index of first occurrence
+            const indicesToRemove = new Set();
+            
+            // Find duplicates (keep the OLDER one based on date)
+            library.forEach((item, index) => {
+                const normTitle = normalizeTitle(item.title);
+                if (normTitle.length === 0) return;
+                
+                if (seenTitles.has(normTitle)) {
+                    // Duplicate found - compare dates to keep the older one
+                    const existingIndex = seenTitles.get(normTitle);
+                    const existingDate = new Date(library[existingIndex].date);
+                    const currentDate = new Date(item.date);
+                    
+                    if (currentDate < existingDate) {
+                        // Current is older, remove the existing (newer) one
+                        indicesToRemove.add(existingIndex);
+                        seenTitles.set(normTitle, index);
+                    } else {
+                        // Existing is older, remove current (newer) one
+                        indicesToRemove.add(index);
+                    }
+                } else {
+                    seenTitles.set(normTitle, index);
+                }
+            });
+            
+            if (indicesToRemove.size > 0) {
+                // Remove duplicates
+                const cleanedLibrary = library.filter((_, index) => !indicesToRemove.has(index));
+                
+                // Reassign sequential IDs
+                reassignSequentialIds(cleanedLibrary);
+                
+                localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
+                console.log(`[Startup] Silently removed ${indicesToRemove.size} duplicate(s) from library.`);
+            }
+        } catch (err) {
+            console.error('[Startup] Duplicate cleanup error:', err);
+        }
+    })();
+
     // AUTO-SYNC ON STARTUP
     setTimeout(() => {
         syncFromServer(true); // Run silently
