@@ -1,6 +1,6 @@
 {
   "id": 1768052756338,
-  "seqId": 48,
+  "seqId": 58,
   "title": "Biophysics of Refractive Lasers & Preoperative Evaluation",
   "summary": "A comprehensive guide to laser-tissue interactions, excimer technology, and the rigorous clinical standards for preoperative assessment. This visual roadmap covers everything from the Munnerlyn formula to the Ectasia Risk Scoring System.",
   "date": "2026-01-10T13:45:56.338Z",
@@ -215,5 +215,6 @@
       }
     ]
   },
-  "chapterId": "refractive"
+  "chapterId": "refractive",
+  "_serverSynced": true
 }

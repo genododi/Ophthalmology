@@ -1,6 +1,6 @@
 {
   "id": 1768386142768,
-  "seqId": 2,
+  "seqId": 104,
   "title": "Primary Angle-Closure Glaucoma (PACG): Comprehensive Clinical Guide",
   "summary": "Primary angle-closure glaucoma is a major global cause of blindness characterized by anatomical predisposition and pressure-induced optic neuropathy. This guide covers the essential terminology, emergency management of acute episodes, and the latest evidence-based treatment strategies.",
   "date": "2026-01-14T10:22:22.768Z",
@@ -278,5 +278,6 @@
       }
     ]
   },
-  "chapterId": "glaucoma"
+  "chapterId": "glaucoma",
+  "_serverSynced": true
 }

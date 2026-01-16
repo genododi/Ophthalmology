@@ -1,6 +1,6 @@
 {
   "id": 1768556378644,
-  "seqId": 2,
+  "seqId": 106,
   "title": "Pigment Dispersion Syndrome & Pigmentary Glaucoma",
   "summary": "A comprehensive guide to Pigment Dispersion Syndrome (PDS), where iris pigment release can lead to Pigmentary Glaucoma in 33–50% of cases. Characterized by 'reverse pupillary block' and specific clinical signs like Krukenberg spindles and Zentmayer’s line.",
   "date": "2026-01-16T09:39:38.644Z",
@@ -262,8 +262,9 @@
       }
     ]
   },
-  "chapterId": "uncategorized",
+  "chapterId": "glaucoma",
   "communityId": "sub_1768417843743_iyj7hrj4x",
   "communityAuthor": "Dodi",
-  "communityDate": "2026-01-14T19:10:43.744Z"
+  "communityDate": "2026-01-14T19:10:43.744Z",
+  "_serverSynced": true
 }

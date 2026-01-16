@@ -953,6 +953,8 @@ function setupKnowledgeBase() {
                 let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                 let addedCount = 0;
                 let updatedCount = 0;
+                let skippedDuplicates = 0;
+                const skippedTitles = [];
 
                 // Create a map of local items for faster lookup
                 const localMap = new Map();
@@ -1018,26 +1020,35 @@ function setupKnowledgeBase() {
                             updateDetails.push({ title: serverItem.title?.substring(0, 30), changes });
                         }
                     } else {
-                        // New Item from Server
-                        // CRITICAL: Strip the server's seqId so we assign a new LOCAL one
-                        // This ensures hashtags are ordered strictly by the local server's sequence
-                        const newItem = { ...serverItem };
-                        // We might want to keep seqId if we want global consistency, 
-                        // but the user requirement "sync chapterisation ... sequential hashtag numbers based on local library"
-                        // suggests we might want to keep local numbering. 
-                        // However, if we sync, we want the same numbers?
-                        // User said: "imported infographics are assigned sequential hashtag numbers based on the local library's order, rather than inheriting server-side numbering."
-                        // So we DELETE seqId.
-                        delete newItem.seqId;
+                        // New Item from Server - CHECK FOR DUPLICATES FIRST
+                        // Normalize title for duplicate detection
+                        const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                        const serverTitleNorm = normalizeTitle(serverItem.title);
+                        
+                        // Check if any existing local item has the same normalized title
+                        const isDuplicate = localLibrary.some(localItem => {
+                            const localTitleNorm = normalizeTitle(localItem.title);
+                            return localTitleNorm === serverTitleNorm && localTitleNorm.length > 0;
+                        });
+                        
+                        if (isDuplicate) {
+                            // Skip this item - it's a duplicate
+                            skippedDuplicates++;
+                            skippedTitles.push(serverItem.title?.substring(0, 30) || 'Untitled');
+                        } else {
+                            // Not a duplicate - safe to add
+                            // CRITICAL: Strip the server's seqId so we assign a new LOCAL one
+                            const newItem = { ...serverItem };
+                            delete newItem.seqId;
 
-                        // PRESERVE CHAPTER: Keep the server's chapterId if available
-                        // Do NOT reset to 'uncategorized' - respect admin categorization
-                        if (!newItem.chapterId) {
-                            newItem.chapterId = 'uncategorized';
+                            // PRESERVE CHAPTER: Keep the server's chapterId if available
+                            if (!newItem.chapterId) {
+                                newItem.chapterId = 'uncategorized';
+                            }
+
+                            localLibrary.push(newItem);
+                            addedCount++;
                         }
-
-                        localLibrary.push(newItem);
-                        addedCount++;
                     }
                 });
 
@@ -1050,9 +1061,10 @@ function setupKnowledgeBase() {
                         const msg = [];
                         if (addedCount) msg.push(`${addedCount} new`);
                         if (updatedCount) msg.push(`${updatedCount} updated`);
+                        if (skippedDuplicates) msg.push(`${skippedDuplicates} skipped (duplicates)`);
                         
                         // Build detailed message showing what was updated
-                        let detailMsg = `Sync Complete: ${msg.join(', ')} items.`;
+                        let detailMsg = `Sync Complete: ${msg.join(', ')}.`;
                         
                         if (updateDetails.length > 0) {
                             detailMsg += '\n\nUpdated items:';
@@ -1064,17 +1076,49 @@ function setupKnowledgeBase() {
                             }
                         }
                         
+                        if (skippedTitles.length > 0) {
+                            detailMsg += '\n\nSkipped duplicates:';
+                            skippedTitles.slice(0, 5).forEach(title => {
+                                detailMsg += `\n• ${title}...`;
+                            });
+                            if (skippedTitles.length > 5) {
+                                detailMsg += `\n...and ${skippedTitles.length - 5} more`;
+                            }
+                        }
+                        
                         alert(detailMsg);
                     }
                     
                     // Detailed logging for debugging
-                    console.log(`Auto-Sync: Imported ${addedCount}, Updated ${updatedCount}.`);
+                    console.log(`Auto-Sync: Imported ${addedCount}, Updated ${updatedCount}, Skipped ${skippedDuplicates} duplicates.`);
                     if (updateDetails.length > 0) {
                         console.log('Updated items:');
                         updateDetails.forEach(item => {
                             console.log(`  • "${item.title}..." - ${item.changes.join(', ')}`);
                         });
                     }
+                    if (skippedTitles.length > 0) {
+                        console.log('Skipped duplicates:');
+                        skippedTitles.forEach(title => {
+                            console.log(`  • "${title}..." (already in library)`);
+                        });
+                    }
+                } else if (skippedDuplicates > 0) {
+                    // Only duplicates were found, nothing new to add
+                    if (!silent) {
+                        let msg = `Sync Complete: ${skippedDuplicates} item(s) skipped (already in library).`;
+                        if (skippedTitles.length > 0) {
+                            msg += '\n\nSkipped duplicates:';
+                            skippedTitles.slice(0, 5).forEach(title => {
+                                msg += `\n• ${title}...`;
+                            });
+                            if (skippedTitles.length > 5) {
+                                msg += `\n...and ${skippedTitles.length - 5} more`;
+                            }
+                        }
+                        alert(msg);
+                    }
+                    console.log(`Auto-Sync: Skipped ${skippedDuplicates} duplicates (already in library).`);
                 } else {
                     if (!silent) alert('Library is up to date.');
                     console.log("Auto-Sync: Library is up to date (no changes needed).");
