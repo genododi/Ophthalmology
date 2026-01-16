@@ -31,8 +31,13 @@
 
 <body>
     <div class="app-container">
+        <!-- Sidebar Toggle Button -->
+        <button id="sidebar-toggle" class="sidebar-toggle" title="Toggle Sidebar">
+            <span class="material-symbols-rounded">chevron_left</span>
+        </button>
+        
         <!-- Sidebar / Control Panel -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <span class="material-symbols-rounded icon">visibility</span>
                 <h1>Ophthalmic<br>Infograph</h1>
@@ -55,6 +60,12 @@
 
             <button id="generate-btn" class="primary-btn">
                 Generate Infographic
+            </button>
+
+            <!-- Quick Access Library Button -->
+            <button id="sidebar-library-btn" class="secondary-btn" style="margin-top: 0.75rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1rem; background: linear-gradient(135deg, #334155 0%, #1e293b 100%); color: #e2e8f0; border: 1px solid #475569; border-radius: 12px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s ease;">
+                <span class="material-symbols-rounded" style="font-size: 1.2rem;">inventory_2</span>
+                Open Library
             </button>
 
             <!-- Studio Tools Panel - NotebookLM Style -->

@@ -27,7 +27,36 @@ if (homeBtn) {
     });
 }
 
+// Sidebar Toggle Functionality
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const appContainer = document.querySelector('.app-container');
 
+function collapseSidebar() {
+    if (sidebar && appContainer) {
+        sidebar.classList.add('collapsed');
+        appContainer.classList.add('sidebar-collapsed');
+    }
+}
+
+function expandSidebar() {
+    if (sidebar && appContainer) {
+        sidebar.classList.remove('collapsed');
+        appContainer.classList.remove('sidebar-collapsed');
+    }
+}
+
+function toggleSidebar() {
+    if (sidebar && sidebar.classList.contains('collapsed')) {
+        expandSidebar();
+    } else {
+        collapseSidebar();
+    }
+}
+
+if (sidebarToggle) {
+    sidebarToggle.addEventListener('click', toggleSidebar);
+}
 
 function setupPosterButton() {
     const posterBtn = document.getElementById('poster-btn');
@@ -595,30 +624,33 @@ function getChapters() {
     return DEFAULT_CHAPTERS;
 }
 
-// Helper: Assign Persistent Sequential IDs
-function assignSequentialIds(library) {
-    // 1. Find current max seqId
-    let maxId = 0;
-    library.forEach(item => {
-        if (item.seqId && item.seqId > maxId) maxId = item.seqId;
-    });
-
-    // 2. Identify items without seqId
-    const unnumberedItems = library.filter(item => !item.seqId);
-
-    // 3. Sort unnumbered items by DATE ASCENDING (Oldest gets lower number)
-    unnumberedItems.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // 4. Assign new IDs
-    let nextId = maxId + 1;
+// Helper: Reassign Sequential IDs in descending order (newest = 1, oldest = highest number)
+// Called after any addition or deletion to ensure no gaps or duplicates
+function reassignSequentialIds(library) {
+    if (!library || library.length === 0) return false;
+    
+    // Sort by date DESCENDING (newest first)
+    const sortedByDate = [...library].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
     let modified = false;
-
-    unnumberedItems.forEach(item => {
-        item.seqId = nextId++;
-        modified = true;
+    
+    // Assign sequential numbers: newest = 1, next = 2, etc.
+    sortedByDate.forEach((sortedItem, index) => {
+        const newSeqId = index + 1;
+        // Find the original item in library and update its seqId
+        const originalItem = library.find(item => item.id === sortedItem.id);
+        if (originalItem && originalItem.seqId !== newSeqId) {
+            originalItem.seqId = newSeqId;
+            modified = true;
+        }
     });
-
+    
     return modified;
+}
+
+// Legacy function - now calls reassignSequentialIds for full reordering
+function assignSequentialIds(library) {
+    return reassignSequentialIds(library);
 }
 
 // Auto-Sync to Server Logic
@@ -694,21 +726,23 @@ function setupKnowledgeBase() {
 
             // REMOTE USER: Redirect to Community Pool instead of server
             if (isGitHubPages()) {
-                if (itemsToExport.length > 1) {
-                    alert('On remote access, you can only submit one infographic at a time to the Community Pool for admin review.');
+                const MAX_EXPORT_ITEMS = 10;
+                
+                if (itemsToExport.length > MAX_EXPORT_ITEMS) {
+                    alert(`You can submit up to ${MAX_EXPORT_ITEMS} infographics at a time to the Community Pool.\n\nYou selected ${itemsToExport.length}. Please deselect some items.`);
                     return;
                 }
                 
-                if (!confirm('You are accessing remotely. Your infographic will be submitted to the Community Pool for admin review. Continue?')) return;
+                const itemWord = itemsToExport.length === 1 ? 'infographic' : 'infographics';
+                if (!confirm(`You are accessing remotely. ${itemsToExport.length} ${itemWord} will be submitted to the Community Pool for admin review. Continue?`)) return;
 
-                const item = itemsToExport[0];
                 const originalIcon = exportBtn.innerHTML;
                 exportBtn.innerHTML = '<span class="material-symbols-rounded">sync</span>';
 
                 try {
                     // Prompt for username
                     const savedUsername = localStorage.getItem('community_username') || '';
-                    const userName = prompt('Enter your name for the submission:', savedUsername);
+                    const userName = prompt('Enter your name for the submissions:', savedUsername);
                     
                     if (!userName || !userName.trim()) {
                         alert('A name is required for community submissions.');
@@ -717,16 +751,35 @@ function setupKnowledgeBase() {
                     
                     localStorage.setItem('community_username', userName.trim());
 
-                    // Submit to community pool
-                    const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
+                    // Submit each item to community pool
+                    let successCount = 0;
+                    let failCount = 0;
                     
-                    if (result.success) {
-                        alert('✅ ' + result.message + '\n\nThe admin will review your submission.');
+                    for (const item of itemsToExport) {
+                        try {
+                            const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
+                            if (result.success) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                                console.error('Failed to submit:', item.title, result.message);
+                            }
+                        } catch (err) {
+                            failCount++;
+                            console.error('Error submitting:', item.title, err);
+                        }
+                    }
+                    
+                    if (successCount > 0) {
+                        const msg = failCount > 0 
+                            ? `✅ ${successCount} submitted successfully.\n❌ ${failCount} failed.`
+                            : `✅ ${successCount} ${successCount === 1 ? 'infographic' : 'infographics'} submitted successfully!`;
+                        alert(msg + '\n\nThe admin will review your submissions.');
                         selectionMode = false;
                         selectedItems.clear();
                         renderLibraryList();
                     } else {
-                        alert('Submission failed: ' + result.message);
+                        alert('All submissions failed. Please try again.');
                     }
                 } catch (err) {
                     console.error('Community submission error:', err);
@@ -879,7 +932,21 @@ function setupKnowledgeBase() {
                         const msg = [];
                         if (addedCount) msg.push(`${addedCount} new`);
                         if (updatedCount) msg.push(`${updatedCount} updated`);
-                        alert(`Sync Complete: ${msg.join(', ')} items.`);
+                        
+                        // Build detailed message showing what was updated
+                        let detailMsg = `Sync Complete: ${msg.join(', ')} items.`;
+                        
+                        if (updateDetails.length > 0) {
+                            detailMsg += '\n\nUpdated items:';
+                            updateDetails.slice(0, 10).forEach(item => {
+                                detailMsg += `\n• ${item.title}... (${item.changes.join(', ')})`;
+                            });
+                            if (updateDetails.length > 10) {
+                                detailMsg += `\n...and ${updateDetails.length - 10} more`;
+                            }
+                        }
+                        
+                        alert(detailMsg);
                     }
                     
                     // Detailed logging for debugging
@@ -973,16 +1040,9 @@ function setupKnowledgeBase() {
 
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
 
-            // Calculate next seqId
-            let nextSeqId = 1;
-            if (library.length > 0) {
-                const maxSeqId = library.reduce((max, item) => (item.seqId > max ? item.seqId : max), 0);
-                nextSeqId = maxSeqId + 1;
-            }
-
             const newItem = {
                 id: Date.now(),
-                seqId: nextSeqId, // Persistent ID
+                seqId: 1, // Will be reassigned below
                 title: currentInfographicData.title || "Untitled Infographic",
                 summary: currentInfographicData.summary || "",
                 date: new Date().toISOString(),
@@ -991,6 +1051,10 @@ function setupKnowledgeBase() {
             };
 
             library.unshift(newItem);
+            
+            // Reassign all sequential IDs (newest = 1, oldest = highest)
+            reassignSequentialIds(library);
+            
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
             // Auto-upload to server so it saves to the library/ folder
@@ -1024,6 +1088,12 @@ function setupKnowledgeBase() {
 
     if (libraryBtnEmpty) {
         libraryBtnEmpty.addEventListener('click', openLibrary);
+    }
+    
+    // Sidebar library button (below text entry)
+    const sidebarLibraryBtn = document.getElementById('sidebar-library-btn');
+    if (sidebarLibraryBtn) {
+        sidebarLibraryBtn.addEventListener('click', openLibrary);
     }
 
     // CLOSE LIBRARY
@@ -1400,6 +1470,10 @@ function setupKnowledgeBase() {
                     if (password === '309030') {
                         if (confirm('Are you sure you want to delete this item?')) {
                             const newLibrary = library.filter(i => i.id !== id);
+                            
+                            // Reassign sequential IDs after deletion (no gaps)
+                            reassignSequentialIds(newLibrary);
+                            
                             localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
                             // Auto-Sync
@@ -1860,6 +1934,11 @@ function renderInfographic(data) {
 
     // Enable Studio Tools when infographic is generated
     enableStudioTools();
+    
+    // Auto-collapse sidebar to give more space for viewing the infographic
+    setTimeout(() => {
+        collapseSidebar();
+    }, 500); // Small delay to let the user see the result first
 }
 
 /* ========================================
