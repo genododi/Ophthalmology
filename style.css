@@ -1194,6 +1194,28 @@ textarea:focus {
     border-left: 3px solid var(--primary-color);
 }
 
+.saved-item.newly-imported {
+    background: linear-gradient(90deg, #f0fdf4 0%, white 100%);
+    border-left: 3px solid #22c55e;
+    animation: newItemGlow 2s ease-out;
+}
+
+@keyframes newItemGlow {
+    0% {
+        background: linear-gradient(90deg, #dcfce7 0%, white 100%);
+        box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+    }
+    100% {
+        background: linear-gradient(90deg, #f0fdf4 0%, white 100%);
+        box-shadow: none;
+    }
+}
+
+.saved-item.newly-imported .item-number {
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
+}
+
 .item-checkbox {
     width: 18px;
     height: 18px;

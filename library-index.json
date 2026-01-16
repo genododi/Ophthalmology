@@ -1,7 +1,164 @@
 [
   {
+    "id": 1768564394796,
+    "title": "IIH: Understanding Idiopathic Intracranial Hypertension",
+    "summary": "Idiopathic Intracranial Hypertension (IIH) is a condition characterized by increased pressure around the brain without a detectable cause. It primarily affects the visual system and requires urgent management to prevent permanent blindness.",
+    "date": "2026-01-16T11:53:14.796Z",
+    "data": {
+      "title": "IIH: Understanding Idiopathic Intracranial Hypertension",
+      "summary": "Idiopathic Intracranial Hypertension (IIH) is a condition characterized by increased pressure around the brain without a detectable cause. It primarily affects the visual system and requires urgent management to prevent permanent blindness.",
+      "summary_illustration": "<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><circle cx='100' cy='100' r='80' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='5'/><path d='M60 100 Q100 40 140 100 Q100 160 60 100' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='4'/><circle cx='100' cy='100' r='15' fill='hsl(215, 90%, 45%)'/><path d='M100 20 L100 40 M180 100 L160 100 M100 180 L100 160 M20 100 L40 100' stroke='hsl(215, 90%, 45%)' stroke-width='4' stroke-linecap='round'/></svg>",
+      "sections": [
+        {
+          "title": "Core Definition",
+          "icon": "info",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "IIH (Idiopathic Intracranial Hypertension) is defined as a syndrome of elevated intracranial pressure (ICP) of unknown etiology, occurring in the absence of a space-occupying lesion, hydrocephalus, or venous sinus thrombosis, with normal cerebrospinal fluid (CSF) composition."
+        },
+        {
+          "title": "Patient Demographics",
+          "icon": "analytics",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "General Population",
+                "value": 2
+              },
+              {
+                "label": "Obese Females",
+                "value": 85
+              },
+              {
+                "label": "Overweight Population",
+                "value": 40
+              }
+            ]
+          }
+        },
+        {
+          "title": "The '4 F' Mnemonic",
+          "icon": "psychology",
+          "type": "remember",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": {
+            "mnemonic": "The 4 F's of IIH",
+            "explanation": "Female (Higher prevalence in women), Fat (Associated with high BMI), Fertile (Childbearing age), and Forty (Common age demographic, though it can occur earlier)."
+          }
+        },
+        {
+          "title": "Clinical Presentation",
+          "icon": "account_tree",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "center": "Symptoms of IIH",
+            "branches": [
+              "Headache (Most common, often worse in morning)",
+              "Transient Visual Obscurations (TVOs)",
+              "Pulsatile Tinnitus (Whooshing sound in ears)",
+              "Diplopia (Double vision, often horizontal)",
+              "Neck and Shoulder Pain"
+            ]
+          }
+        },
+        {
+          "title": "Vision-Threatening Red Flags",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Progressive constriction of visual fields",
+            "Sudden loss of visual acuity",
+            "Severe, grade 4 or 5 Papilledema",
+            "Sixth nerve (Abducens) palsy",
+            "Poor compliance with medical therapy"
+          ]
+        },
+        {
+          "title": "Diagnostic Workflow",
+          "icon": "fact_check",
+          "type": "process",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "1. Comprehensive Ophthalmic Exam: Assess for Papilledema and visual field loss.",
+            "2. Neuroimaging: MRI and MRV to rule out mass lesions or venous thrombosis.",
+            "3. Lumbar Puncture: Measure opening pressure (>25 cm H2O) and check CSF composition.",
+            "4. Formal Perimetry: Baseline visual field testing (Humphrey Visual Field)."
+          ]
+        },
+        {
+          "title": "Modified Dandy Criteria",
+          "icon": "list_alt",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "headers": [
+              "Criteria",
+              "Requirement"
+            ],
+            "rows": [
+              [
+                "Symptoms",
+                "Increased intracranial pressure"
+              ],
+              [
+                "Signs",
+                "Papilledema (or 6th nerve palsy)"
+              ],
+              [
+                "Neuroimaging",
+                "Normal brain parenchyma and ventricles"
+              ],
+              [
+                "CSF Pressure",
+                "Elevated opening pressure (>250mm H2O)"
+              ],
+              [
+                "CSF Chemistry",
+                "Normal CSF composition"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Management Strategies",
+          "icon": "medical_services",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": [
+            "Weight Loss: The primary long-term modification (5-10% body weight loss).",
+            "Medical Management: Acetazolamide (Diamox) to reduce CSF production.",
+            "Topiramate: Used for both pressure reduction and headache prophylaxis.",
+            "Surgical Intervention: Optic Nerve Sheath Fenestration (ONSF) for vision-specific rescue.",
+            "CSF Shunting: Ventriculoperitoneal (VP) or Lumboperitoneal (LP) shunts for refractory cases.",
+            "Venous Sinus Stenting: For patients with significant venous sinus stenosis."
+          ]
+        }
+      ]
+    },
+    "chapterId": "glaucoma",
+    "communityId": "sub_1768557822878_ozxo2ttx8",
+    "communityAuthor": "Dodi",
+    "communityDate": "2026-01-16T10:03:42.879Z",
+    "_serverSynced": true,
+    "_newlyImported": 1768565143259,
+    "seqId": 111
+  },
+  {
     "id": 1768556910239,
-    "seqId": 108,
+    "seqId": 110,
     "title": "SECONDARY GLAUCOMA: COMPREHENSIVE PATHOLOGY & MANAGEMENT",
     "summary": "An exhaustive clinical guide to lens-related, open-angle, and closed-angle secondary glaucomas. This poster details the mechanisms, clinical presentations, and multi-modal treatment strategies for these complex ocular conditions.",
     "date": "2026-01-16T09:48:30.239Z",
@@ -292,7 +449,7 @@
   },
   {
     "id": 1768556905621,
-    "seqId": 107,
+    "seqId": 109,
     "title": "Pharmacology of IOP-Lowering Agents: The Comprehensive Guide",
     "summary": "An exhaustive clinical overview of the pharmacological groups used in glaucoma management, detailed mechanism of action, efficacy statistics, and critical safety profiles. This guide highlights the modern shift toward preservative-free therapies and the emergence of novel therapeutic compounds.",
     "date": "2026-01-16T09:48:25.621Z",
@@ -572,7 +729,7 @@
   },
   {
     "id": 1768556903578,
-    "seqId": 106,
+    "seqId": 108,
     "title": "Iatrogenic Glaucoma & Aqueous Misdirection Syndrome",
     "summary": "An exhaustive clinical guide to Aqueous Misdirection Syndrome (Malignant Glaucoma) and iatrogenic pressure elevations following cataract and vitreoretinal procedures. Focuses on the transition to a uni-chamber eye and managing post-operative complications.",
     "date": "2026-01-16T09:48:23.578Z",
@@ -750,7 +907,7 @@
   },
   {
     "id": 1768556901225,
-    "seqId": 105,
+    "seqId": 107,
     "title": "Surgery for Glaucoma: The Comprehensive Clinical Guide",
     "summary": "An exhaustive visual reference covering the full spectrum of glaucoma surgical interventions, from gold-standard trabeculectomy and MMC augmentation to specialized angle procedures, MIGS, and tube drainage setons. Includes detailed operative steps, indication profiles, and post-operative management strategies.",
     "date": "2026-01-16T09:48:21.225Z",
@@ -1018,7 +1175,7 @@
   },
   {
     "id": 1768556898474,
-    "seqId": 104,
+    "seqId": 106,
     "title": "LASER PROCEDURES IN GLAUCOMA: CLINICAL PROTOCOLS",
     "summary": "Laser procedures represent a vital component in the treatment landscape for many forms of glaucoma. This comprehensive guide outlines the essence, indications, and complications for primary laser modalities including Iridotomy, Trabeculoplasty, Iridoplasty, and Cyclophotocoagulation.",
     "date": "2026-01-16T09:48:18.474Z",
@@ -1271,7 +1428,7 @@
   },
   {
     "id": 1768556381444,
-    "seqId": 103,
+    "seqId": 105,
     "title": "NPGS & MIGS: The Complete Visual Compendium",
     "summary": "An exhaustive guide to Non-penetrating Glaucoma Surgery (NPGS) and Micro-invasive Glaucoma Surgery (MIGS), detailing mechanisms, procedural steps, comparative success rates, and complications. This poster maps the transition from traditional guarded filtration to modern micro-stenting technologies.",
     "date": "2026-01-16T09:39:41.444Z",
@@ -1475,7 +1632,7 @@
   },
   {
     "id": 1768556378644,
-    "seqId": 102,
+    "seqId": 104,
     "title": "Pigment Dispersion Syndrome & Pigmentary Glaucoma",
     "summary": "A comprehensive guide to Pigment Dispersion Syndrome (PDS), where iris pigment release can lead to Pigmentary Glaucoma in 33–50% of cases. Characterized by 'reverse pupillary block' and specific clinical signs like Krukenberg spindles and Zentmayer’s line.",
     "date": "2026-01-16T09:39:38.644Z",
@@ -1745,7 +1902,7 @@
   },
   {
     "id": 1768402269460,
-    "seqId": 101,
+    "seqId": 103,
     "title": "Pseudoexfoliation Syndrome (PXF) & Glaucoma Capsulare",
     "summary": "PXF is a common, but easily missed, cause of secondary glaucoma. It is a systemic condition characterized by whitish dandruff-like material deposited in the eye and various internal organs, often leading to a more severe clinical course than POAG.",
     "date": "2026-01-14T14:51:09.460Z",
@@ -1954,7 +2111,7 @@
   },
   {
     "id": 1768386142768,
-    "seqId": 100,
+    "seqId": 102,
     "title": "Primary Angle-Closure Glaucoma (PACG): Comprehensive Clinical Guide",
     "summary": "Primary angle-closure glaucoma is a major global cause of blindness characterized by anatomical predisposition and pressure-induced optic neuropathy. This guide covers the essential terminology, emergency management of acute episodes, and the latest evidence-based treatment strategies.",
     "date": "2026-01-14T10:22:22.768Z",
@@ -2237,7 +2394,7 @@
   },
   {
     "id": 1768314746795,
-    "seqId": 99,
+    "seqId": 101,
     "title": "Clinical Compendium: OHT, POAG, and NTG",
     "summary": "An exhaustive clinical guide covering Ocular Hypertension (OHT), Primary Open-Angle Glaucoma (POAG), and Normal-Tension Glaucoma (NTG). This poster details diagnostic criteria, risk factors from the OHTS and CNTGS trials, and comprehensive management protocols.",
     "date": "2026-01-13T14:32:26.795Z",
@@ -2596,7 +2753,7 @@
   },
   {
     "id": 1768314475181,
-    "seqId": 98,
+    "seqId": 100,
     "title": "Glaucoma: Assessment & Diagnostic Framework",
     "summary": "A comprehensive clinical guide to the assessment of possible glaucoma, covering UK referral statistics, detailed history and examination protocols, the European Glaucoma Society field loss criteria, and the diagnostic 'glaucoma triad'.",
     "date": "2026-01-13T14:27:55.181Z",
@@ -2870,7 +3027,7 @@
   },
   {
     "id": 1768232539677,
-    "seqId": 97,
+    "seqId": 99,
     "title": "Post-Operative Complications & Lens Abnormalities",
     "summary": "A comprehensive clinical guide covering Irvine–Gass Syndrome, the systematic assessment of refractive surprise, and the diverse congenital and acquired abnormalities of lens size, shape, and position.",
     "date": "2026-01-12T15:42:19.677Z",
@@ -3156,7 +3313,7 @@
   },
   {
     "id": 1768232322230,
-    "seqId": 96,
+    "seqId": 98,
     "title": "Cataract Surgery: The Comprehensive Complications Atlas",
     "summary": "An exhaustive clinical guide detailing intraoperative mishaps, early post-operative emergencies, and late-stage surgical sequelae. This poster outlines evidence-based management, prophylaxis protocols, and the critical distinction between infectious and toxic anterior segment syndromes.",
     "date": "2026-01-12T15:38:42.230Z",
@@ -3443,7 +3600,7 @@
   },
   {
     "id": 1768232069381,
-    "seqId": 95,
+    "seqId": 97,
     "title": "THE ULTIMATE CLINICAL COMPENDIUM: Intraocular Lenses & Post-Cataract Management",
     "summary": "An exhaustive clinical guide covering IOL selection criteria, materials, and advanced lens designs. This resource further details post-operative care protocols and specialized surgical strategies for patients with concurrent ocular diseases and complex intraoperative conditions.",
     "date": "2026-01-12T15:34:29.381Z",
@@ -3754,7 +3911,7 @@
   },
   {
     "id": 1768231965217,
-    "seqId": 94,
+    "seqId": 96,
     "title": "Cataract Surgery: From Manual Extraction to Femtosecond Laser (FSL)",
     "summary": "An exhaustive guide to modern and traditional cataract extraction techniques, covering the technical stages of Femtosecond Laser-Assisted Surgery (FLACS), current commercial platforms, and a detailed comparison between ECCE, MSICS, ICCE, and Phacoemulsification.",
     "date": "2026-01-12T15:32:45.217Z",
@@ -3933,7 +4090,7 @@
   },
   {
     "id": 1768231842707,
-    "seqId": 93,
+    "seqId": 95,
     "title": "Perioperative Cataract Surgery & Phacoemulsification: The Comprehensive Clinical Guide",
     "summary": "An exhaustive guide to the perioperative management of cataract surgery, encompassing meticulous preoperative checks, IOL selection logic, advanced phacoemulsification techniques, and OVD fluidics. This resource integrates RCOphth guidelines and ESCRS standards for surgical excellence.",
     "date": "2026-01-12T15:30:42.707Z",
@@ -4664,12 +4821,12 @@
       ]
     },
     "chapterId": "lens",
-    "seqId": 92,
+    "seqId": 94,
     "_serverSynced": true
   },
   {
     "id": 1768231631462,
-    "seqId": 91,
+    "seqId": 93,
     "title": "Cataract: The Definitive Clinical Guide",
     "summary": "An exhaustive overview of cataract epidemiology, pathogenesis, morphological classification, and surgical management. Cataracts account for 40% of global blindness, necessitating precise preoperative assessment and informed surgical planning.",
     "date": "2026-01-12T15:27:11.462Z",
@@ -5109,7 +5266,7 @@
   },
   {
     "id": 1768231246452,
-    "seqId": 90,
+    "seqId": 92,
     "title": "POSTERIOR SCLERITIS: The Hidden Sight-Threat",
     "summary": "Posterior scleritis is a potentially sight-threatening, underdiagnosed condition often presenting with a 'white and quiet' eye. It requires serious treatment, often involving systemic corticosteroids and monitoring for systemic vasculitis associations.",
     "date": "2026-01-12T15:20:46.452Z",
@@ -5286,7 +5443,7 @@
   },
   {
     "id": 1768231165737,
-    "seqId": 89,
+    "seqId": 91,
     "title": "ANTERIOR SCLERITIS: CLINICAL OUTLINE & MANAGEMENT",
     "summary": "Anterior scleritis is an uncommon, potentially blinding inflammation of the sclera, often signaling severe underlying systemic disease. It is characterized by intense, boring pain and requires rapid diagnostic and therapeutic intervention to prevent permanent ocular damage and monitor systemic health.",
     "date": "2026-01-12T15:19:25.737Z",
@@ -5530,7 +5687,7 @@
   },
   {
     "id": 1768231072970,
-    "seqId": 88,
+    "seqId": 90,
     "title": "EPISCLERITIS: A Comprehensive Clinical Guide",
     "summary": "This common condition is a benign, recurrent inflammation of the episclera. While it is usually self-limiting and not associated with systemic disease, detailed clinical differentiation and management strategies are essential for effective patient care.",
     "date": "2026-01-12T15:17:52.970Z",
@@ -5712,7 +5869,7 @@
   },
   {
     "id": 1768147811879,
-    "seqId": 87,
+    "seqId": 89,
     "title": "AMNIOTIC MEMBRANE TRANSPLANTATION & TISSUE BANKING",
     "summary": "A comprehensive guide to the histology, function, and application of Amniotic Membrane Transplantation (AMT), alongside the rigorous protocols for donor eye retrieval, screening, and eye bank storage standards.",
     "date": "2026-01-11T16:10:11.879Z",
@@ -5920,7 +6077,7 @@
   },
   {
     "id": 1768147425068,
-    "seqId": 86,
+    "seqId": 88,
     "title": "Keratoplasty & Corneal Cross-Linking: The Definitive Clinical Guide",
     "summary": "An exhaustive visual roadmap of corneal transplantation, from penetrating and lamellar techniques to the management of rejection, survival strategies, and therapeutic collagen cross-linking. This guide covers over 100 years of surgical evolution and modern protocols.",
     "date": "2026-01-11T16:03:45.068Z",
@@ -6301,7 +6458,7 @@
   },
   {
     "id": 1768147321370,
-    "seqId": 85,
+    "seqId": 87,
     "title": "Comprehensive Atlas of Keratopathies: Neurotrophic, Exposure & Deposition",
     "summary": "An exhaustive clinical guide covering Neurotrophic Keratopathy (NK) staging and management, the mechanical failure of Exposure Keratopathy, and the metabolic complexities of Deposition Keratopathies. Designed for rapid clinical reference and comprehensive pathophysiology review.",
     "date": "2026-01-11T16:02:01.370Z",
@@ -6584,7 +6741,7 @@
   },
   {
     "id": 1768147203702,
-    "seqId": 84,
+    "seqId": 86,
     "title": "Peripheral Ulcerative Keratitis (PUK) & Peripheral Corneal Disease",
     "summary": "An exhaustive clinical guide to aggressive, sight-threatening PUK, its systemic associations, Mooren’s ulcer, and other essential peripheral corneal pathologies from marginal keratitis to Terrien’s degeneration.",
     "date": "2026-01-11T16:00:03.702Z",
@@ -6850,7 +7007,7 @@
   },
   {
     "id": 1768147127574,
-    "seqId": 83,
+    "seqId": 85,
     "title": "Keratoconus & Other Corneal Ectasias",
     "summary": "An exhaustive clinical guide to Keratoconus and related ectatic conditions, detailing their aetiology, systemic associations, diagnostic morphology, and the full spectrum of modern management strategies from contact lenses to keratoplasty.",
     "date": "2026-01-11T15:58:47.574Z",
@@ -7114,7 +7271,7 @@
   },
   {
     "id": 1768146747959,
-    "seqId": 82,
+    "seqId": 84,
     "title": "Corneal Degenerations & Dystrophies: The Master Clinical Map",
     "summary": "An exhaustive clinical guide covering corneal degenerative diseases and dystrophies, ranging from common age-related changes like Arcus to rare genetic posterior dystrophies such as CHED and PPCD. This poster delineates pathophysiology, clinical markers, and modern management strategies.",
     "date": "2026-01-11T15:52:27.959Z",
@@ -7505,7 +7662,7 @@
   },
   {
     "id": 1768146663328,
-    "seqId": 81,
+    "seqId": 83,
     "title": "LIMBAL EPITHELIAL STEM CELL DEFICIENCY (LESCD)",
     "summary": "A comprehensive guide to the pathophysiology, clinical presentation, and advanced management of LESC deficiency. This poster outlines the vital role of the limbal niche in maintaining ocular surface health and the multi-tiered approach to surgical and cultivated cell treatments.",
     "date": "2026-01-11T15:51:03.328Z",
@@ -7687,7 +7844,7 @@
   },
   {
     "id": 1768146601862,
-    "seqId": 80,
+    "seqId": 82,
     "title": "Mastering Corneal Surface Disorders: TSPK, RCES, and PED",
     "summary": "An exhaustive clinical guide to diagnosing and managing Thygeson’s Superficial Punctate Keratopathy, Recurrent Corneal Erosion Syndrome, and Persistent Epithelial Defects. This resource details etiology, clinical presentation, and a spectrum of treatments from conservative lubrication to advanced surgical grafting.",
     "date": "2026-01-11T15:50:01.862Z",
@@ -7968,7 +8125,7 @@
   },
   {
     "id": 1768146554180,
-    "seqId": 79,
+    "seqId": 81,
     "title": "Herpes Viruses in Ophthalmology: HSV & HZO Clinical Guide",
     "summary": "An exhaustive clinical reference for the diagnosis and management of Herpes Simplex Keratitis and Herpes Zoster Ophthalmicus. This poster details viral pathogenesis, the spectrum of corneal involvement from epithelial to neurotrophic stages, and precise pharmacological treatment protocols.",
     "date": "2026-01-11T15:49:14.180Z",
@@ -8353,7 +8510,7 @@
   },
   {
     "id": 1768146510347,
-    "seqId": 78,
+    "seqId": 80,
     "title": "FUNGAL KERATITIS: THE COMPLETE CLINICAL PLAYBOOK",
     "summary": "An exhaustive guide to the assessment, diagnosis, and multi-modal treatment of fungal keratitis. This resource covers clinical differentiators between yeast and filamentary infections, intensive topical and systemic protocols, and critical monitoring requirements for complex antifungal therapies.",
     "date": "2026-01-11T15:48:30.347Z",
@@ -8576,7 +8733,7 @@
   },
   {
     "id": 1768146433279,
-    "seqId": 77,
+    "seqId": 79,
     "title": "Acanthamoeba Keratitis: The Resilient Opportunist",
     "summary": "Acanthamoeba keratitis is a rare but devastating protozoal infection of the cornea, primarily affecting contact lens wearers. Characterized by ubiquitous organisms capable of surviving extreme conditions, it requires early suspicion and intensive, long-term treatment to prevent irreversible vision loss.",
     "date": "2026-01-11T15:47:13.279Z",
@@ -8830,7 +8987,7 @@
   },
   {
     "id": 1768146310850,
-    "seqId": 76,
+    "seqId": 78,
     "title": "Microbial Keratitis: Clinical Assessment & Management",
     "summary": "A comprehensive guide to microbial keratitis, a common sight-threatening ophthalmic emergency. This poster outlines assessment protocols, microbiological processing, intensive sterilization phases, and advanced surgical interventions for corneal perforations.",
     "date": "2026-01-11T15:45:10.850Z",
@@ -9339,12 +9496,12 @@
       ]
     },
     "chapterId": "cornea",
-    "seqId": 75,
+    "seqId": 77,
     "_serverSynced": true
   },
   {
     "id": 1768145803033,
-    "seqId": 74,
+    "seqId": 76,
     "title": "LASER TRAUMA: Mechanisms, Risks, and Clinical Impact",
     "summary": "Laser trauma represents a significant ocular threat where even low-output beams are intensified 100,000 times by the eye's natural focus. This poster details the historical context, physiological effects, and treatment protocols for laser-induced injuries as outlined in clinical standards.",
     "date": "2026-01-11T15:36:43.033Z",
@@ -9559,7 +9716,7 @@
   },
   {
     "id": 1768145640319,
-    "seqId": 73,
+    "seqId": 75,
     "title": "Hyphaema Management: From Micro to 8-Ball",
     "summary": "An exhaustive clinical guide for the assessment, monitoring, and treatment of hyphaema, emphasizing trauma-related blood in the anterior chamber, high-risk features, and the management of secondary red cell glaucoma.",
     "date": "2026-01-11T15:34:00.319Z",
@@ -9706,7 +9863,7 @@
   },
   {
     "id": 1768145510010,
-    "seqId": 72,
+    "seqId": 74,
     "title": "Corneal Foreign Bodies & Abrasions: Clinical Management",
     "summary": "An exhaustive guide to identifying and treating corneal foreign bodies (FBs) and abrasions, emphasizing slit-lamp removal techniques, precise diagnostic tests, and evidence-based pharmaceutical care.",
     "date": "2026-01-11T15:31:50.010Z",
@@ -9882,7 +10039,7 @@
   },
   {
     "id": 1768145359990,
-    "seqId": 71,
+    "seqId": 73,
     "title": "Penetrating Trauma & Intraocular Foreign Bodies (IOFBs): Assessment & Management",
     "summary": "An exhaustive clinical guide covering the exclusion of IOFBs, detailed diagnostic assessment, toxicity profiles, and the surgical protocols for primary and secondary repair of penetrating ocular injuries.",
     "date": "2026-01-11T15:29:19.990Z",
@@ -10150,7 +10307,7 @@
   },
   {
     "id": 1768145237344,
-    "seqId": 70,
+    "seqId": 72,
     "title": "Blunt Ocular Trauma: Comprehensive Assessment & Management",
     "summary": "An exhaustive clinical guide to the classification, assessment, and treatment of blunt eye injuries. This poster covers UK epidemiology, the Birmingham Eye Trauma Terminology (BETTS), detailed clinical features, and surgical protocols for globe repairs.",
     "date": "2026-01-11T15:27:17.344Z",
@@ -10344,7 +10501,7 @@
   },
   {
     "id": 1768145103811,
-    "seqId": 69,
+    "seqId": 71,
     "title": "Clinical Management of Lid Lacerations",
     "summary": "An exhaustive guide to the assessment, prophylaxis, and surgical repair of eyelid injuries. This protocol covers everything from simple superficial cuts to complex full-thickness defects and canalicular involvement.",
     "date": "2026-01-11T15:25:03.811Z",
@@ -10522,7 +10679,7 @@
   },
   {
     "id": 1768144712721,
-    "seqId": 68,
+    "seqId": 70,
     "title": "ORBITAL FRACTURES: Assessment & Management",
     "summary": "A comprehensive clinical guide to the evaluation and treatment of orbital fractures, ranging from clinical features of specific walls to the emergency management of the 'Tense Orbit' and surgical indications.",
     "date": "2026-01-11T15:18:32.721Z",
@@ -10739,7 +10896,7 @@
   },
   {
     "id": 1768144150702,
-    "seqId": 67,
+    "seqId": 69,
     "title": "Thermal Injury & Burns: Assessment and Management",
     "summary": "An exhaustive clinical guide to the immediate assessment, systemic stabilization, and ocular-specific management of thermal burns, ranging from superficial lid injuries to sight-threatening corneal destruction.",
     "date": "2026-01-11T15:09:10.702Z",
@@ -10977,7 +11134,7 @@
   },
   {
     "id": 1768143958520,
-    "seqId": 66,
+    "seqId": 68,
     "title": "EMERGENCY OCULAR CHEMICAL INJURY: Assessment & Treatment Protocol",
     "summary": "Chemical injuries are among the most destructive traumatic insults to the eye, requiring an immediate 'treat first, ask questions later' approach. This guide covers the pathophysiology of alkali vs. acid burns, severity classifications (Roper-Hall and Dua), and a comprehensive multi-stage treatment strategy from emergency irrigation to long-term surgical reconstruction.",
     "date": "2026-01-11T15:05:58.520Z",
@@ -11335,7 +11492,7 @@
   },
   {
     "id": 1768143707723,
-    "seqId": 65,
+    "seqId": 67,
     "title": "Ocular Trauma: Comprehensive Assessment & Tetanus Protocol",
     "summary": "A systematic framework for the critical assessment of ocular injuries, encompassing clinical examination, diagnostic imaging, documentation standards, and the UK tetanus prophylaxis guidelines.",
     "date": "2026-01-11T15:01:47.723Z",
@@ -11783,7 +11940,7 @@
       ]
     },
     "chapterId": "trauma",
-    "seqId": 64,
+    "seqId": 66,
     "_serverSynced": true
   },
   {
@@ -11959,7 +12116,7 @@
       ]
     },
     "chapterId": "glaucoma",
-    "seqId": 63,
+    "seqId": 65,
     "_serverSynced": true
   },
   {
@@ -12109,7 +12266,7 @@
       ]
     },
     "chapterId": "glaucoma",
-    "seqId": 62,
+    "seqId": 64,
     "_serverSynced": true
   },
   {
@@ -12243,7 +12400,7 @@
       ]
     },
     "chapterId": "lens",
-    "seqId": 61,
+    "seqId": 63,
     "_serverSynced": true
   },
   {
@@ -12377,7 +12534,7 @@
       ]
     },
     "chapterId": "uveitis",
-    "seqId": 60,
+    "seqId": 62,
     "_serverSynced": true
   },
   {
@@ -12537,7 +12694,7 @@
       ]
     },
     "chapterId": "clinical_skills",
-    "seqId": 59,
+    "seqId": 61,
     "_serverSynced": true
   },
   {
@@ -12697,12 +12854,12 @@
       ]
     },
     "chapterId": "cornea",
-    "seqId": 58,
+    "seqId": 60,
     "_serverSynced": true
   },
   {
     "id": 1768055786854,
-    "seqId": 57,
+    "seqId": 59,
     "title": "Incisional & Lens-Based Refractive Surgery: A Comprehensive Clinical Guide",
     "summary": "This visual guide explores the evolution of refractive techniques, from historical incisional methods to contemporary lens-based procedures. It details the mechanisms, indications, and clinical outcomes for astigmatism correction, corneal reshaping, and high ametropia management.",
     "date": "2026-01-10T14:36:26.854Z",
@@ -12973,7 +13130,7 @@
   },
   {
     "id": 1768055707721,
-    "seqId": 56,
+    "seqId": 58,
     "title": "Comprehensive Guide to Refractive Laser Complications",
     "summary": "An exhaustive clinical overview of the immediate, early, and late complications associated with refractive laser procedures including LASIK, SMILE, and surface treatments. Essential for surgeons and primary care ophthalmologists to ensure timely diagnosis and management.",
     "date": "2026-01-10T14:35:07.721Z",
@@ -13221,7 +13378,7 @@
   },
   {
     "id": 1768055580844,
-    "seqId": 55,
+    "seqId": 57,
     "title": "Excimer & Femtosecond Laser Refractive Surgery: The Ultimate Clinical Guide",
     "summary": "An exhaustive clinical reference covering ophthalmic and medical contraindications, surface treatments (PRK, LASEK, Epi-LASEK), lamellar surgery (LASIK), and lenticule extraction (SMILE). This guide details indications, methods, advantages, and disadvantages for all major corneal refractive procedures.",
     "date": "2026-01-10T14:33:00.844Z",
@@ -13490,7 +13647,7 @@
   },
   {
     "id": 1768052756338,
-    "seqId": 54,
+    "seqId": 56,
     "title": "Biophysics of Refractive Lasers & Preoperative Evaluation",
     "summary": "A comprehensive guide to laser-tissue interactions, excimer technology, and the rigorous clinical standards for preoperative assessment. This visual roadmap covers everything from the Munnerlyn formula to the Ectasia Risk Scoring System.",
     "date": "2026-01-10T13:45:56.338Z",
@@ -13950,7 +14107,7 @@
       ]
     },
     "chapterId": "refractive",
-    "seqId": 53,
+    "seqId": 55,
     "_serverSynced": true
   },
   {
@@ -14311,7 +14468,7 @@
       ]
     },
     "chapterId": "refractive",
-    "seqId": 52,
+    "seqId": 54,
     "_serverSynced": true
   },
   {
@@ -14537,7 +14694,7 @@
       ]
     },
     "chapterId": "refractive",
-    "seqId": 51,
+    "seqId": 53,
     "_serverSynced": true
   },
   {
@@ -14749,7 +14906,7 @@
       ]
     },
     "chapterId": "oculoplastics",
-    "seqId": 50,
+    "seqId": 52,
     "_serverSynced": true
   },
   {
@@ -14916,7 +15073,7 @@
       ]
     },
     "chapterId": "oculoplastics",
-    "seqId": 49,
+    "seqId": 51,
     "_serverSynced": true
   },
   {
@@ -15160,7 +15317,7 @@
       ]
     },
     "chapterId": "refractive",
-    "seqId": 109
+    "seqId": 112
   },
   {
     "id": 1767813211695,
@@ -15404,7 +15561,7 @@
     },
     "chapterId": "refractive",
     "_serverSynced": true,
-    "seqId": 52
+    "seqId": 50
   },
   {
     "id": 1767787945579,
@@ -15566,7 +15723,7 @@
       ]
     },
     "chapterId": "refractive",
-    "seqId": 48,
+    "seqId": 49,
     "_serverSynced": true
   },
   {
@@ -15717,7 +15874,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 47,
+    "seqId": 48,
     "_serverSynced": true
   },
   {
@@ -16062,7 +16219,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 46,
+    "seqId": 47,
     "_serverSynced": true
   },
   {
@@ -16573,7 +16730,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 45,
+    "seqId": 46,
     "_serverSynced": true
   },
   {
@@ -16923,7 +17080,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 44,
+    "seqId": 45,
     "_serverSynced": true
   },
   {
@@ -17197,7 +17354,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 43,
+    "seqId": 44,
     "_serverSynced": true
   },
   {
@@ -17423,7 +17580,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 42,
+    "seqId": 43,
     "_serverSynced": true
   },
   {
@@ -17606,7 +17763,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 41,
+    "seqId": 42,
     "_serverSynced": true
   },
   {
@@ -17931,7 +18088,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 40,
+    "seqId": 41,
     "_serverSynced": true
   },
   {
@@ -18167,7 +18324,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 39,
+    "seqId": 40,
     "_serverSynced": true
   },
   {
@@ -18346,7 +18503,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 38,
+    "seqId": 39,
     "_serverSynced": true
   },
   {
@@ -18552,7 +18709,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 37,
+    "seqId": 38,
     "_serverSynced": true
   },
   {
@@ -18766,7 +18923,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 36,
+    "seqId": 37,
     "_serverSynced": true
   },
   {
@@ -18980,7 +19137,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 35,
+    "seqId": 36,
     "_serverSynced": true
   },
   {
@@ -19254,7 +19411,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 34,
+    "seqId": 35,
     "_serverSynced": true
   },
   {
@@ -19486,7 +19643,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 33,
+    "seqId": 34,
     "_serverSynced": true
   },
   {
@@ -19709,7 +19866,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 32,
+    "seqId": 33,
     "_serverSynced": true
   },
   {
@@ -19953,7 +20110,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 31,
+    "seqId": 32,
     "_serverSynced": true
   },
   {
@@ -20313,7 +20470,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 30,
+    "seqId": 31,
     "_serverSynced": true
   },
   {
@@ -20825,7 +20982,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 29,
+    "seqId": 30,
     "_serverSynced": true
   },
   {
@@ -21065,7 +21222,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 28,
+    "seqId": 29,
     "_serverSynced": true
   },
   {
@@ -21399,7 +21556,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 27,
+    "seqId": 28,
     "_serverSynced": true
   },
   {
@@ -21569,7 +21726,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 26,
+    "seqId": 27,
     "_serverSynced": true
   },
   {
@@ -21821,7 +21978,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 25,
+    "seqId": 26,
     "_serverSynced": true
   },
   {
@@ -21950,7 +22107,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 24,
+    "seqId": 25,
     "_serverSynced": true
   },
   {
@@ -22187,7 +22344,7 @@
       ]
     },
     "chapterId": "strabismus",
-    "seqId": 23,
+    "seqId": 24,
     "_serverSynced": true
   },
   {
@@ -22508,7 +22665,7 @@
     },
     "chapterId": "pediatric",
     "_serverSynced": true,
-    "seqId": 24
+    "seqId": 23
   },
   {
     "id": 1767522086646,
@@ -22827,7 +22984,7 @@
       ]
     },
     "chapterId": "pediatric",
-    "seqId": 110
+    "seqId": 113
   },
   {
     "id": 1767522019827,

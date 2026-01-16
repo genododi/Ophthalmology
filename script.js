@@ -1000,12 +1000,27 @@ function setupKnowledgeBase() {
                         // Check for REAL differences that matter
                         const changes = [];
                         
-                        // Only flag chapter change if actually different
+                        // CHAPTER SYNC: Server is source of truth for chapters
                         const localChapter = normalizeStr(localItem.chapterId) || 'uncategorized';
-                        const serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
+                        let serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
+                        
+                        // If server has 'uncategorized', try auto-detecting from title
+                        if (serverChapter === 'uncategorized' && localChapter === 'uncategorized') {
+                            const autoChapter = autoDetectChapter(serverItem.title || localItem.title);
+                            if (autoChapter !== 'uncategorized') {
+                                serverChapter = autoChapter;
+                                serverItem.chapterId = autoChapter;
+                            }
+                        }
+                        
                         if (localChapter !== serverChapter) {
-                            changes.push(`chapter: ${localChapter} → ${serverChapter}`);
+                            const chapters = getChapters();
+                            const oldChapterName = chapters.find(c => c.id === localChapter)?.name || localChapter;
+                            const newChapterName = chapters.find(c => c.id === serverChapter)?.name || serverChapter;
+                            changes.push(`chapter: ${oldChapterName} → ${newChapterName}`);
                             localItem.chapterId = serverItem.chapterId;
+                            // Mark as recently updated for visual feedback
+                            localItem._chapterUpdated = Date.now();
                         }
                         
                         // For title/summary: Only update if item has a "lastServerSync" marker older than server
@@ -1050,9 +1065,14 @@ function setupKnowledgeBase() {
                             delete newItem.seqId;
 
                             // PRESERVE CHAPTER: Keep the server's chapterId if available
-                            if (!newItem.chapterId) {
-                                newItem.chapterId = 'uncategorized';
+                            // Auto-detect chapter if not set
+                            if (!newItem.chapterId || newItem.chapterId === 'uncategorized') {
+                                const autoChapter = autoDetectChapter(newItem.title);
+                                newItem.chapterId = autoChapter;
                             }
+                            
+                            // Mark as newly imported for green hashtag display
+                            newItem._newlyImported = Date.now();
 
                             localLibrary.push(newItem);
                             addedCount++;
@@ -1757,14 +1777,22 @@ function setupKnowledgeBase() {
             filteredLibrary.forEach(item => {
                 const chapter = chapters.find(ch => ch.id === item.chapterId) || chapters[0];
                 const isSelected = selectedItems.has(item.id);
+                
+                // Check if item is newly imported (within last 24 hours)
+                const isNewlyImported = item._newlyImported && (Date.now() - item._newlyImported) < 24 * 60 * 60 * 1000;
+                // Check if chapter was recently updated (within last 24 hours)
+                const isChapterUpdated = item._chapterUpdated && (Date.now() - item._chapterUpdated) < 24 * 60 * 60 * 1000;
+                const isNew = isNewlyImported || isChapterUpdated;
+                const hashtagColor = isNew ? '#22c55e' : '#94a3b8'; // Green for new/updated, gray for regular
+                const hashtagTitle = isNewlyImported ? 'Newly synced' : (isChapterUpdated ? 'Chapter updated' : '');
 
                 const el = document.createElement('div');
-                el.className = `saved-item ${isSelected ? 'selected' : ''}`;
+                el.className = `saved-item ${isSelected ? 'selected' : ''} ${isNew ? 'newly-imported' : ''}`;
                 el.innerHTML = `
                     ${selectionMode ? `
                         <input type="checkbox" class="item-checkbox" data-id="${item.id}" ${isSelected ? 'checked' : ''}>
                     ` : `
-                        <div class="item-number" style="font-weight: bold; color: #94a3b8; font-size: 0.9rem; margin-right: 12px; min-width: 25px;">#${item.seqId || '?'}</div>
+                        <div class="item-number" style="font-weight: bold; color: ${hashtagColor}; font-size: 0.9rem; margin-right: 12px; min-width: 25px;" title="${hashtagTitle}">#${item.seqId || '?'}${isNew ? ' ✨' : ''}</div>
                     `}
                     <div class="saved-info">
                         <div class="saved-title-row">
