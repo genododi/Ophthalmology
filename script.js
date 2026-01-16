@@ -898,30 +898,46 @@ function setupKnowledgeBase() {
                 // Track what changed for detailed logging
                 const updateDetails = [];
                 
+                // Helper function to normalize strings for comparison
+                const normalizeStr = (str) => {
+                    if (!str) return '';
+                    return String(str).trim().normalize('NFC');
+                };
+                
                 serverItems.forEach(serverItem => {
                     const serverKey = String(serverItem.id || (serverItem.title + serverItem.date));
 
                     if (localMap.has(serverKey)) {
                         // Item exists locally. Check if we need to update.
                         // We assume Server is the "Truth" for synchronization when fetching.
-                        // Ideally we would compare timestamps, but for now we update local to match server matches
-                        // to ensure chapter changes propagate.
                         const localItem = localMap.get(serverKey);
 
-                        // Check for differences that matter (Chapter, Title, Data)
+                        // Check for REAL differences that matter (normalize strings to avoid false positives)
                         const changes = [];
-                        if (localItem.chapterId !== serverItem.chapterId) {
-                            changes.push(`chapter: ${localItem.chapterId || 'none'} → ${serverItem.chapterId || 'none'}`);
+                        
+                        // Only flag chapter change if actually different
+                        const localChapter = normalizeStr(localItem.chapterId) || 'uncategorized';
+                        const serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
+                        if (localChapter !== serverChapter) {
+                            changes.push(`chapter: ${localChapter} → ${serverChapter}`);
                         }
-                        if (localItem.title !== serverItem.title) {
+                        
+                        // Only flag title change if NORMALIZED titles differ
+                        const localTitle = normalizeStr(localItem.title);
+                        const serverTitle = normalizeStr(serverItem.title);
+                        if (localTitle !== serverTitle) {
                             changes.push(`title changed`);
                         }
-                        if (localItem.summary !== serverItem.summary) {
+                        
+                        // Only flag summary change if NORMALIZED summaries differ
+                        const localSummary = normalizeStr(localItem.summary);
+                        const serverSummary = normalizeStr(serverItem.summary);
+                        if (localSummary !== serverSummary) {
                             changes.push(`summary changed`);
                         }
                         
                         if (changes.length > 0) {
-                            // Update local properties
+                            // Update local properties (use server values)
                             localItem.chapterId = serverItem.chapterId;
                             localItem.title = serverItem.title;
                             localItem.summary = serverItem.summary;
@@ -1060,6 +1076,94 @@ function setupKnowledgeBase() {
         importBtn.addEventListener('click', async () => {
             if (!confirm('Import saved infographics from the server? This will add any missing items.')) return;
             await syncFromServer(false);
+        });
+    }
+
+    // FIND DUPLICATES
+    const findDuplicatesBtn = document.getElementById('find-duplicates-btn');
+    if (findDuplicatesBtn) {
+        findDuplicatesBtn.addEventListener('click', () => {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            
+            if (library.length === 0) {
+                alert('Library is empty. No duplicates to find.');
+                return;
+            }
+            
+            // Normalize title for comparison
+            const normalizeTitle = (title) => {
+                if (!title) return '';
+                return String(title).trim().toLowerCase().normalize('NFC');
+            };
+            
+            // Find duplicates by title
+            const titleMap = new Map();
+            const duplicates = [];
+            
+            library.forEach((item, index) => {
+                const normalizedTitle = normalizeTitle(item.title);
+                
+                if (titleMap.has(normalizedTitle)) {
+                    // Found a duplicate
+                    const originalIndex = titleMap.get(normalizedTitle);
+                    duplicates.push({
+                        title: item.title,
+                        duplicateId: item.id,
+                        duplicateIndex: index,
+                        originalId: library[originalIndex].id,
+                        originalIndex: originalIndex,
+                        duplicateDate: item.date,
+                        originalDate: library[originalIndex].date
+                    });
+                } else {
+                    titleMap.set(normalizedTitle, index);
+                }
+            });
+            
+            if (duplicates.length === 0) {
+                alert('✅ No duplicates found! Your library is clean.');
+                return;
+            }
+            
+            // Build message showing duplicates
+            let msg = `Found ${duplicates.length} duplicate(s):\n\n`;
+            duplicates.forEach((dup, i) => {
+                const dupDate = new Date(dup.duplicateDate).toLocaleDateString();
+                const origDate = new Date(dup.originalDate).toLocaleDateString();
+                msg += `${i + 1}. "${dup.title}"\n   - Original: ${origDate}\n   - Duplicate: ${dupDate}\n\n`;
+            });
+            msg += `\nDelete all ${duplicates.length} duplicate(s)? (Keeps the older/original version)`;
+            
+            if (confirm(msg)) {
+                // Admin password required for bulk delete
+                const password = prompt('Enter admin password to delete duplicates:');
+                if (password !== '309030') {
+                    if (password !== null) {
+                        alert('Incorrect password. Deletion requires admin access.');
+                    }
+                    return;
+                }
+                
+                // Get IDs to delete (the newer duplicates)
+                const idsToDelete = new Set(duplicates.map(d => d.duplicateId));
+                
+                // Filter out duplicates
+                const cleanedLibrary = library.filter(item => !idsToDelete.has(item.id));
+                
+                // Reassign sequential IDs
+                reassignSequentialIds(cleanedLibrary);
+                
+                // Save
+                localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
+                
+                alert(`✅ Deleted ${duplicates.length} duplicate(s). Library now has ${cleanedLibrary.length} items.`);
+                
+                // Refresh the library view
+                renderLibraryList();
+                
+                // Sync to server
+                syncLibraryToServer();
+            }
         });
     }
 
