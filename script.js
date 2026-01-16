@@ -608,7 +608,7 @@ async function fetchLibraryFromStatic() {
         if (response.ok) {
             return await response.json();
         }
-        
+
         // Fallback: try fetching individual files from Library folder listing
         // This won't work on GitHub Pages without a proper index, so return empty
         return [];
@@ -629,13 +629,13 @@ function getChapters() {
 // Called after any addition or deletion to ensure no gaps or duplicates
 function reassignSequentialIds(library) {
     if (!library || library.length === 0) return false;
-    
+
     // Sort by date ASCENDING (oldest first gets #1)
     const sortedByDate = [...library].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     let modified = false;
     const totalCount = library.length;
-    
+
     // Assign sequential numbers: oldest = 1, newest = totalCount
     sortedByDate.forEach((sortedItem, index) => {
         const newSeqId = index + 1; // oldest gets 1, newest gets totalCount
@@ -646,7 +646,7 @@ function reassignSequentialIds(library) {
             modified = true;
         }
     });
-    
+
     return modified;
 }
 
@@ -659,9 +659,9 @@ function assignSequentialIds(library) {
 // Organized by clinical ophthalmology subspecialties with comprehensive terminology
 function autoDetectChapter(title) {
     if (!title) return 'uncategorized';
-    
+
     const titleLower = title.toLowerCase();
-    
+
     // CLINICAL OPHTHALMOLOGY AUTO-CATEGORIZATION RULES
     // Order matters: more specific conditions first, then broader categories
     // Based on standard ophthalmology subspecialty organization
@@ -669,549 +669,595 @@ function autoDetectChapter(title) {
         // ══════════════════════════════════════════════════════════════════
         // NEURO-OPHTHALMOLOGY - Disorders of visual pathway & cranial nerves
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Optic nerve conditions
-            'optic neuritis', 'optic neuropathy', 'optic atrophy', 'papilledema', 'papilloedema',
-            'disc swelling', 'disc edema', 'disc oedema', 'aion', 'naion', 'pion', 'lhon',
-            'ischaemic optic', 'ischemic optic', 'optic nerve head', 'optic disc drusen',
-            // Cranial nerve palsies
-            'third nerve', 'fourth nerve', 'sixth nerve', 'cn iii', 'cn iv', 'cn vi',
-            'oculomotor', 'trochlear', 'abducens', 'cranial nerve pals',
-            // Pupil disorders
-            'anisocoria', 'pupil', 'horner', 'adie', 'argyll robertson', 'rapd', 'apd',
-            'relative afferent', 'marcus gunn',
-            // Visual pathway
-            'chiasm', 'optic tract', 'optic radiation', 'visual cortex', 'hemianop',
-            'quadrantanop', 'bitemporal', 'homonymous',
-            // Nystagmus & eye movements
-            'nystagmus', 'gaze palsy', 'ino', 'internuclear', 'one-and-a-half',
-            'supranuclear', 'infranuclear', 'saccad',
-            // Intracranial conditions
-            'iih', 'pseudotumor', 'benign intracranial', 'idiopathic intracranial',
-            'raised icp', 'intracranial pressure', 'pituitary', 'sellar',
-            // General neuro-ophth
-            'neuro-ophth', 'neuroophth', 'visual pathway', 'afferent', 'efferent'
-        ], chapter: 'neuro' },
-        
+        {
+            keywords: [
+                // Optic nerve conditions
+                'optic neuritis', 'optic neuropathy', 'optic atrophy', 'papilledema', 'papilloedema',
+                'disc swelling', 'disc edema', 'disc oedema', 'aion', 'naion', 'pion', 'lhon',
+                'ischaemic optic', 'ischemic optic', 'optic nerve head', 'optic disc drusen',
+                // Cranial nerve palsies
+                'third nerve', 'fourth nerve', 'sixth nerve', 'cn iii', 'cn iv', 'cn vi',
+                'oculomotor', 'trochlear', 'abducens', 'cranial nerve pals',
+                // Pupil disorders
+                'anisocoria', 'pupil', 'horner', 'adie', 'argyll robertson', 'rapd', 'apd',
+                'relative afferent', 'marcus gunn',
+                // Visual pathway
+                'chiasm', 'optic tract', 'optic radiation', 'visual cortex', 'hemianop',
+                'quadrantanop', 'bitemporal', 'homonymous',
+                // Nystagmus & eye movements
+                'nystagmus', 'gaze palsy', 'ino', 'internuclear', 'one-and-a-half',
+                'supranuclear', 'infranuclear', 'saccad',
+                // Intracranial conditions
+                'iih', 'pseudotumor', 'benign intracranial', 'idiopathic intracranial',
+                'raised icp', 'intracranial pressure', 'pituitary', 'sellar',
+                // General neuro-ophth
+                'neuro-ophth', 'neuroophth', 'visual pathway', 'afferent', 'efferent'
+            ], chapter: 'neuro'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // GLAUCOMA - IOP-related optic neuropathy & angle disorders
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Types of glaucoma
-            'glaucoma', 'poag', 'pacg', 'primary open angle', 'primary angle closure',
-            'normal tension', 'ntg', 'low tension', 'ocular hypertension', 'oht',
-            'secondary glaucoma', 'neovascular glaucoma', 'nvg', 'uveitic glaucoma',
-            'pigmentary glaucoma', 'pigment dispersion', 'pseudoexfoliation', 'pxf', 'pex',
-            'exfoliation syndrome', 'steroid-induced', 'traumatic glaucoma',
-            'congenital glaucoma', 'juvenile glaucoma', 'developmental glaucoma',
-            'angle recession glaucoma', 'inflammatory glaucoma', 'lens-induced',
-            // IOP & anatomy
-            'intraocular pressure', 'iop', 'aqueous', 'trabecular meshwork',
-            'schlemm', 'angle closure', 'narrow angle', 'plateau iris',
-            'pupillary block', 'appositional', 'synechial',
-            // Glaucoma surgery
-            'trabeculectomy', 'tube shunt', 'ahmed', 'baerveldt', 'molteno',
-            'migs', 'istent', 'hydrus', 'xen', 'preserflo', 'goniotomy',
-            'trabeculotomy', 'trabectome', 'kahook', 'gonioscopy-assisted',
-            'cyclophotocoagulation', 'cyclodiode', 'filtering surgery', 'bleb',
-            // Diagnostic
-            'rnfl', 'ganglion cell', 'optic disc cupping', 'cup-to-disc', 'c:d ratio',
-            'visual field loss', 'arcuate scotoma', 'nasal step'
-        ], chapter: 'glaucoma' },
-        
+        {
+            keywords: [
+                // Types of glaucoma
+                'glaucoma', 'poag', 'pacg', 'primary open angle', 'primary angle closure',
+                'normal tension', 'ntg', 'low tension', 'ocular hypertension', 'oht',
+                'secondary glaucoma', 'neovascular glaucoma', 'nvg', 'uveitic glaucoma',
+                'pigmentary glaucoma', 'pigment dispersion', 'pseudoexfoliation', 'pxf', 'pex',
+                'exfoliation syndrome', 'steroid-induced', 'traumatic glaucoma',
+                'congenital glaucoma', 'juvenile glaucoma', 'developmental glaucoma',
+                'angle recession glaucoma', 'inflammatory glaucoma', 'lens-induced',
+                // IOP & anatomy
+                'intraocular pressure', 'iop', 'aqueous', 'trabecular meshwork',
+                'schlemm', 'angle closure', 'narrow angle', 'plateau iris',
+                'pupillary block', 'appositional', 'synechial',
+                // Glaucoma surgery
+                'trabeculectomy', 'tube shunt', 'ahmed', 'baerveldt', 'molteno',
+                'migs', 'istent', 'hydrus', 'xen', 'preserflo', 'goniotomy',
+                'trabeculotomy', 'trabectome', 'kahook', 'gonioscopy-assisted',
+                'cyclophotocoagulation', 'cyclodiode', 'filtering surgery', 'bleb',
+                // Diagnostic
+                'rnfl', 'ganglion cell', 'optic disc cupping', 'cup-to-disc', 'c:d ratio',
+                'visual field loss', 'arcuate scotoma', 'nasal step'
+            ], chapter: 'glaucoma'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // VITREORETINAL - Surgical retina conditions
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Retinal detachment
-            'retinal detachment', 'rd', 'rhegmatogenous', 'tractional', 'exudative',
-            'macula-off', 'macula-on', 'pvr', 'proliferative vitreoretinopathy',
-            // Vitreous conditions
-            'vitreous', 'pvd', 'posterior vitreous', 'vitreous hemorrhage', 'vit haem',
-            'vitreous opacities', 'floaters', 'asteroid hyalosis', 'synchysis',
-            // Macular surgery
-            'macular hole', 'epiretinal membrane', 'erm', 'macular pucker',
-            'vitreomacular traction', 'vmt', 'lamellar hole',
-            // Surgical procedures
-            'vitrectomy', 'ppv', 'pars plana', 'scleral buckle', 'pneumatic retinopexy',
-            'silicone oil', 'gas tamponade', 'sf6', 'c3f8', 'endolaser', 'cryotherapy',
-            'internal limiting membrane', 'ilm peel',
-            // Peripheral retina
-            'retinal tear', 'retinal break', 'horseshoe tear', 'lattice degeneration',
-            'retinoschisis', 'peripheral retinal', 'prophylactic laser'
-        ], chapter: 'vitreoretinal' },
-        
+        {
+            keywords: [
+                // Retinal detachment
+                'retinal detachment', 'rd', 'rhegmatogenous', 'tractional', 'exudative',
+                'macula-off', 'macula-on', 'pvr', 'proliferative vitreoretinopathy',
+                // Vitreous conditions
+                'vitreous', 'pvd', 'posterior vitreous', 'vitreous hemorrhage', 'vit haem',
+                'vitreous opacities', 'floaters', 'asteroid hyalosis', 'synchysis',
+                // Macular surgery
+                'macular hole', 'epiretinal membrane', 'erm', 'macular pucker',
+                'vitreomacular traction', 'vmt', 'lamellar hole',
+                // Surgical procedures
+                'vitrectomy', 'ppv', 'pars plana', 'scleral buckle', 'pneumatic retinopexy',
+                'silicone oil', 'gas tamponade', 'sf6', 'c3f8', 'endolaser', 'cryotherapy',
+                'internal limiting membrane', 'ilm peel',
+                // Peripheral retina
+                'retinal tear', 'retinal break', 'horseshoe tear', 'lattice degeneration',
+                'retinoschisis', 'peripheral retinal', 'prophylactic laser'
+            ], chapter: 'vitreoretinal'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // MEDICAL RETINA - Non-surgical retinal conditions
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Diabetic eye disease
-            'diabetic retinopathy', 'dr', 'npdr', 'pdr', 'proliferative diabetic',
-            'non-proliferative', 'diabetic macular', 'dme', 'csme', 'clinically significant',
-            'microaneurysm', 'hard exudate', 'cotton wool', 'irma', 'nve', 'nvd',
-            // AMD
-            'age-related macular', 'amd', 'armd', 'macular degeneration',
-            'drusen', 'geographic atrophy', 'wet amd', 'dry amd', 'neovascular amd',
-            'cnv', 'choroidal neovascul', 'polypoidal', 'pcv', 'rac', 'rpe detachment',
-            // Vascular conditions
-            'retinal vein occlusion', 'rvo', 'brvo', 'crvo', 'hemi-rvo',
-            'retinal artery occlusion', 'rao', 'brao', 'crao', 'branch retinal',
-            'central retinal', 'ocular ischemic', 'venous stasis',
-            // Macular conditions
-            'macular edema', 'cme', 'cystoid macular', 'irvine-gass',
-            'central serous', 'csr', 'csc', 'cscr', 'pachychoroid',
-            'myopic maculopathy', 'pathological myopia', 'macular atrophy',
-            'epiretinal', 'macular dystrophy', 'vitelliform', 'best disease',
-            'stargardt', 'pattern dystrophy',
-            // Other medical retina
-            'retinitis pigmentosa', 'rp', 'rod-cone', 'cone-rod', 'choroideremia',
-            'retinal dystrophy', 'inherited retinal', 'ird',
-            'hypertensive retinopathy', 'radiation retinopathy', 'solar retinopathy',
-            'chloroquine', 'hydroxychloroquine', 'drug toxicity retina',
-            // Anti-VEGF related
-            'anti-vegf', 'intravitreal injection', 'aflibercept', 'ranibizumab',
-            'bevacizumab', 'faricimab', 'brolucizumab'
-        ], chapter: 'medical_retina' },
-        
+        {
+            keywords: [
+                // Diabetic eye disease
+                'diabetic retinopathy', 'dr', 'npdr', 'pdr', 'proliferative diabetic',
+                'non-proliferative', 'diabetic macular', 'dme', 'csme', 'clinically significant',
+                'microaneurysm', 'hard exudate', 'cotton wool', 'irma', 'nve', 'nvd',
+                // AMD
+                'age-related macular', 'amd', 'armd', 'macular degeneration',
+                'drusen', 'geographic atrophy', 'wet amd', 'dry amd', 'neovascular amd',
+                'cnv', 'choroidal neovascul', 'polypoidal', 'pcv', 'rac', 'rpe detachment',
+                // Vascular conditions
+                'retinal vein occlusion', 'rvo', 'brvo', 'crvo', 'hemi-rvo',
+                'retinal artery occlusion', 'rao', 'brao', 'crao', 'branch retinal',
+                'central retinal', 'ocular ischemic', 'venous stasis',
+                // Macular conditions
+                'macular edema', 'cme', 'cystoid macular', 'irvine-gass',
+                'central serous', 'csr', 'csc', 'cscr', 'pachychoroid',
+                'myopic maculopathy', 'pathological myopia', 'macular atrophy',
+                'epiretinal', 'macular dystrophy', 'vitelliform', 'best disease',
+                'stargardt', 'pattern dystrophy',
+                // Other medical retina
+                'retinitis pigmentosa', 'rp', 'rod-cone', 'cone-rod', 'choroideremia',
+                'retinal dystrophy', 'inherited retinal', 'ird',
+                'hypertensive retinopathy', 'radiation retinopathy', 'solar retinopathy',
+                'chloroquine', 'hydroxychloroquine', 'drug toxicity retina',
+                // Anti-VEGF related
+                'anti-vegf', 'intravitreal injection', 'aflibercept', 'ranibizumab',
+                'bevacizumab', 'faricimab', 'brolucizumab'
+            ], chapter: 'medical_retina'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // CORNEA & EXTERNAL - Corneal conditions & ocular surface
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Infections
-            'keratitis', 'corneal ulcer', 'microbial keratitis', 'bacterial keratitis',
-            'fungal keratitis', 'acanthamoeba', 'herpetic keratitis', 'hsv keratitis',
-            'herpes simplex', 'herpes zoster ophthalmicus', 'hzo', 'disciform',
-            'dendrit', 'geographic ulcer',
-            // Dystrophies
-            'corneal dystrophy', 'fuchs', 'endothelial dystrophy', 'fced',
-            'keratoconus', 'pellucid', 'ectasia', 'corneal ectasia',
-            'lattice dystrophy', 'granular dystrophy', 'macular dystrophy',
-            'map-dot-fingerprint', 'ebmd', 'reis-bucklers', 'thiel-behnke',
-            'posterior polymorphous', 'congenital hereditary endothelial',
-            // Degenerations
-            'pterygium', 'pinguecula', 'band keratopathy', 'salzmann',
-            'terrien', 'mooren', 'dellen', 'arcus senilis',
-            // Dry eye & ocular surface
-            'dry eye', 'ded', 'meibomian gland', 'mgd', 'blepharitis',
-            'ocular surface disease', 'osd', 'tear film', 'schirmer',
-            'tbut', 'tear break-up', 'sjogren', 'sicca', 'gvhd ocular',
-            // Surgery
-            'corneal transplant', 'keratoplasty', 'pk', 'penetrating keratoplasty',
-            'dsaek', 'dsek', 'dmek', 'dalk', 'endothelial keratoplasty',
-            'corneal graft', 'graft rejection', 'graft failure',
-            'cross-linking', 'cxl', 'collagen cross', 'intacs', 'corneal ring',
-            // Other corneal
-            'corneal opacity', 'corneal scar', 'corneal edema', 'bullous keratopathy',
-            'exposure keratopathy', 'neurotrophic', 'persistent epithelial defect',
-            'recurrent erosion', 'epithelial basement membrane'
-        ], chapter: 'cornea' },
-        
+        {
+            keywords: [
+                // Infections
+                'keratitis', 'corneal ulcer', 'microbial keratitis', 'bacterial keratitis',
+                'fungal keratitis', 'acanthamoeba', 'herpetic keratitis', 'hsv keratitis',
+                'herpes simplex', 'herpes zoster ophthalmicus', 'hzo', 'disciform',
+                'dendrit', 'geographic ulcer',
+                // Dystrophies
+                'corneal dystrophy', 'fuchs', 'endothelial dystrophy', 'fced',
+                'keratoconus', 'pellucid', 'ectasia', 'corneal ectasia',
+                'lattice dystrophy', 'granular dystrophy', 'macular dystrophy',
+                'map-dot-fingerprint', 'ebmd', 'reis-bucklers', 'thiel-behnke',
+                'posterior polymorphous', 'congenital hereditary endothelial',
+                // Degenerations
+                'pterygium', 'pinguecula', 'band keratopathy', 'salzmann',
+                'terrien', 'mooren', 'dellen', 'arcus senilis',
+                // Dry eye & ocular surface
+                'dry eye', 'ded', 'meibomian gland', 'mgd', 'blepharitis',
+                'ocular surface disease', 'osd', 'tear film', 'schirmer',
+                'tbut', 'tear break-up', 'sjogren', 'sicca', 'gvhd ocular',
+                // Surgery
+                'corneal transplant', 'keratoplasty', 'pk', 'penetrating keratoplasty',
+                'dsaek', 'dsek', 'dmek', 'dalk', 'endothelial keratoplasty',
+                'corneal graft', 'graft rejection', 'graft failure',
+                'cross-linking', 'cxl', 'collagen cross', 'intacs', 'corneal ring',
+                // Other corneal
+                'corneal opacity', 'corneal scar', 'corneal edema', 'bullous keratopathy',
+                'exposure keratopathy', 'neurotrophic', 'persistent epithelial defect',
+                'recurrent erosion', 'epithelial basement membrane'
+            ], chapter: 'cornea'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // LENS & CATARACT
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Cataract types
-            'cataract', 'nuclear sclerosis', 'cortical cataract', 'posterior subcapsular',
-            'psc', 'mature cataract', 'hypermature', 'morgagnian', 'brunescent',
-            'white cataract', 'intumescent', 'traumatic cataract', 'congenital cataract',
-            'developmental cataract', 'metabolic cataract', 'drug-induced cataract',
-            // Surgery
-            'phacoemulsification', 'phaco', 'ecce', 'icce', 'sics', 'msics',
-            'femtosecond', 'flacs', 'cataract surgery', 'cataract extraction',
-            // IOL
-            'intraocular lens', 'iol', 'monofocal', 'multifocal', 'toric',
-            'edof', 'accommodating iol', 'iol calculation', 'biometry',
-            'iol power', 'a-constant', 'srk', 'barrett', 'holladay', 'haigis',
-            'piggyback iol', 'sulcus iol', 'secondary iol', 'scleral fixated',
-            // Complications
-            'posterior capsule opacification', 'pco', 'after-cataract',
-            'nd:yag capsulotomy', 'yag capsulotomy', 'pcr', 'posterior capsule rupture',
-            'vitreous loss', 'dropped nucleus', 'endophthalmitis', 'tass',
-            'cme post cataract', 'iol dislocation', 'iol decentration',
-            // Lens conditions
-            'lens', 'crystalline lens', 'ectopia lentis', 'lens subluxation',
-            'lens dislocation', 'marfan lens', 'homocystinuria', 'weill-marchesani',
-            'microspherophakia', 'lenticonus', 'lentiglobus', 'aphakia', 'pseudophakia',
-            'zonular weakness', 'zonulopathy'
-        ], chapter: 'lens' },
-        
+        {
+            keywords: [
+                // Cataract types
+                'cataract', 'nuclear sclerosis', 'cortical cataract', 'posterior subcapsular',
+                'psc', 'mature cataract', 'hypermature', 'morgagnian', 'brunescent',
+                'white cataract', 'intumescent', 'traumatic cataract', 'congenital cataract',
+                'developmental cataract', 'metabolic cataract', 'drug-induced cataract',
+                // Surgery
+                'phacoemulsification', 'phaco', 'ecce', 'icce', 'sics', 'msics',
+                'femtosecond', 'flacs', 'cataract surgery', 'cataract extraction',
+                // IOL
+                'intraocular lens', 'iol', 'monofocal', 'multifocal', 'toric',
+                'edof', 'accommodating iol', 'iol calculation', 'biometry',
+                'iol power', 'a-constant', 'srk', 'barrett', 'holladay', 'haigis',
+                'piggyback iol', 'sulcus iol', 'secondary iol', 'scleral fixated',
+                // Complications
+                'posterior capsule opacification', 'pco', 'after-cataract',
+                'nd:yag capsulotomy', 'yag capsulotomy', 'pcr', 'posterior capsule rupture',
+                'vitreous loss', 'dropped nucleus', 'endophthalmitis', 'tass',
+                'cme post cataract', 'iol dislocation', 'iol decentration',
+                // Lens conditions
+                'lens', 'crystalline lens', 'ectopia lentis', 'lens subluxation',
+                'lens dislocation', 'marfan lens', 'homocystinuria', 'weill-marchesani',
+                'microspherophakia', 'lenticonus', 'lentiglobus', 'aphakia', 'pseudophakia',
+                'zonular weakness', 'zonulopathy'
+            ], chapter: 'lens'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // UVEITIS & OCULAR INFLAMMATION
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Anatomical classification
-            'uveitis', 'iritis', 'iridocyclitis', 'anterior uveitis', 'aau',
-            'intermediate uveitis', 'pars planitis', 'posterior uveitis',
-            'panuveitis', 'choroiditis', 'chorioretinitis', 'retinochoroiditis',
-            // Specific entities
-            'hla-b27', 'ankylosing spondylitis', 'reactive arthritis', 'psoriatic',
-            'inflammatory bowel', 'crohn', 'ulcerative colitis',
-            'behcet', 'sarcoid', 'sarcoidosis', 'vogt-koyanagi-harada', 'vkh',
-            'sympathetic ophthalmia', 'birdshot', 'multifocal choroiditis', 'mcp',
-            'serpiginous', 'acute posterior multifocal', 'apmppe', 'mewds',
-            'punctate inner choroidopathy', 'pic', 'white dot syndrome',
-            // Infectious uveitis
-            'toxoplasm', 'toxocara', 'cmv retinitis', 'cytomegalovirus',
-            'herpes uveitis', 'arn', 'acute retinal necrosis', 'porn',
-            'tuberculosis uveitis', 'tb uveitis', 'ocular tb', 'syphilitic uveitis',
-            'endogenous endophthalmitis', 'fungal endophthalmitis',
-            // Signs & complications
-            'hypopyon', 'keratic precipitate', 'kp', 'mutton fat', 'stellate',
-            'synechia', 'posterior synechia', 'peripheral anterior synechia',
-            'iris bombe', 'seclusio pupillae', 'cyclitic membrane',
-            'band keratopathy uveitis', 'uveitic glaucoma', 'uveitic cataract',
-            // Treatment-related
-            'immunosuppression', 'steroid-sparing', 'biologic', 'adalimumab', 'infliximab'
-        ], chapter: 'uveitis' },
-        
+        {
+            keywords: [
+                // Anatomical classification
+                'uveitis', 'iritis', 'iridocyclitis', 'anterior uveitis', 'aau',
+                'intermediate uveitis', 'pars planitis', 'posterior uveitis',
+                'panuveitis', 'choroiditis', 'chorioretinitis', 'retinochoroiditis',
+                // Specific entities
+                'hla-b27', 'ankylosing spondylitis', 'reactive arthritis', 'psoriatic',
+                'inflammatory bowel', 'crohn', 'ulcerative colitis',
+                'behcet', 'sarcoid', 'sarcoidosis', 'vogt-koyanagi-harada', 'vkh',
+                'sympathetic ophthalmia', 'birdshot', 'multifocal choroiditis', 'mcp',
+                'serpiginous', 'acute posterior multifocal', 'apmppe', 'mewds',
+                'punctate inner choroidopathy', 'pic', 'white dot syndrome',
+                // Infectious uveitis
+                'toxoplasm', 'toxocara', 'cmv retinitis', 'cytomegalovirus',
+                'herpes uveitis', 'arn', 'acute retinal necrosis', 'porn',
+                'tuberculosis uveitis', 'tb uveitis', 'ocular tb', 'syphilitic uveitis',
+                'endogenous endophthalmitis', 'fungal endophthalmitis',
+                // Signs & complications
+                'hypopyon', 'keratic precipitate', 'kp', 'mutton fat', 'stellate',
+                'synechia', 'posterior synechia', 'peripheral anterior synechia',
+                'iris bombe', 'seclusio pupillae', 'cyclitic membrane',
+                'band keratopathy uveitis', 'uveitic glaucoma', 'uveitic cataract',
+                // Treatment-related
+                'immunosuppression', 'steroid-sparing', 'biologic', 'adalimumab', 'infliximab'
+            ], chapter: 'uveitis'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // STRABISMUS & OCULAR MOTILITY
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Types of strabismus
-            'strabismus', 'squint', 'heterotropia', 'esotropia', 'exotropia',
-            'hypertropia', 'hypotropia', 'infantile esotropia', 'accommodative',
-            'non-accommodative', 'partially accommodative', 'sensory strabismus',
-            'consecutive', 'divergence excess', 'convergence insufficiency',
-            'convergence excess', 'divergence insufficiency',
-            // Specific patterns
-            'a-pattern', 'v-pattern', 'duane syndrome', 'duane retraction',
-            'brown syndrome', 'superior oblique palsy', 'inferior oblique overaction',
-            'double elevator palsy', 'monocular elevation deficiency',
-            'congenital fibrosis', 'cfeom', 'mobius',
-            // Motility & binocularity
-            'ocular motility', 'eom', 'extraocular muscle', 'eye movement',
-            'binocular vision', 'binocular single vision', 'bsv', 'diplopia',
-            'suppression', 'anomalous correspondence', 'arc',
-            // Amblyopia
-            'amblyopia', 'lazy eye', 'anisometropic', 'strabismic amblyopia',
-            'deprivation amblyopia', 'occlusion therapy', 'penalization',
-            // Assessment & surgery
-            'cover test', 'prism cover', 'hirschberg', 'krimsky',
-            'hess chart', 'lancaster', 'diplopia chart',
-            'strabismus surgery', 'recession', 'resection', 'transposition',
-            'adjustable suture', 'botulinum strabismus'
-        ], chapter: 'strabismus' },
-        
+        {
+            keywords: [
+                // Types of strabismus
+                'strabismus', 'squint', 'heterotropia', 'esotropia', 'exotropia',
+                'hypertropia', 'hypotropia', 'infantile esotropia', 'accommodative',
+                'non-accommodative', 'partially accommodative', 'sensory strabismus',
+                'consecutive', 'divergence excess', 'convergence insufficiency',
+                'convergence excess', 'divergence insufficiency',
+                // Specific patterns
+                'a-pattern', 'v-pattern', 'duane syndrome', 'duane retraction',
+                'brown syndrome', 'superior oblique palsy', 'inferior oblique overaction',
+                'double elevator palsy', 'monocular elevation deficiency',
+                'congenital fibrosis', 'cfeom', 'mobius',
+                // Motility & binocularity
+                'ocular motility', 'eom', 'extraocular muscle', 'eye movement',
+                'binocular vision', 'binocular single vision', 'bsv', 'diplopia',
+                'suppression', 'anomalous correspondence', 'arc',
+                // Amblyopia
+                'amblyopia', 'lazy eye', 'anisometropic', 'strabismic amblyopia',
+                'deprivation amblyopia', 'occlusion therapy', 'penalization',
+                // Assessment & surgery
+                'cover test', 'prism cover', 'hirschberg', 'krimsky',
+                'hess chart', 'lancaster', 'diplopia chart',
+                'strabismus surgery', 'recession', 'resection', 'transposition',
+                'adjustable suture', 'botulinum strabismus'
+            ], chapter: 'strabismus'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // PAEDIATRIC OPHTHALMOLOGY
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // General paediatric
-            'paediatric', 'pediatric', 'child', 'children', 'infant', 'neonatal',
-            'congenital', 'developmental', 'hereditary eye',
-            // ROP
-            'retinopathy of prematurity', 'rop', 'zone i', 'zone ii', 'plus disease',
-            'threshold rop', 'pre-threshold', 'aggressive rop', 'arop',
-            // Congenital conditions
-            'congenital cataract', 'congenital glaucoma', 'buphthalmos',
-            'persistent fetal vasculature', 'pfv', 'phpv', 'coloboma',
-            'aniridia', 'peters anomaly', 'axenfeld-rieger', 'anterior segment dysgenesis',
-            // Childhood conditions
-            'leukocoria', 'white pupil', 'red reflex', 'bruckner',
-            'nasolacrimal duct obstruction', 'nldo', 'dacryocele', 'congenital dacryocystocele',
-            'childhood blindness', 'cortical visual impairment', 'cvi',
-            // Genetic/metabolic
-            'retinoblastoma', 'coats disease', 'norrie', 'familial exudative',
-            'fevr', 'incontinentia pigmenti', 'albinism ocular'
-        ], chapter: 'paediatric' },
-        
+        {
+            keywords: [
+                // General paediatric
+                'paediatric', 'pediatric', 'child', 'children', 'infant', 'neonatal',
+                'congenital', 'developmental', 'hereditary eye',
+                // ROP
+                'retinopathy of prematurity', 'rop', 'zone i', 'zone ii', 'plus disease',
+                'threshold rop', 'pre-threshold', 'aggressive rop', 'arop',
+                // Congenital conditions
+                'congenital cataract', 'congenital glaucoma', 'buphthalmos',
+                'persistent fetal vasculature', 'pfv', 'phpv', 'coloboma',
+                'aniridia', 'peters anomaly', 'axenfeld-rieger', 'anterior segment dysgenesis',
+                // Childhood conditions
+                'leukocoria', 'white pupil', 'red reflex', 'bruckner',
+                'nasolacrimal duct obstruction', 'nldo', 'dacryocele', 'congenital dacryocystocele',
+                'childhood blindness', 'cortical visual impairment', 'cvi',
+                // Genetic/metabolic
+                'retinoblastoma', 'coats disease', 'norrie', 'familial exudative',
+                'fevr', 'incontinentia pigmenti', 'albinism ocular'
+            ], chapter: 'paediatric'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // ORBIT & OCULOPLASTICS - ORBIT
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Thyroid eye disease
-            'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'graves orbitopathy',
-            'dysthyroid', 'thyroid-associated', 'tao', 'exophthalmos', 'proptosis',
-            'lid retraction thyroid', 'compressive optic neuropathy', 'con',
-            'orbital decompression',
-            // Orbital inflammation
-            'orbital cellulitis', 'preseptal cellulitis', 'postseptal',
-            'orbital abscess', 'subperiosteal abscess', 'cavernous sinus thrombosis',
-            'idiopathic orbital inflammation', 'orbital pseudotumor', 'tolosa-hunt',
-            'igg4-related', 'dacryoadenitis', 'myositis orbital',
-            // Orbital tumors
-            'orbital tumor', 'orbital mass', 'lacrimal gland tumor',
-            'cavernous hemangioma', 'lymphangioma', 'dermoid', 'orbital dermoid',
-            'optic nerve glioma', 'optic nerve meningioma', 'orbital meningioma',
-            'rhabdomyosarcoma', 'orbital lymphoma', 'orbital metastasis',
-            // Trauma & other
-            'orbital fracture', 'blow-out fracture', 'medial wall fracture',
-            'floor fracture', 'enophthalmos', 'orbital reconstruction',
-            'orbital hemorrhage', 'retrobulbar hemorrhage',
-            'orbit', 'orbital anatomy', 'extraocular muscle anatomy'
-        ], chapter: 'orbit' },
-        
+        {
+            keywords: [
+                // Thyroid eye disease
+                'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'graves orbitopathy',
+                'dysthyroid', 'thyroid-associated', 'tao', 'exophthalmos', 'proptosis',
+                'lid retraction thyroid', 'compressive optic neuropathy', 'con',
+                'orbital decompression',
+                // Orbital inflammation
+                'orbital cellulitis', 'preseptal cellulitis', 'postseptal',
+                'orbital abscess', 'subperiosteal abscess', 'cavernous sinus thrombosis',
+                'idiopathic orbital inflammation', 'orbital pseudotumor', 'tolosa-hunt',
+                'igg4-related', 'dacryoadenitis', 'myositis orbital',
+                // Orbital tumors
+                'orbital tumor', 'orbital mass', 'lacrimal gland tumor',
+                'cavernous hemangioma', 'lymphangioma', 'dermoid', 'orbital dermoid',
+                'optic nerve glioma', 'optic nerve meningioma', 'orbital meningioma',
+                'rhabdomyosarcoma', 'orbital lymphoma', 'orbital metastasis',
+                // Trauma & other
+                'orbital fracture', 'blow-out fracture', 'medial wall fracture',
+                'floor fracture', 'enophthalmos', 'orbital reconstruction',
+                'orbital hemorrhage', 'retrobulbar hemorrhage',
+                'orbit', 'orbital anatomy', 'extraocular muscle anatomy'
+            ], chapter: 'orbit'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OCULOPLASTICS - LIDS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Lid position
-            'ptosis', 'blepharoptosis', 'congenital ptosis', 'aponeurotic ptosis',
-            'myogenic ptosis', 'neurogenic ptosis', 'mechanical ptosis',
-            'ectropion', 'entropion', 'cicatricial ectropion', 'involutional',
-            'paralytic ectropion', 'spastic entropion',
-            'lid retraction', 'lagophthalmos', 'exposure keratopathy lid',
-            // Lid tumors
-            'eyelid tumor', 'lid tumor', 'basal cell carcinoma', 'bcc',
-            'squamous cell carcinoma eyelid', 'sebaceous carcinoma',
-            'meibomian gland carcinoma', 'merkel cell', 'eyelid melanoma',
-            'chalazion', 'hordeolum', 'stye', 'lid cyst', 'dermoid cyst lid',
-            'papilloma lid', 'xanthelasma', 'syringoma',
-            // Inflammation
-            'blepharitis', 'anterior blepharitis', 'posterior blepharitis',
-            'meibomian gland dysfunction', 'mgd', 'rosacea ocular',
-            'demodex', 'preseptal', 'lid margin disease',
-            // Structural
-            'trichiasis', 'distichiasis', 'madarosis', 'epicanthus',
-            'telecanthus', 'blepharophimosis', 'coloboma lid', 'ankyloblepharon',
-            'floppy eyelid syndrome', 'dermatochalasis',
-            // Surgery
-            'blepharoplasty', 'ptosis surgery', 'levator', 'muller muscle',
-            'frontalis sling', 'tarsal strip', 'lid reconstruction',
-            'mohs', 'hughes flap', 'cutler-beard', 'lid sharing',
-            'botulinum toxin lid', 'facial palsy', 'bell palsy eye'
-        ], chapter: 'lids' },
-        
+        {
+            keywords: [
+                // Lid position
+                'ptosis', 'blepharoptosis', 'congenital ptosis', 'aponeurotic ptosis',
+                'myogenic ptosis', 'neurogenic ptosis', 'mechanical ptosis',
+                'ectropion', 'entropion', 'cicatricial ectropion', 'involutional',
+                'paralytic ectropion', 'spastic entropion',
+                'lid retraction', 'lagophthalmos', 'exposure keratopathy lid',
+                // Lid tumors
+                'eyelid tumor', 'lid tumor', 'basal cell carcinoma', 'bcc',
+                'squamous cell carcinoma eyelid', 'sebaceous carcinoma',
+                'meibomian gland carcinoma', 'merkel cell', 'eyelid melanoma',
+                'chalazion', 'hordeolum', 'stye', 'lid cyst', 'dermoid cyst lid',
+                'papilloma lid', 'xanthelasma', 'syringoma',
+                // Inflammation
+                'blepharitis', 'anterior blepharitis', 'posterior blepharitis',
+                'meibomian gland dysfunction', 'mgd', 'rosacea ocular',
+                'demodex', 'preseptal', 'lid margin disease',
+                // Structural
+                'trichiasis', 'distichiasis', 'madarosis', 'epicanthus',
+                'telecanthus', 'blepharophimosis', 'coloboma lid', 'ankyloblepharon',
+                'floppy eyelid syndrome', 'dermatochalasis',
+                // Surgery
+                'blepharoplasty', 'ptosis surgery', 'levator', 'muller muscle',
+                'frontalis sling', 'tarsal strip', 'lid reconstruction',
+                'mohs', 'hughes flap', 'cutler-beard', 'lid sharing',
+                'botulinum toxin lid', 'facial palsy', 'bell palsy eye'
+            ], chapter: 'lids'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // LACRIMAL SYSTEM
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'lacrimal', 'tear duct', 'nasolacrimal', 'nldo',
-            'dacryocystitis', 'dacryocystocele', 'dacryoadenitis',
-            'epiphora', 'watery eye', 'tearing', 'lacrimation',
-            'punctal stenosis', 'punctum', 'canalicular', 'canaliculitis',
-            'dcr', 'dacryocystorhinostomy', 'endonasal dcr', 'external dcr',
-            'jones tube', 'lacrimal stent', 'intubation lacrimal',
-            'lacrimal gland', 'lacrimal sac', 'lacrimal drainage',
-            'dry eye lacrimal', 'tear production', 'reflex tearing'
-        ], chapter: 'lacrimal' },
-        
+        {
+            keywords: [
+                'lacrimal', 'tear duct', 'nasolacrimal', 'nldo',
+                'dacryocystitis', 'dacryocystocele', 'dacryoadenitis',
+                'epiphora', 'watery eye', 'tearing', 'lacrimation',
+                'punctal stenosis', 'punctum', 'canalicular', 'canaliculitis',
+                'dcr', 'dacryocystorhinostomy', 'endonasal dcr', 'external dcr',
+                'jones tube', 'lacrimal stent', 'intubation lacrimal',
+                'lacrimal gland', 'lacrimal sac', 'lacrimal drainage',
+                'dry eye lacrimal', 'tear production', 'reflex tearing'
+            ], chapter: 'lacrimal'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // CONJUNCTIVA
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'conjunctivitis', 'red eye', 'pink eye', 'viral conjunctivitis',
-            'bacterial conjunctivitis', 'allergic conjunctivitis',
-            'vernal keratoconjunctivitis', 'vkc', 'atopic keratoconjunctivitis', 'akc',
-            'giant papillary', 'gpc', 'seasonal allergic', 'perennial allergic',
-            'chlamydial', 'trachoma', 'ophthalmia neonatorum', 'gonococcal',
-            'adenoviral', 'epidemic keratoconjunctivitis', 'ekc',
-            'subconjunctival hemorrhage', 'chemosis', 'follicles', 'papillae',
-            'pinguecula', 'conjunctival degeneration',
-            'ocular cicatricial pemphigoid', 'ocp', 'mucous membrane pemphigoid',
-            'stevens-johnson syndrome', 'sjs', 'toxic epidermal', 'ten',
-            'symblepharon', 'fornix shortening', 'conjunctival scarring',
-            'conjunctival tumor', 'ocular surface squamous', 'ossn', 'cin',
-            'conjunctival melanoma', 'conjunctival nevus', 'pan'
-        ], chapter: 'conjunctiva' },
-        
+        {
+            keywords: [
+                'conjunctivitis', 'red eye', 'pink eye', 'viral conjunctivitis',
+                'bacterial conjunctivitis', 'allergic conjunctivitis',
+                'vernal keratoconjunctivitis', 'vkc', 'atopic keratoconjunctivitis', 'akc',
+                'giant papillary', 'gpc', 'seasonal allergic', 'perennial allergic',
+                'chlamydial', 'trachoma', 'ophthalmia neonatorum', 'gonococcal',
+                'adenoviral', 'epidemic keratoconjunctivitis', 'ekc',
+                'subconjunctival hemorrhage', 'chemosis', 'follicles', 'papillae',
+                'pinguecula', 'conjunctival degeneration',
+                'ocular cicatricial pemphigoid', 'ocp', 'mucous membrane pemphigoid',
+                'stevens-johnson syndrome', 'sjs', 'toxic epidermal', 'ten',
+                'symblepharon', 'fornix shortening', 'conjunctival scarring',
+                'conjunctival tumor', 'ocular surface squamous', 'ossn', 'cin',
+                'conjunctival melanoma', 'conjunctival nevus', 'pan'
+            ], chapter: 'conjunctiva'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // SCLERA
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'scleritis', 'episcleritis', 'anterior scleritis', 'posterior scleritis',
-            'nodular scleritis', 'necrotizing scleritis', 'scleromalacia',
-            'diffuse scleritis', 'scleral inflammation',
-            'blue sclera', 'scleral thinning', 'staphyloma',
-            'scleral buckle complication', 'scleral perforation'
-        ], chapter: 'sclera' },
-        
+        {
+            keywords: [
+                'scleritis', 'episcleritis', 'anterior scleritis', 'posterior scleritis',
+                'nodular scleritis', 'necrotizing scleritis', 'scleromalacia',
+                'diffuse scleritis', 'scleral inflammation',
+                'blue sclera', 'scleral thinning', 'staphyloma',
+                'scleral buckle complication', 'scleral perforation'
+            ], chapter: 'sclera'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // REFRACTIVE SURGERY & ERRORS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Refractive errors
-            'refractive error', 'refraction', 'ametropia',
-            'myopia', 'short-sighted', 'near-sighted', 'high myopia', 'pathological myopia',
-            'hyperopia', 'hypermetropia', 'long-sighted', 'far-sighted',
-            'astigmatism', 'regular astigmatism', 'irregular astigmatism',
-            'anisometropia', 'aniseikonia', 'presbyopia',
-            // Refractive surgery
-            'lasik', 'lasek', 'prk', 'photorefractive', 'smile', 'relex',
-            'femtosecond laser refractive', 'excimer', 'refractive surgery',
-            'enhancement', 'retreatment', 'regression',
-            'icl', 'phakic iol', 'implantable collamer', 'artisan', 'artiflex',
-            'refractive lens exchange', 'rle', 'clear lens extraction',
-            // Complications
-            'ectasia post-lasik', 'dry eye post-lasik', 'flap complication',
-            'epithelial ingrowth', 'interface inflammation', 'dlk',
-            // Assessment
-            'wavefront', 'aberrometry', 'topography', 'tomography',
-            'keratometry', 'corneal power', 'axial length', 'biometry',
-            'spectacle', 'glasses', 'contact lens'
-        ], chapter: 'refractive' },
-        
+        {
+            keywords: [
+                // Refractive errors
+                'refractive error', 'refraction', 'ametropia',
+                'myopia', 'short-sighted', 'near-sighted', 'high myopia', 'pathological myopia',
+                'hyperopia', 'hypermetropia', 'long-sighted', 'far-sighted',
+                'astigmatism', 'regular astigmatism', 'irregular astigmatism',
+                'anisometropia', 'aniseikonia', 'presbyopia',
+                // Refractive surgery
+                'lasik', 'lasek', 'prk', 'photorefractive', 'smile', 'relex',
+                'femtosecond laser refractive', 'excimer', 'refractive surgery',
+                'enhancement', 'retreatment', 'regression',
+                'icl', 'phakic iol', 'implantable collamer', 'artisan', 'artiflex',
+                'refractive lens exchange', 'rle', 'clear lens extraction',
+                // Complications
+                'ectasia post-lasik', 'dry eye post-lasik', 'flap complication',
+                'epithelial ingrowth', 'interface inflammation', 'dlk',
+                // Assessment
+                'wavefront', 'aberrometry', 'topography', 'tomography',
+                'keratometry', 'corneal power', 'axial length', 'biometry',
+                'spectacle', 'glasses', 'contact lens'
+            ], chapter: 'refractive'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OCULAR TRAUMA
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'ocular trauma', 'eye injury', 'eye trauma',
-            'open globe', 'ruptured globe', 'penetrating injury', 'perforating injury',
-            'closed globe', 'blunt trauma', 'contusion',
-            'foreign body', 'iofb', 'intraocular foreign body', 'corneal foreign body',
-            'hyphema', 'traumatic hyphema', 'eight ball hyphema',
-            'chemical burn', 'chemical injury', 'alkali burn', 'acid burn',
-            'thermal burn', 'radiation injury',
-            'commotio retinae', 'berlin edema', 'choroidal rupture',
-            'traumatic cataract', 'lens dislocation trauma', 'iridodialysis',
-            'cyclodialysis', 'angle recession', 'vitreous hemorrhage trauma',
-            'traumatic optic neuropathy', 'retinal detachment trauma',
-            'siderosis', 'chalcosis', 'sympathetic ophthalmia trauma'
-        ], chapter: 'trauma' },
-        
+        {
+            keywords: [
+                'ocular trauma', 'eye injury', 'eye trauma',
+                'open globe', 'ruptured globe', 'penetrating injury', 'perforating injury',
+                'closed globe', 'blunt trauma', 'contusion',
+                'foreign body', 'iofb', 'intraocular foreign body', 'corneal foreign body',
+                'hyphema', 'traumatic hyphema', 'eight ball hyphema',
+                'chemical burn', 'chemical injury', 'alkali burn', 'acid burn',
+                'thermal burn', 'radiation injury',
+                'commotio retinae', 'berlin edema', 'choroidal rupture',
+                'traumatic cataract', 'lens dislocation trauma', 'iridodialysis',
+                'cyclodialysis', 'angle recession', 'vitreous hemorrhage trauma',
+                'traumatic optic neuropathy', 'retinal detachment trauma',
+                'siderosis', 'chalcosis', 'sympathetic ophthalmia trauma'
+            ], chapter: 'trauma'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OCULAR TUMORS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Intraocular tumors
-            'uveal melanoma', 'choroidal melanoma', 'iris melanoma', 'ciliary body melanoma',
-            'choroidal nevus', 'iris nevus', 'choroidal metastasis', 'ocular metastasis',
-            'retinoblastoma', 'choroidal hemangioma', 'retinal hemangioblastoma',
-            'intraocular lymphoma', 'vitreoretinal lymphoma',
-            'melanocytoma', 'adenoma', 'medulloepithelioma',
-            // Treatments
-            'plaque brachytherapy', 'proton beam', 'gamma knife', 'stereotactic',
-            'transpupillary thermotherapy', 'ttt', 'photodynamic tumor',
-            'enucleation', 'evisceration', 'exenteration', 'orbital implant',
-            // General
-            'ocular tumor', 'intraocular tumor', 'eye cancer', 'ocular oncology'
-        ], chapter: 'tumours' },
-        
+        {
+            keywords: [
+                // Intraocular tumors
+                'uveal melanoma', 'choroidal melanoma', 'iris melanoma', 'ciliary body melanoma',
+                'choroidal nevus', 'iris nevus', 'choroidal metastasis', 'ocular metastasis',
+                'retinoblastoma', 'choroidal hemangioma', 'retinal hemangioblastoma',
+                'intraocular lymphoma', 'vitreoretinal lymphoma',
+                'melanocytoma', 'adenoma', 'medulloepithelioma',
+                // Treatments
+                'plaque brachytherapy', 'proton beam', 'gamma knife', 'stereotactic',
+                'transpupillary thermotherapy', 'ttt', 'photodynamic tumor',
+                'enucleation', 'evisceration', 'exenteration', 'orbital implant',
+                // General
+                'ocular tumor', 'intraocular tumor', 'eye cancer', 'ocular oncology'
+            ], chapter: 'tumours'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OPHTHALMIC SURGERY & ANAESTHESIA
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Anaesthesia
-            'ophthalmic anaesthesia', 'ocular anesthesia', 'local anaesthetic',
-            'topical anaesthesia', 'sub-tenon', 'subtenon', 'peribulbar',
-            'retrobulbar', 'block', 'orbital block',
-            'general anaesthesia eye', 'sedation eye',
-            // Surgical principles
-            'surgical technique', 'intraoperative', 'perioperative',
-            'post-operative', 'postoperative', 'complication',
-            'surgical complication', 'informed consent',
-            'ophthalmic instruments', 'microsurgery', 'operating microscope',
-            // Specific mentions
-            'theatre', 'operating room', 'aseptic technique', 'sterile'
-        ], chapter: 'surgery_care' },
-        
+        {
+            keywords: [
+                // Anaesthesia
+                'ophthalmic anaesthesia', 'ocular anesthesia', 'local anaesthetic',
+                'topical anaesthesia', 'sub-tenon', 'subtenon', 'peribulbar',
+                'retrobulbar', 'block', 'orbital block',
+                'general anaesthesia eye', 'sedation eye',
+                // Surgical principles
+                'surgical technique', 'intraoperative', 'perioperative',
+                'post-operative', 'postoperative', 'complication',
+                'surgical complication', 'informed consent',
+                'ophthalmic instruments', 'microsurgery', 'operating microscope',
+                // Specific mentions
+                'theatre', 'operating room', 'aseptic technique', 'sterile'
+            ], chapter: 'surgery_care'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OPHTHALMIC LASERS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'laser', 'argon laser', 'yag laser', 'nd:yag',
-            'diode laser', 'green laser', 'micropulse',
-            'photocoagulation', 'panretinal photocoagulation', 'prp',
-            'focal laser', 'grid laser', 'macular laser',
-            'laser trabeculoplasty', 'slt', 'alt', 'selective laser',
-            'peripheral iridotomy', 'pi', 'laser iridotomy',
-            'yag capsulotomy', 'posterior capsulotomy',
-            'photodynamic therapy', 'pdt', 'verteporfin',
-            'laser retinopexy', 'barrage laser'
-        ], chapter: 'lasers' },
-        
+        {
+            keywords: [
+                'laser', 'argon laser', 'yag laser', 'nd:yag',
+                'diode laser', 'green laser', 'micropulse',
+                'photocoagulation', 'panretinal photocoagulation', 'prp',
+                'focal laser', 'grid laser', 'macular laser',
+                'laser trabeculoplasty', 'slt', 'alt', 'selective laser',
+                'peripheral iridotomy', 'pi', 'laser iridotomy',
+                'yag capsulotomy', 'posterior capsulotomy',
+                'photodynamic therapy', 'pdt', 'verteporfin',
+                'laser retinopexy', 'barrage laser'
+            ], chapter: 'lasers'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OCULAR PHARMACOLOGY & THERAPEUTICS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Drug delivery
-            'eye drop', 'topical', 'intravitreal', 'subconjunctival',
-            'intracameral', 'periocular', 'sustained release', 'implant',
-            // Anti-infectives
-            'antibiotic eye', 'antifungal eye', 'antiviral eye',
-            'fluoroquinolone', 'aminoglycoside', 'chloramphenicol',
-            'acyclovir', 'ganciclovir', 'valganciclovir',
-            // Anti-inflammatories
-            'corticosteroid', 'prednisolone', 'dexamethasone',
-            'fluorometholone', 'loteprednol', 'difluprednate',
-            'nsaid eye', 'ketorolac', 'nepafenac', 'bromfenac',
-            // Glaucoma medications
-            'prostaglandin analogue', 'latanoprost', 'travoprost', 'bimatoprost',
-            'beta-blocker eye', 'timolol', 'betaxolol',
-            'alpha-agonist', 'brimonidine', 'apraclonidine',
-            'carbonic anhydrase inhibitor', 'dorzolamide', 'brinzolamide',
-            'acetazolamide', 'rho kinase', 'netarsudil',
-            // Other
-            'cycloplegic', 'mydriatic', 'miotic', 'pilocarpine',
-            'atropine', 'cyclopentolate', 'tropicamide', 'phenylephrine',
-            'artificial tears', 'lubricant', 'preservative-free',
-            'anti-vegf', 'vegf inhibitor', 'ranibizumab', 'aflibercept',
-            'bevacizumab', 'faricimab', 'ozurdex', 'iluvien',
-            'pharmacology', 'drug interaction', 'adverse effect', 'toxicity'
-        ], chapter: 'therapeutics' },
-        
+        {
+            keywords: [
+                // Drug delivery
+                'eye drop', 'topical', 'intravitreal', 'subconjunctival',
+                'intracameral', 'periocular', 'sustained release', 'implant',
+                // Anti-infectives
+                'antibiotic eye', 'antifungal eye', 'antiviral eye',
+                'fluoroquinolone', 'aminoglycoside', 'chloramphenicol',
+                'acyclovir', 'ganciclovir', 'valganciclovir',
+                // Anti-inflammatories
+                'corticosteroid', 'prednisolone', 'dexamethasone',
+                'fluorometholone', 'loteprednol', 'difluprednate',
+                'nsaid eye', 'ketorolac', 'nepafenac', 'bromfenac',
+                // Glaucoma medications
+                'prostaglandin analogue', 'latanoprost', 'travoprost', 'bimatoprost',
+                'beta-blocker eye', 'timolol', 'betaxolol',
+                'alpha-agonist', 'brimonidine', 'apraclonidine',
+                'carbonic anhydrase inhibitor', 'dorzolamide', 'brinzolamide',
+                'acetazolamide', 'rho kinase', 'netarsudil',
+                // Other
+                'cycloplegic', 'mydriatic', 'miotic', 'pilocarpine',
+                'atropine', 'cyclopentolate', 'tropicamide', 'phenylephrine',
+                'artificial tears', 'lubricant', 'preservative-free',
+                'anti-vegf', 'vegf inhibitor', 'ranibizumab', 'aflibercept',
+                'bevacizumab', 'faricimab', 'ozurdex', 'iluvien',
+                'pharmacology', 'drug interaction', 'adverse effect', 'toxicity'
+            ], chapter: 'therapeutics'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // CLINICAL EXAMINATION SKILLS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // History & examination
-            'history taking', 'clinical examination', 'ocular examination',
-            'systematic examination', 'ophthalmic assessment',
-            // Visual assessment
-            'visual acuity', 'snellen', 'logmar', 'etdrs', 'pinhole',
-            'near vision', 'reading addition', 'contrast sensitivity',
-            'colour vision', 'ishihara', 'farnsworth',
-            // Anterior segment
-            'slit lamp', 'biomicroscopy', 'anterior segment examination',
-            'external examination', 'lid examination',
-            // Posterior segment
-            'fundoscopy', 'ophthalmoscopy', 'direct ophthalmoscopy',
-            'indirect ophthalmoscopy', 'fundus examination', 'dilated examination',
-            '90d', '78d', 'volk lens', 'panfundoscope',
-            // IOP
-            'tonometry', 'goldmann tonometry', 'applanation', 'icare',
-            'tonopen', 'non-contact tonometry',
-            // Gonioscopy
-            'gonioscopy', 'angle examination', 'shaffer', 'spaeth',
-            // Other
-            'confrontation field', 'amsler grid', 'red desaturation',
-            'swinging flashlight', 'cover test examination'
-        ], chapter: 'clinical_skills' },
-        
+        {
+            keywords: [
+                // History & examination
+                'history taking', 'clinical examination', 'ocular examination',
+                'systematic examination', 'ophthalmic assessment',
+                // Visual assessment
+                'visual acuity', 'snellen', 'logmar', 'etdrs', 'pinhole',
+                'near vision', 'reading addition', 'contrast sensitivity',
+                'colour vision', 'ishihara', 'farnsworth',
+                // Anterior segment
+                'slit lamp', 'biomicroscopy', 'anterior segment examination',
+                'external examination', 'lid examination',
+                // Posterior segment
+                'fundoscopy', 'ophthalmoscopy', 'direct ophthalmoscopy',
+                'indirect ophthalmoscopy', 'fundus examination', 'dilated examination',
+                '90d', '78d', 'volk lens', 'panfundoscope',
+                // IOP
+                'tonometry', 'goldmann tonometry', 'applanation', 'icare',
+                'tonopen', 'non-contact tonometry',
+                // Gonioscopy
+                'gonioscopy', 'angle examination', 'shaffer', 'spaeth',
+                // Other
+                'confrontation field', 'amsler grid', 'red desaturation',
+                'swinging flashlight', 'cover test examination'
+            ], chapter: 'clinical_skills'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // OPHTHALMIC INVESTIGATIONS
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            // Imaging
-            'oct', 'optical coherence tomography', 'oct-a', 'octa',
-            'angiography', 'ffa', 'fluorescein angiography', 'fa',
-            'icg', 'indocyanine green', 'fundus autofluorescence', 'faf',
-            'fundus photography', 'colour fundus', 'red-free',
-            'ultrasound eye', 'b-scan', 'a-scan', 'ubm', 'ultrasound biomicroscopy',
-            'ct orbit', 'mri orbit', 'neuroimaging',
-            // Corneal assessment
-            'topography', 'tomography', 'pentacam', 'orbscan', 'galilei',
-            'scheimpflug', 'placido', 'keratometry', 'pachymetry',
-            'specular microscopy', 'endothelial cell count',
-            // Visual field
-            'perimetry', 'visual field', 'humphrey', 'octopus', 'goldmann perimetry',
-            'automated perimetry', 'kinetic perimetry', 'esterman',
-            // Electrophysiology
-            'electrophysiology', 'erg', 'electroretinogram', 'full-field erg',
-            'pattern erg', 'multifocal erg', 'vep', 'visual evoked potential',
-            'eog', 'electro-oculogram',
-            // Biometry
-            'biometry', 'iol master', 'lenstar', 'axial length measurement',
-            // Other
-            'exophthalmometry', 'hertel', 'tear osmolarity', 'meibography'
-        ], chapter: 'investigations' },
-        
+        {
+            keywords: [
+                // Imaging
+                'oct', 'optical coherence tomography', 'oct-a', 'octa',
+                'angiography', 'ffa', 'fluorescein angiography', 'fa',
+                'icg', 'indocyanine green', 'fundus autofluorescence', 'faf',
+                'fundus photography', 'colour fundus', 'red-free',
+                'ultrasound eye', 'b-scan', 'a-scan', 'ubm', 'ultrasound biomicroscopy',
+                'ct orbit', 'mri orbit', 'neuroimaging',
+                // Corneal assessment
+                'topography', 'tomography', 'pentacam', 'orbscan', 'galilei',
+                'scheimpflug', 'placido', 'keratometry', 'pachymetry',
+                'specular microscopy', 'endothelial cell count',
+                // Visual field
+                'perimetry', 'visual field', 'humphrey', 'octopus', 'goldmann perimetry',
+                'automated perimetry', 'kinetic perimetry', 'esterman',
+                // Electrophysiology
+                'electrophysiology', 'erg', 'electroretinogram', 'full-field erg',
+                'pattern erg', 'multifocal erg', 'vep', 'visual evoked potential',
+                'eog', 'electro-oculogram',
+                // Biometry
+                'biometry', 'iol master', 'lenstar', 'axial length measurement',
+                // Other
+                'exophthalmometry', 'hertel', 'tear osmolarity', 'meibography'
+            ], chapter: 'investigations'
+        },
+
         // ══════════════════════════════════════════════════════════════════
         // EVIDENCE-BASED OPHTHALMOLOGY
         // ══════════════════════════════════════════════════════════════════
-        { keywords: [
-            'clinical trial', 'randomized controlled', 'rct', 'evidence-based',
-            'systematic review', 'meta-analysis', 'cochrane',
-            'guideline', 'nice guideline', 'aao preferred practice',
-            'drcr', 'catt trial', 'comparison trial', 'areds', 'areds2',
-            'emgt', 'ohts', 'agis', 'cigts', 'cntgs',
-            'etdrs', 'drs', 'ukpds', 'dcct', 'field study',
-            'marina', 'anchor', 'view', 'rise', 'ride', 'vivid', 'vista',
-            'hawk', 'harrier', 'tenaya', 'lucerne'
-        ], chapter: 'evidence' },
+        {
+            keywords: [
+                'clinical trial', 'randomized controlled', 'rct', 'evidence-based',
+                'systematic review', 'meta-analysis', 'cochrane',
+                'guideline', 'nice guideline', 'aao preferred practice',
+                'drcr', 'catt trial', 'comparison trial', 'areds', 'areds2',
+                'emgt', 'ohts', 'agis', 'cigts', 'cntgs',
+                'etdrs', 'drs', 'ukpds', 'dcct', 'field study',
+                'marina', 'anchor', 'view', 'rise', 'ride', 'vivid', 'vista',
+                'hawk', 'harrier', 'tenaya', 'lucerne'
+            ], chapter: 'evidence'
+        },
     ];
-    
+
     for (const rule of rules) {
         for (const keyword of rule.keywords) {
             if (titleLower.includes(keyword)) {
@@ -1219,7 +1265,7 @@ function autoDetectChapter(title) {
             }
         }
     }
-    
+
     return 'uncategorized';
 }
 
@@ -1237,7 +1283,7 @@ async function syncLibraryToServer() {
         }
         return;
     }
-    
+
     if (window.location.protocol === 'file:') {
         // Try to sync anyway via localhost API
     }
@@ -1307,18 +1353,18 @@ function setupKnowledgeBase() {
                     // Prompt for username
                     const savedUsername = localStorage.getItem('community_username') || '';
                     const userName = prompt('Enter your name for the submissions:', savedUsername);
-                    
+
                     if (!userName || !userName.trim()) {
                         alert('A name is required for community submissions.');
                         return;
                     }
-                    
+
                     localStorage.setItem('community_username', userName.trim());
 
                     // Submit each item to community pool
                     let successCount = 0;
                     let failCount = 0;
-                    
+
                     for (const item of itemsToExport) {
                         try {
                             const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
@@ -1333,9 +1379,9 @@ function setupKnowledgeBase() {
                             console.error('Error submitting:', item.title, err);
                         }
                     }
-                    
+
                     if (successCount > 0) {
-                        const msg = failCount > 0 
+                        const msg = failCount > 0
                             ? `✅ ${successCount} submitted successfully.\n❌ ${failCount} failed.`
                             : `✅ ${successCount} ${successCount === 1 ? 'infographic' : 'infographics'} submitted successfully!`;
                         alert(msg + '\n\nThe admin will review your submissions.');
@@ -1396,7 +1442,7 @@ function setupKnowledgeBase() {
         try {
             let serverItems = [];
             let communityApproved = [];
-            
+
             // GitHub Pages: Use static JSON file instead of API
             if (isGitHubPages()) {
                 console.log("Running on GitHub Pages. Fetching from static library index...");
@@ -1404,7 +1450,7 @@ function setupKnowledgeBase() {
                 if (serverItems.length === 0 && !silent) {
                     console.log("No items found in static library index.");
                 }
-                
+
                 // Also fetch approved community submissions (the cloud pool)
                 try {
                     if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.isConfigured()) {
@@ -1427,7 +1473,7 @@ function setupKnowledgeBase() {
                     throw new Error('API response not ok');
                 }
             }
-            
+
             // Merge community approved items into serverItems for unified processing
             // Convert community format to library format
             communityApproved.forEach(submission => {
@@ -1445,7 +1491,7 @@ function setupKnowledgeBase() {
                     serverItems.push(libraryItem);
                 }
             });
-            
+
             if (serverItems.length > 0 || isGitHubPages()) {
                 let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                 let addedCount = 0;
@@ -1454,7 +1500,7 @@ function setupKnowledgeBase() {
                 let deletedCount = 0;
                 const skippedTitles = [];
                 const deletedTitles = [];
-                
+
                 // ADMIN DELETION SYNC: Check for items deleted by admin
                 // Remote users will have these items removed from their library
                 try {
@@ -1463,7 +1509,7 @@ function setupKnowledgeBase() {
                         if (deletedItems && deletedItems.length > 0) {
                             const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
                             const originalLength = localLibrary.length;
-                            
+
                             localLibrary = localLibrary.filter(item => {
                                 const normTitle = normalizeTitle(item.title);
                                 if (deletedItems.includes(normTitle)) {
@@ -1472,7 +1518,7 @@ function setupKnowledgeBase() {
                                 }
                                 return true; // Keep this item
                             });
-                            
+
                             deletedCount = originalLength - localLibrary.length;
                             if (deletedCount > 0) {
                                 console.log(`[Sync] Removed ${deletedCount} item(s) deleted by admin.`);
@@ -1491,7 +1537,7 @@ function setupKnowledgeBase() {
                     const key = item.id || (item.title + item.date);
                     localMap.set(String(key), item);
                 });
-                
+
                 // DUPLICATE PREVENTION: Build a normalized title index for ALL local items
                 // This prevents importing ANY item with a duplicate title
                 const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
@@ -1505,7 +1551,7 @@ function setupKnowledgeBase() {
 
                 // Track what changed for detailed logging
                 const updateDetails = [];
-                
+
                 // Helper function to normalize strings for comparison
                 // Aggressive normalization to prevent false positives
                 const normalizeStr = (str) => {
@@ -1516,7 +1562,7 @@ function setupKnowledgeBase() {
                         .replace(/\s+/g, ' ')  // Collapse multiple spaces
                         .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width chars
                 };
-                
+
                 serverItems.forEach(serverItem => {
                     const serverKey = String(serverItem.id || (serverItem.title + serverItem.date));
 
@@ -1527,12 +1573,12 @@ function setupKnowledgeBase() {
 
                         // Check for REAL differences that matter
                         const changes = [];
-                        
+
                         // CHAPTER SYNC: Server is source of truth for chapters
                         // BUT: We never revert a categorized item to 'uncategorized'
                         const localChapter = normalizeStr(localItem.chapterId) || 'uncategorized';
                         let serverChapter = normalizeStr(serverItem.chapterId) || 'uncategorized';
-                        
+
                         // If server is uncategorized but local ALREADY has a category, preserve the local one
                         if (serverChapter === 'uncategorized' && localChapter !== 'uncategorized') {
                             serverChapter = localChapter;
@@ -1545,7 +1591,7 @@ function setupKnowledgeBase() {
                                 serverItem.chapterId = autoChapter;
                             }
                         }
-                        
+
                         if (localChapter !== serverChapter) {
                             const chapters = getChapters();
                             const oldChapterName = chapters.find(c => c.id === localChapter)?.name || localChapter;
@@ -1555,7 +1601,7 @@ function setupKnowledgeBase() {
                             // Mark as recently updated for visual feedback
                             localItem._chapterUpdated = Date.now();
                         }
-                        
+
                         // For title/summary: Only update if item has a "lastServerSync" marker older than server
                         // OR if this is first sync. Skip title/summary comparison to avoid false positives.
                         // Trust that server title is correct - update once and mark as synced
@@ -1570,10 +1616,10 @@ function setupKnowledgeBase() {
                             localItem.data = serverItem.data;
                             localItem._serverSynced = true;
                         }
-                        
+
                         // Preserve local seqId if it exists, otherwise use server's or generate new
                         if (!localItem.seqId && serverItem.seqId) localItem.seqId = serverItem.seqId;
-                        
+
                         if (changes.length > 0) {
                             updatedCount++;
                             updateDetails.push({ title: serverItem.title?.substring(0, 30), changes });
@@ -1582,10 +1628,10 @@ function setupKnowledgeBase() {
                         // New Item from Server - CHECK FOR DUPLICATES FIRST
                         // Use pre-built title index for fast duplicate detection
                         const serverTitleNorm = normalizeTitle(serverItem.title);
-                        
+
                         // Check if this title already exists in local library
                         const isDuplicate = serverTitleNorm.length > 0 && localTitleIndex.has(serverTitleNorm);
-                        
+
                         if (isDuplicate) {
                             // Skip this item - it's a duplicate
                             skippedDuplicates++;
@@ -1603,13 +1649,13 @@ function setupKnowledgeBase() {
                                 const autoChapter = autoDetectChapter(newItem.title);
                                 newItem.chapterId = autoChapter;
                             }
-                            
+
                             // Mark as newly imported for green hashtag display
                             newItem._newlyImported = Date.now();
 
                             localLibrary.push(newItem);
                             addedCount++;
-                            
+
                             // Add to title index to prevent duplicates within same sync batch
                             if (serverTitleNorm.length > 0) {
                                 localTitleIndex.add(serverTitleNorm);
@@ -1629,10 +1675,10 @@ function setupKnowledgeBase() {
                         if (updatedCount) msg.push(`${updatedCount} updated`);
                         if (deletedCount) msg.push(`${deletedCount} removed (admin deleted)`);
                         if (skippedDuplicates) msg.push(`${skippedDuplicates} skipped (duplicates)`);
-                        
+
                         // Build detailed message showing what was updated
                         let detailMsg = `Sync Complete: ${msg.join(', ')}.`;
-                        
+
                         if (updateDetails.length > 0) {
                             detailMsg += '\n\nUpdated items:';
                             updateDetails.slice(0, 10).forEach(item => {
@@ -1642,7 +1688,7 @@ function setupKnowledgeBase() {
                                 detailMsg += `\n...and ${updateDetails.length - 10} more`;
                             }
                         }
-                        
+
                         if (deletedTitles.length > 0) {
                             detailMsg += '\n\nRemoved by admin:';
                             deletedTitles.slice(0, 5).forEach(title => {
@@ -1652,7 +1698,7 @@ function setupKnowledgeBase() {
                                 detailMsg += `\n...and ${deletedTitles.length - 5} more`;
                             }
                         }
-                        
+
                         if (skippedTitles.length > 0) {
                             detailMsg += '\n\nSkipped duplicates:';
                             skippedTitles.slice(0, 5).forEach(title => {
@@ -1662,10 +1708,10 @@ function setupKnowledgeBase() {
                                 detailMsg += `\n...and ${skippedTitles.length - 5} more`;
                             }
                         }
-                        
+
                         alert(detailMsg);
                     }
-                    
+
                     // Detailed logging for debugging
                     console.log(`Auto-Sync: Imported ${addedCount}, Updated ${updatedCount}, Skipped ${skippedDuplicates} duplicates.`);
                     if (updateDetails.length > 0) {
@@ -1752,26 +1798,26 @@ function setupKnowledgeBase() {
         try {
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
             if (library.length === 0) return;
-            
+
             const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
             const seenTitles = new Map(); // normalized title -> index of first occurrence
             const indicesToRemove = new Set();
-            
+
             // Find duplicates (keep the OLDER one based on date)
             library.forEach((item, index) => {
                 const normTitle = normalizeTitle(item.title);
                 if (normTitle.length === 0) return;
-                
+
                 if (seenTitles.has(normTitle)) {
                     // Duplicate found - compare dates to keep the older one
                     const existingIndex = seenTitles.get(normTitle);
                     const existingDate = new Date(library[existingIndex].date);
                     const currentDate = new Date(item.date);
-                    
+
                     if (currentDate < existingDate) {
                         // Current is older, we are keeping 'item' (index) and removing library[existingIndex]
                         // Transfer category if keeping uncategorized but removing categorized
-                        if ((!library[index].chapterId || library[index].chapterId === 'uncategorized') && 
+                        if ((!library[index].chapterId || library[index].chapterId === 'uncategorized') &&
                             (library[existingIndex].chapterId && library[existingIndex].chapterId !== 'uncategorized')) {
                             library[index].chapterId = library[existingIndex].chapterId;
                         }
@@ -1780,7 +1826,7 @@ function setupKnowledgeBase() {
                     } else {
                         // Existing is older, we are keeping library[existingIndex] and removing 'item' (index)
                         // Transfer category if keeping uncategorized but removing categorized
-                        if ((!library[existingIndex].chapterId || library[existingIndex].chapterId === 'uncategorized') && 
+                        if ((!library[existingIndex].chapterId || library[existingIndex].chapterId === 'uncategorized') &&
                             (item.chapterId && item.chapterId !== 'uncategorized')) {
                             library[existingIndex].chapterId = item.chapterId;
                         }
@@ -1790,14 +1836,14 @@ function setupKnowledgeBase() {
                     seenTitles.set(normTitle, index);
                 }
             });
-            
+
             if (indicesToRemove.size > 0) {
                 // Remove duplicates
                 const cleanedLibrary = library.filter((_, index) => !indicesToRemove.has(index));
-                
+
                 // Reassign sequential IDs
                 reassignSequentialIds(cleanedLibrary);
-                
+
                 localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
                 console.log(`[Startup] Silently removed ${indicesToRemove.size} duplicate(s) from library.`);
             }
@@ -1834,25 +1880,25 @@ function setupKnowledgeBase() {
     if (findDuplicatesBtn) {
         findDuplicatesBtn.addEventListener('click', () => {
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-            
+
             if (library.length === 0) {
                 alert('Library is empty. No duplicates to find.');
                 return;
             }
-            
+
             // Normalize title for comparison
             const normalizeTitle = (title) => {
                 if (!title) return '';
                 return String(title).trim().toLowerCase().normalize('NFC');
             };
-            
+
             // Find duplicates by title
             const titleMap = new Map();
             const duplicates = [];
-            
+
             library.forEach((item, index) => {
                 const normalizedTitle = normalizeTitle(item.title);
-                
+
                 if (titleMap.has(normalizedTitle)) {
                     // Found a duplicate
                     const originalIndex = titleMap.get(normalizedTitle);
@@ -1869,12 +1915,12 @@ function setupKnowledgeBase() {
                     titleMap.set(normalizedTitle, index);
                 }
             });
-            
+
             if (duplicates.length === 0) {
                 alert('✅ No duplicates found! Your library is clean.');
                 return;
             }
-            
+
             // Build message showing duplicates
             let msg = `Found ${duplicates.length} duplicate(s):\n\n`;
             duplicates.forEach((dup, i) => {
@@ -1883,7 +1929,7 @@ function setupKnowledgeBase() {
                 msg += `${i + 1}. "${dup.title}"\n   - Original: ${origDate}\n   - Duplicate: ${dupDate}\n\n`;
             });
             msg += `\nDelete all ${duplicates.length} duplicate(s)? (Keeps the older/original version)`;
-            
+
             if (confirm(msg)) {
                 // Admin password required for bulk delete
                 const password = prompt('Enter admin password to delete duplicates:');
@@ -1893,36 +1939,36 @@ function setupKnowledgeBase() {
                     }
                     return;
                 }
-                
+
                 // Get IDs to delete (the newer duplicates)
                 const idsToDelete = new Set(duplicates.map(d => d.duplicateId));
-                
+
                 // Transfer categories before deleting
                 duplicates.forEach(dup => {
                     const originalItem = library[dup.originalIndex];
                     const duplicateItem = library[dup.duplicateIndex];
-                    
+
                     // If original is uncategorized but duplicate is categorized, transfer the category
-                    if ((!originalItem.chapterId || originalItem.chapterId === 'uncategorized') && 
+                    if ((!originalItem.chapterId || originalItem.chapterId === 'uncategorized') &&
                         (duplicateItem.chapterId && duplicateItem.chapterId !== 'uncategorized')) {
                         originalItem.chapterId = duplicateItem.chapterId;
                     }
                 });
-                
+
                 // Filter out duplicates
                 const cleanedLibrary = library.filter(item => !idsToDelete.has(item.id));
-                
+
                 // Reassign sequential IDs
                 reassignSequentialIds(cleanedLibrary);
-                
+
                 // Save
                 localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
-                
+
                 alert(`✅ Deleted ${duplicates.length} duplicate(s). Library now has ${cleanedLibrary.length} items.`);
-                
+
                 // Refresh the library view
                 renderLibraryList();
-                
+
                 // Sync to server
                 syncLibraryToServer();
             }
@@ -1941,17 +1987,17 @@ function setupKnowledgeBase() {
                 }
                 return;
             }
-            
+
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-            
+
             if (library.length === 0) {
                 alert('Library is empty. Nothing to chapterize.');
                 return;
             }
-            
+
             let changedCount = 0;
             const changes = [];
-            
+
             library.forEach(item => {
                 // Only auto-chapterize if currently uncategorized
                 if (item.chapterId === 'uncategorized' || !item.chapterId) {
@@ -1960,7 +2006,7 @@ function setupKnowledgeBase() {
                         const oldChapter = item.chapterId || 'uncategorized';
                         item.chapterId = detectedChapter;
                         changedCount++;
-                        
+
                         // Get chapter name for display
                         const chapterObj = DEFAULT_CHAPTERS.find(c => c.id === detectedChapter);
                         changes.push({
@@ -1970,12 +2016,12 @@ function setupKnowledgeBase() {
                     }
                 }
             });
-            
+
             if (changedCount === 0) {
                 alert('✅ All items are already categorized or no matches found.');
                 return;
             }
-            
+
             // Build summary message
             let msg = `Auto-chapterized ${changedCount} item(s):\n\n`;
             changes.slice(0, 15).forEach((c, i) => {
@@ -1985,12 +2031,114 @@ function setupKnowledgeBase() {
                 msg += `\n...and ${changes.length - 15} more`;
             }
             msg += '\n\nApply these changes?';
-            
+
             if (confirm(msg)) {
                 localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
                 alert(`✅ ${changedCount} item(s) auto-chapterized!`);
                 renderLibraryList();
                 syncLibraryToServer();
+            }
+        });
+    }
+
+
+    // COMPARING WITH SERVER
+    const diffBtn = document.getElementById('diff-btn');
+    if (diffBtn) {
+        diffBtn.addEventListener('click', async () => {
+            const originalIcon = diffBtn.innerHTML;
+            diffBtn.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span>';
+            // Add spin style if not exists
+            if (!document.getElementById('spin-style')) {
+                const style = document.createElement('style');
+                style.id = 'spin-style';
+                style.innerHTML = '@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }';
+                document.head.appendChild(style);
+            }
+
+            try {
+                // Fetch server items
+                let serverItems = [];
+                if (isGitHubPages()) {
+                    serverItems = await fetchLibraryFromStatic();
+                } else {
+                    const response = await safeFetch('api/library/list');
+                    if (response.ok) serverItems = await response.json();
+                }
+
+                const localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+
+                // Normalization helper
+                const normalize = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+
+                // Index by Normalized Title for "Identity" comparison (since IDs might differ if re-imported)
+                const localMap = new Map();
+                localLibrary.forEach(i => localMap.set(normalize(i.title), i));
+
+                const serverMap = new Map();
+                serverItems.forEach(i => serverMap.set(normalize(i.title), i));
+
+                const onlyLocal = [];
+                const onlyServer = [];
+                const different = [];
+
+                // Check Local against Server
+                localLibrary.forEach(local => {
+                    const normTitle = normalize(local.title);
+                    if (!serverMap.has(normTitle)) {
+                        onlyLocal.push(local.title);
+                    } else {
+                        // Exists on both - check for differences
+                        const server = serverMap.get(normTitle);
+                        // Compare Chapters
+                        if ((local.chapterId || 'uncategorized') !== (server.chapterId || 'uncategorized')) {
+                            different.push(`${local.title} (Local: ${local.chapterId || 'None'} / Server: ${server.chapterId || 'None'})`);
+                        }
+                    }
+                });
+
+                // Check Server against Local
+                serverItems.forEach(server => {
+                    const normTitle = normalize(server.title);
+                    if (!localMap.has(normTitle)) {
+                        onlyServer.push(server.title);
+                    }
+                });
+
+                let msg = `📊 Library Sync Status\n\n`;
+                let totalDiff = onlyLocal.length + onlyServer.length + different.length;
+
+                if (totalDiff === 0) {
+                    msg += "✅ Perfectly Synced! Libraries are identical.";
+                } else {
+                    if (onlyLocal.length > 0) {
+                        msg += `🏠 On Local Only (${onlyLocal.length}):\n`;
+                        msg += onlyLocal.slice(0, 5).map(t => `  • ${t}`).join('\n');
+                        if (onlyLocal.length > 5) msg += `\n  ...and ${onlyLocal.length - 5} more`;
+                        msg += "\n\n";
+                    }
+
+                    if (onlyServer.length > 0) {
+                        msg += `☁️ On Server Only (${onlyServer.length}):\n`;
+                        msg += onlyServer.slice(0, 5).map(t => `  • ${t}`).join('\n');
+                        if (onlyServer.length > 5) msg += `\n  ...and ${onlyServer.length - 5} more`;
+                        msg += "\n\n";
+                    }
+
+                    if (different.length > 0) {
+                        msg += `⚠️ Mismatches (${different.length}):\n`;
+                        msg += different.slice(0, 5).map(d => `  • ${d}`).join('\n');
+                        if (different.length > 5) msg += `\n  ...and ${different.length - 5} more`;
+                    }
+                }
+
+                alert(msg);
+
+            } catch (err) {
+                console.error('Diff error:', err);
+                alert('Error comparing libraries: ' + err.message);
+            } finally {
+                diffBtn.innerHTML = originalIcon;
             }
         });
     }
@@ -2004,7 +2152,7 @@ function setupKnowledgeBase() {
             }
 
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-            
+
             // Auto-detect chapter from title
             const itemTitle = currentInfographicData.title || "Untitled Infographic";
             const autoChapter = autoDetectChapter(itemTitle);
@@ -2020,10 +2168,10 @@ function setupKnowledgeBase() {
             };
 
             library.unshift(newItem);
-            
+
             // Reassign all sequential IDs (oldest = 1, newest = highest)
             reassignSequentialIds(library);
-            
+
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
             // Auto-upload to server so it saves to the library/ folder
@@ -2058,7 +2206,7 @@ function setupKnowledgeBase() {
     if (libraryBtnEmpty) {
         libraryBtnEmpty.addEventListener('click', openLibrary);
     }
-    
+
     // Sidebar library button (below text entry)
     const sidebarLibraryBtn = document.getElementById('sidebar-library-btn');
     if (sidebarLibraryBtn) {
@@ -2098,11 +2246,11 @@ function setupKnowledgeBase() {
             countBadge.textContent = library.length;
             countBadge.style.display = library.length > 0 ? 'inline-block' : 'none';
         }
-        
+
         // Detect uncategorized infographics
         const uncategorizedCount = library.filter(item => !item.chapterId || item.chapterId === 'uncategorized').length;
         let uncategorizedBanner = modal.querySelector('.uncategorized-banner');
-        
+
         if (uncategorizedCount > 0 && library.length > 0) {
             if (!uncategorizedBanner) {
                 uncategorizedBanner = document.createElement('div');
@@ -2121,7 +2269,7 @@ function setupKnowledgeBase() {
                 </button>
             `;
             uncategorizedBanner.style.display = 'flex';
-            
+
             // Add click handler for auto-categorize button
             const categorizeBtn = uncategorizedBanner.querySelector('.btn-categorize-all');
             if (categorizeBtn) {
@@ -2320,21 +2468,19 @@ function setupKnowledgeBase() {
                 const idsToDelete = Array.from(selectedItems);
 
                 // 1. Delete from Server (if connected)
-                if (window.location.protocol !== 'file:') {
-                    try {
-                        const response = await safeFetch('api/library/delete', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ids: idsToDelete })
-                        });
-                        const result = await response.json();
-                        if (!result.success) {
-                            console.error('Server delete failed:', result.error);
-                            alert('Warning: Failed to delete some files from server.');
-                        }
-                    } catch (err) {
-                        console.error('Server connection failed during delete:', err);
+                try {
+                    const response = await safeFetch('api/library/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids: idsToDelete })
+                    });
+                    const result = await response.json();
+                    if (!result.success) {
+                        console.error('Server delete failed:', result.error);
+                        alert('Warning: Failed to delete some files from server.');
                     }
+                } catch (err) {
+                    console.error('Server connection failed during delete:', err);
                 }
 
                 // 2. Delete from LocalStorage
@@ -2389,7 +2535,7 @@ function setupKnowledgeBase() {
             filteredLibrary.forEach(item => {
                 const chapter = chapters.find(ch => ch.id === item.chapterId) || chapters[0];
                 const isSelected = selectedItems.has(item.id);
-                
+
                 // Check if item is newly imported (within last 24 hours)
                 const isNewlyImported = item._newlyImported && (Date.now() - item._newlyImported) < 24 * 60 * 60 * 1000;
                 // Check if chapter was recently updated (within last 24 hours)
@@ -2494,10 +2640,10 @@ function setupKnowledgeBase() {
                     if (password === '309030') {
                         if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from all remote users\' libraries on their next sync.')) {
                             const newLibrary = library.filter(i => i.id !== id);
-                            
+
                             // Reassign sequential IDs after deletion (no gaps)
                             reassignSequentialIds(newLibrary);
-                            
+
                             localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
                             // Track deletion for remote sync (by normalized title)
@@ -2511,6 +2657,17 @@ function setupKnowledgeBase() {
                                         console.log('Could not track deletion for remote sync:', err.message);
                                     }
                                 }
+                            }
+
+                            // Delete from Server
+                            try {
+                                await safeFetch('api/library/delete', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ids: [id] })
+                                });
+                            } catch (err) {
+                                console.error('Failed to delete from server:', err);
                             }
 
                             // Auto-Sync
@@ -2972,7 +3129,7 @@ function renderInfographic(data) {
 
     // Enable Studio Tools when infographic is generated
     enableStudioTools();
-    
+
     // Auto-collapse sidebar to give more space for viewing the infographic
     setTimeout(() => {
         collapseSidebar();
@@ -3008,15 +3165,15 @@ function disableStudioTools() {
 
 async function callGeminiForStudioTool(prompt, fallbackFn = null) {
     const apiKey = document.getElementById('api-key')?.value?.trim();
-    
+
     if (!apiKey) {
         console.log('No API key provided, using fallback method');
         return fallbackFn ? fallbackFn() : null;
     }
-    
+
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        
+
         // Try Gemini 2.0 Flash first, then fallbacks
         const modelsToTry = [
             "gemini-2.0-flash",
@@ -3024,9 +3181,9 @@ async function callGeminiForStudioTool(prompt, fallbackFn = null) {
             "gemini-1.5-flash",
             "gemini-1.5-flash-latest"
         ];
-        
+
         let lastError = null;
-        
+
         for (const modelName of modelsToTry) {
             try {
                 console.log(`Studio Tool: Trying model ${modelName}`);
@@ -3039,7 +3196,7 @@ async function callGeminiForStudioTool(prompt, fallbackFn = null) {
                 lastError = err;
             }
         }
-        
+
         throw lastError || new Error('All models failed');
     } catch (error) {
         console.error('Gemini API call failed:', error);
@@ -3050,14 +3207,14 @@ async function callGeminiForStudioTool(prompt, fallbackFn = null) {
 // AI-Enhanced Transcript Generation
 async function generateAITranscript() {
     if (!currentInfographicData) return null;
-    
+
     const voiceStyle = document.getElementById('voice-select')?.value || 'default';
     const styleGuide = {
         'default': 'professional and educational',
         'friendly': 'warm, conversational, and engaging like talking to a colleague',
         'formal': 'academic and authoritative like a medical lecture'
     };
-    
+
     const prompt = `You are creating an audio narration script for a medical education podcast.
 
 Topic: ${currentInfographicData.title}
@@ -3084,7 +3241,7 @@ Do not include any stage directions or speaker labels - just the narration text.
 // AI-Enhanced Flashcard Generation
 async function generateAIFlashcards() {
     if (!currentInfographicData) return null;
-    
+
     const prompt = `You are creating medical education flashcards for ophthalmology students.
 
 Topic: ${currentInfographicData.title}
@@ -3127,7 +3284,7 @@ Return ONLY valid JSON array, no other text.`;
 // AI-Enhanced Quiz Generation
 async function generateAIQuiz() {
     if (!currentInfographicData) return null;
-    
+
     const prompt = `You are creating a medical knowledge quiz for ophthalmology education.
 
 Topic: ${currentInfographicData.title}
@@ -3172,7 +3329,7 @@ Return ONLY valid JSON array, no other text.`;
 // Simple Markdown to HTML converter
 function convertMarkdownToHTML(markdown) {
     if (!markdown) return '';
-    
+
     return markdown
         // Headers
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
@@ -3203,14 +3360,14 @@ function convertMarkdownToHTML(markdown) {
 // AI-Enhanced Report Generation
 async function generateAIReport(format) {
     if (!currentInfographicData) return null;
-    
+
     const formatGuides = {
         'summary': 'Create a concise 2-3 paragraph executive summary highlighting the most critical clinical points.',
         'detailed': 'Create a comprehensive study guide with detailed explanations of each topic, including pathophysiology and clinical correlations.',
         'bullet': 'Create a well-organized bullet-point summary with clear headers and sub-points for quick review.',
         'study-guide': 'Create a structured study guide with learning objectives, key concepts, clinical pearls, and review questions.'
     };
-    
+
     const prompt = `You are creating educational content for ophthalmology professionals.
 
 Topic: ${currentInfographicData.title}
@@ -3287,10 +3444,10 @@ function setupAudioOverview() {
 
 async function generateTranscript() {
     if (!currentInfographicData) return;
-    
+
     const transcriptEl = document.getElementById('audio-transcript-text');
     const generateBtn = document.getElementById('generate-audio-btn');
-    
+
     // Show loading state
     if (transcriptEl) {
         transcriptEl.innerHTML = '<em>Generating AI-powered transcript with Gemini...</em>';
@@ -3299,10 +3456,10 @@ async function generateTranscript() {
         generateBtn.disabled = true;
         generateBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Generating...';
     }
-    
+
     // Try AI-powered transcript first
     const aiTranscript = await generateAITranscript();
-    
+
     if (aiTranscript) {
         audioTranscript = aiTranscript;
         if (transcriptEl) {
@@ -3314,7 +3471,7 @@ async function generateTranscript() {
         }
         return;
     }
-    
+
     // Fallback to basic transcript generation
     console.log('Using fallback transcript generation');
     const data = currentInfographicData;
@@ -3324,7 +3481,7 @@ async function generateTranscript() {
     if (data.sections) {
         data.sections.forEach(section => {
             transcript += `${section.title}.\n`;
-            
+
             if (Array.isArray(section.content)) {
                 section.content.forEach(item => {
                     transcript += `${item}.\n`;
@@ -3372,20 +3529,20 @@ function generateAudio() {
     if ('speechSynthesis' in window) {
         const voiceSelect = document.getElementById('voice-select');
         const voiceStyle = voiceSelect?.value || 'default';
-        
+
         // Create animated waveform
         createWaveformAnimation();
-        
+
         const generateBtn = document.getElementById('generate-audio-btn');
         const downloadBtn = document.getElementById('download-audio-btn');
-        
+
         if (generateBtn) {
             generateBtn.innerHTML = '<span class="material-symbols-rounded">check</span> Audio Ready';
         }
         if (downloadBtn) {
             downloadBtn.style.display = 'flex';
         }
-        
+
         alert('Audio generated! Click Play to listen. Note: Audio uses browser\'s text-to-speech capabilities.');
     } else {
         alert('Text-to-speech is not supported in this browser.');
@@ -3453,7 +3610,7 @@ function stopAudio() {
 function updatePlayButton() {
     const playBtn = document.getElementById('audio-play-btn');
     if (playBtn) {
-        playBtn.innerHTML = isPlaying 
+        playBtn.innerHTML = isPlaying
             ? '<span class="material-symbols-rounded">pause</span>'
             : '<span class="material-symbols-rounded">play_arrow</span>';
     }
@@ -3568,7 +3725,7 @@ function renderVideoSlide() {
     if (!slideContainer || videoSlides.length === 0) return;
 
     const slide = videoSlides[currentVideoSlide];
-    
+
     if (slide.type === 'title' || slide.type === 'end') {
         slideContainer.innerHTML = `
             <h2>${slide.title}</h2>
@@ -3577,7 +3734,7 @@ function renderVideoSlide() {
         slideContainer.style.background = 'linear-gradient(135deg, #1e293b, #334155)';
     } else {
         let contentHtml = '';
-        
+
         if (Array.isArray(slide.content)) {
             contentHtml = `<ul>${slide.content.map(item => `<li>${item}</li>`).join('')}</ul>`;
         } else if (typeof slide.content === 'object') {
@@ -3617,11 +3774,11 @@ function getSlideBackground(theme) {
 
 function navigateVideoSlide(direction) {
     if (videoSlides.length === 0) return;
-    
+
     currentVideoSlide += direction;
     if (currentVideoSlide < 0) currentVideoSlide = videoSlides.length - 1;
     if (currentVideoSlide >= videoSlides.length) currentVideoSlide = 0;
-    
+
     renderVideoSlide();
     updateVideoCounter();
 }
@@ -3635,7 +3792,7 @@ function updateVideoCounter() {
 
 function toggleVideoAutoPlay() {
     const playBtn = document.getElementById('video-play-btn');
-    
+
     if (videoAutoPlay) {
         stopVideoAutoPlay();
         if (playBtn) playBtn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>';
@@ -3933,7 +4090,7 @@ async function generateReport(format) {
     const data = currentInfographicData;
     const reportContainer = document.getElementById('report-content');
     if (!reportContainer) return;
-    
+
     // Show loading state
     reportContainer.innerHTML = `
         <div class="report-placeholder">
@@ -3941,10 +4098,10 @@ async function generateReport(format) {
             <p>Generating AI-powered ${format} report...</p>
         </div>
     `;
-    
+
     // Try AI-powered report generation
     const aiReport = await generateAIReport(format);
-    
+
     if (aiReport) {
         // Convert markdown to HTML
         const htmlContent = convertMarkdownToHTML(aiReport);
@@ -3952,7 +4109,7 @@ async function generateReport(format) {
         currentReportContent = aiReport;
         return;
     }
-    
+
     // Fallback to basic generation
     console.log('Using fallback report generation');
 
@@ -4119,10 +4276,10 @@ function setupFlashcards() {
 
 async function generateFlashcards() {
     if (!currentInfographicData) return;
-    
+
     const generateBtn = document.getElementById('generate-flashcards-btn');
     const questionEl = document.getElementById('flashcard-question');
-    
+
     // Show loading state
     if (generateBtn) {
         generateBtn.disabled = true;
@@ -4131,10 +4288,10 @@ async function generateFlashcards() {
     if (questionEl) {
         questionEl.textContent = 'Generating AI-powered flashcards...';
     }
-    
+
     // Try AI-powered flashcards first
     const aiFlashcards = await generateAIFlashcards();
-    
+
     if (aiFlashcards && aiFlashcards.length > 0) {
         flashcards = aiFlashcards;
         currentFlashcardIndex = 0;
@@ -4146,7 +4303,7 @@ async function generateFlashcards() {
         }
         return;
     }
-    
+
     // Fallback to basic generation
     console.log('Using fallback flashcard generation');
     const data = currentInfographicData;
@@ -4191,7 +4348,7 @@ async function generateFlashcards() {
     currentFlashcardIndex = 0;
     renderFlashcard();
     updateFlashcardCounter();
-    
+
     if (generateBtn) {
         generateBtn.disabled = false;
         generateBtn.innerHTML = '<span class="material-symbols-rounded">auto_fix_high</span> Regenerate';
@@ -4238,7 +4395,7 @@ function navigateFlashcard(direction) {
 function updateFlashcardCounter() {
     const counter = document.getElementById('flashcard-counter');
     if (counter) {
-        counter.textContent = flashcards.length > 0 
+        counter.textContent = flashcards.length > 0
             ? `${currentFlashcardIndex + 1} / ${flashcards.length}`
             : '0 / 0';
     }
@@ -4304,7 +4461,7 @@ function generateQuizQuestions() {
                 // Multiple choice from content
                 const correctAnswer = section.content[0];
                 const wrongAnswers = getRandomWrongAnswers(data.sections, section, correctAnswer);
-                
+
                 quizQuestions.push({
                     question: `Which of the following is true about ${section.title}?`,
                     options: shuffleArray([correctAnswer, ...wrongAnswers]),
@@ -4345,7 +4502,7 @@ function generateQuizQuestions() {
 
 function getRandomWrongAnswers(sections, currentSection, correctAnswer) {
     const wrongAnswers = [];
-    
+
     sections.forEach(s => {
         if (s !== currentSection && Array.isArray(s.content)) {
             s.content.forEach(item => {
@@ -4376,7 +4533,7 @@ function resetQuiz() {
     currentQuestionIndex = 0;
     quizScore = 0;
     quizAnswered = false;
-    
+
     document.getElementById('quiz-container').style.display = 'block';
     document.getElementById('quiz-results').style.display = 'none';
     document.getElementById('start-quiz-btn').style.display = 'flex';
@@ -4391,7 +4548,7 @@ function resetQuiz() {
 async function startQuiz() {
     const startBtn = document.getElementById('start-quiz-btn');
     const questionEl = document.getElementById('quiz-question');
-    
+
     // Show loading state
     if (startBtn) {
         startBtn.disabled = true;
@@ -4400,10 +4557,10 @@ async function startQuiz() {
     if (questionEl) {
         questionEl.textContent = 'Generating AI-powered quiz questions...';
     }
-    
+
     // Try AI-powered quiz first
     const aiQuiz = await generateAIQuiz();
-    
+
     if (aiQuiz && aiQuiz.length > 0) {
         quizQuestions = aiQuiz;
         console.log(`Generated ${quizQuestions.length} AI quiz questions`);
@@ -4412,20 +4569,20 @@ async function startQuiz() {
         console.log('Using fallback quiz generation');
         generateQuizQuestions();
     }
-    
+
     currentQuestionIndex = 0;
     quizScore = 0;
     quizAnswered = false;
-    
+
     document.getElementById('quiz-results').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'block';
-    
+
     if (startBtn) {
         startBtn.style.display = 'none';
         startBtn.disabled = false;
         startBtn.innerHTML = '<span class="material-symbols-rounded">play_arrow</span> Start Quiz';
     }
-    
+
     renderQuizQuestion();
     updateQuizScore();
 }
@@ -4488,15 +4645,15 @@ function selectQuizAnswer(optionEl, correctAnswer) {
     feedback.style.display = 'flex';
     feedback.className = `quiz-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
     feedbackIcon.textContent = isCorrect ? 'check_circle' : 'cancel';
-    
+
     const currentQuestion = quizQuestions[currentQuestionIndex];
     let feedbackMessage = isCorrect ? 'Correct!' : `Incorrect. The correct answer was: "${truncateText(correctAnswer, 50)}"`;
-    
+
     // Add explanation if available (from AI-generated questions)
     if (currentQuestion.explanation) {
         feedbackMessage += `\n\n💡 ${currentQuestion.explanation}`;
     }
-    
+
     feedbackText.textContent = feedbackMessage;
 
     nextBtn.style.display = 'flex';
@@ -4714,7 +4871,7 @@ function navigateSlide(direction) {
 function updateSlideIndicator() {
     const indicator = document.getElementById('slide-indicator');
     if (indicator) {
-        indicator.textContent = slides.length > 0 
+        indicator.textContent = slides.length > 0
             ? `Slide ${currentSlideIndex + 1} of ${slides.length}`
             : 'Slide 0 of 0';
     }
@@ -4843,28 +5000,28 @@ function exportSlidesAsHTML() {
 </head>
 <body>
 ${slides.map(slide => {
-    if (slide.type === 'title' || slide.type === 'end') {
-        return `<div class="slide title-slide">
+        if (slide.type === 'title' || slide.type === 'end') {
+            return `<div class="slide title-slide">
             <h1>${slide.title}</h1>
             <p>${slide.subtitle || ''}</p>
         </div>`;
-    } else if (slide.type === 'section') {
-        return `<div class="slide section-slide">
+        } else if (slide.type === 'section') {
+            return `<div class="slide section-slide">
             <h2>${slide.title}</h2>
         </div>`;
-    } else {
-        let content = '';
-        if (Array.isArray(slide.content)) {
-            content = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
-        } else if (typeof slide.content === 'string') {
-            content = `<p>${slide.content}</p>`;
-        }
-        return `<div class="slide content-slide">
+        } else {
+            let content = '';
+            if (Array.isArray(slide.content)) {
+                content = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+            } else if (typeof slide.content === 'string') {
+                content = `<p>${slide.content}</p>`;
+            }
+            return `<div class="slide content-slide">
             <h3>${slide.title}</h3>
             ${content}
         </div>`;
-    }
-}).join('\n')}
+        }
+    }).join('\n')}
 </body>
 </html>`;
 
@@ -4887,21 +5044,21 @@ function setupCommunityHub() {
     const communityModal = document.getElementById('community-modal');
     const submitModal = document.getElementById('submit-community-modal');
     const previewModal = document.getElementById('community-preview-modal');
-    
+
     // Close buttons
     const closeCommBtn = document.getElementById('close-community-modal-btn');
     const closeSubmitBtn = document.getElementById('close-submit-modal-btn');
     const closePreviewBtn = document.getElementById('close-preview-modal-btn');
     const cancelSubmitBtn = document.getElementById('cancel-submit-btn');
-    
+
     // Refresh button
     const refreshBtn = document.getElementById('refresh-community-btn');
-    
+
     // Tabs
     const tabs = document.querySelectorAll('.community-tab');
     const pendingContent = document.getElementById('pending-content');
     const approvedContent = document.getElementById('approved-content');
-    
+
     // Lists and counts
     const pendingList = document.getElementById('pending-submissions-list');
     const approvedList = document.getElementById('approved-submissions-list');
@@ -4910,52 +5067,52 @@ function setupCommunityHub() {
     const pendingCount = document.getElementById('pending-count');
     const approvedCount = document.getElementById('approved-count');
     const communityCountBadge = document.getElementById('community-count-badge');
-    
+
     // Submit form elements
     const submitterNameInput = document.getElementById('submitter-name');
     const submitPreviewTitle = document.getElementById('submit-preview-title');
     const submitPreviewSummary = document.getElementById('submit-preview-summary');
     const confirmSubmitBtn = document.getElementById('confirm-submit-btn');
-    
+
     // Preview elements
     const previewTitle = document.getElementById('preview-title');
     const previewAuthor = document.getElementById('preview-author');
     const previewContainer = document.getElementById('preview-infographic-container');
     const previewLikeBtn = document.getElementById('preview-like-btn');
     const previewDownloadBtn = document.getElementById('preview-download-btn');
-    
+
     let currentPreviewId = null;
     let cachedSubmissions = { submissions: [], approved: [] };
-    
+
     // Check if CommunitySubmissions module is loaded
     function isCommunityModuleLoaded() {
         return typeof window.CommunitySubmissions !== 'undefined';
     }
-    
+
     // Open Community Modal
     async function openCommunityModal() {
         if (!isCommunityModuleLoaded()) {
             alert('Community module not loaded. Please refresh the page.');
             return;
         }
-        
+
         communityModal.classList.add('active');
         await loadCommunitySubmissions();
     }
-    
+
     // Load submissions
     async function loadCommunitySubmissions() {
         try {
             const data = await CommunitySubmissions.getAll();
             cachedSubmissions = data;
-            
+
             const pending = data.submissions || [];
             const approved = data.approved || [];
-            
+
             // Update counts
             pendingCount.textContent = pending.length;
             approvedCount.textContent = approved.length;
-            
+
             // Update badge
             if (pending.length > 0) {
                 communityCountBadge.textContent = pending.length;
@@ -4963,18 +5120,18 @@ function setupCommunityHub() {
             } else {
                 communityCountBadge.style.display = 'none';
             }
-            
+
             // Render pending
             renderSubmissionsList(pending, pendingList, pendingEmpty, false);
-            
+
             // Render approved
             renderSubmissionsList(approved, approvedList, approvedEmpty, true);
-            
+
         } catch (err) {
             console.error('Error loading community submissions:', err);
         }
     }
-    
+
     // Render submissions list
     function renderSubmissionsList(submissions, container, emptyElement, isApproved) {
         if (submissions.length === 0) {
@@ -4982,17 +5139,17 @@ function setupCommunityHub() {
             emptyElement.style.display = 'flex';
             return;
         }
-        
+
         emptyElement.style.display = 'none';
         container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, false)).join('');
     }
-    
+
     // Tab switching
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            
+
             const tabName = tab.dataset.tab;
             if (tabName === 'pending') {
                 pendingContent.style.display = 'block';
@@ -5003,54 +5160,54 @@ function setupCommunityHub() {
             }
         });
     });
-    
+
     // Open Submit Modal
     function openSubmitModal() {
         if (!currentInfographicData) {
             alert('Please generate an infographic first before submitting to the community.');
             return;
         }
-        
+
         // Update preview
         submitPreviewTitle.textContent = currentInfographicData.title || 'Untitled Infographic';
         submitPreviewSummary.textContent = currentInfographicData.summary || 'No summary available.';
-        
+
         // Clear previous name
         submitterNameInput.value = localStorage.getItem('community_username') || '';
-        
+
         submitModal.classList.add('active');
     }
-    
+
     // Submit to community
     async function handleSubmitToCommunity() {
         const userName = submitterNameInput.value.trim();
-        
+
         if (!userName) {
             alert('Please enter your name.');
             submitterNameInput.focus();
             return;
         }
-        
+
         if (!currentInfographicData) {
             alert('No infographic data to submit.');
             return;
         }
-        
+
         // Save username for future submissions
         localStorage.setItem('community_username', userName);
-        
+
         // Show loading state
         const originalText = confirmSubmitBtn.innerHTML;
         confirmSubmitBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Submitting...';
         confirmSubmitBtn.disabled = true;
-        
+
         try {
             const result = await CommunitySubmissions.submit(currentInfographicData, userName);
-            
+
             if (result.success) {
                 alert(result.message);
                 submitModal.classList.remove('active');
-                
+
                 // Refresh community list if modal is open
                 if (communityModal.classList.contains('active')) {
                     await loadCommunitySubmissions();
@@ -5066,26 +5223,26 @@ function setupCommunityHub() {
             confirmSubmitBtn.disabled = false;
         }
     }
-    
+
     // Preview submission
-    window.handlePreviewSubmission = async function(submissionId) {
+    window.handlePreviewSubmission = async function (submissionId) {
         currentPreviewId = submissionId;
-        
+
         // Find submission
         let submission = (cachedSubmissions.submissions || []).find(s => s.id === submissionId);
         if (!submission) {
             submission = (cachedSubmissions.approved || []).find(s => s.id === submissionId);
         }
-        
+
         if (!submission) {
             alert('Could not find submission.');
             return;
         }
-        
+
         // Update preview modal
         previewTitle.textContent = submission.title;
         previewAuthor.innerHTML = `<span class="material-symbols-rounded">person</span> ${submission.userName}`;
-        
+
         // Render the infographic preview (simplified)
         if (submission.data) {
             previewContainer.innerHTML = `
@@ -5098,9 +5255,9 @@ function setupCommunityHub() {
                                 <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
                                     <h4 style="margin: 0 0 0.5rem 0; color: #334155;">${section.title || 'Section'}</h4>
                                     <p style="margin: 0; font-size: 0.9rem; color: #64748b;">
-                                        ${Array.isArray(section.content) 
-                                            ? section.content.slice(0, 3).join(', ') + (section.content.length > 3 ? '...' : '')
-                                            : (typeof section.content === 'string' ? section.content.substring(0, 150) : 'Content available')}
+                                        ${Array.isArray(section.content)
+                    ? section.content.slice(0, 3).join(', ') + (section.content.length > 3 ? '...' : '')
+                    : (typeof section.content === 'string' ? section.content.substring(0, 150) : 'Content available')}
                                     </p>
                                 </div>
                             `).join('')}
@@ -5116,15 +5273,15 @@ function setupCommunityHub() {
         } else {
             previewContainer.innerHTML = '<p style="text-align: center; color: #9ca3af;">Preview not available.</p>';
         }
-        
+
         previewModal.classList.add('active');
     };
-    
+
     // Like submission
-    window.handleLikeSubmission = async function(submissionId) {
+    window.handleLikeSubmission = async function (submissionId) {
         try {
             const result = await CommunitySubmissions.like(submissionId);
-            
+
             if (result.success) {
                 // Update the like count in UI
                 const card = document.querySelector(`.community-card[data-id="${submissionId}"]`);
@@ -5141,12 +5298,12 @@ function setupCommunityHub() {
             console.error('Like error:', err);
         }
     };
-    
+
     // Download submission to local library
-    window.handleDownloadSubmission = async function(submissionId) {
+    window.handleDownloadSubmission = async function (submissionId) {
         try {
             const result = await CommunitySubmissions.downloadToLibrary(submissionId);
-            
+
             if (result.success) {
                 alert(result.message);
             } else {
@@ -5157,41 +5314,41 @@ function setupCommunityHub() {
             alert('An error occurred while downloading.');
         }
     };
-    
+
     // Event Listeners
     if (communityBtn) {
         communityBtn.addEventListener('click', openCommunityModal);
     }
-    
+
     if (submitCommunityBtn) {
         submitCommunityBtn.addEventListener('click', openSubmitModal);
     }
-    
+
     if (closeCommBtn) {
         closeCommBtn.addEventListener('click', () => {
             communityModal.classList.remove('active');
         });
     }
-    
+
     if (closeSubmitBtn) {
         closeSubmitBtn.addEventListener('click', () => {
             submitModal.classList.remove('active');
         });
     }
-    
+
     if (cancelSubmitBtn) {
         cancelSubmitBtn.addEventListener('click', () => {
             submitModal.classList.remove('active');
         });
     }
-    
+
     if (closePreviewBtn) {
         closePreviewBtn.addEventListener('click', () => {
             previewModal.classList.remove('active');
             currentPreviewId = null;
         });
     }
-    
+
     if (refreshBtn) {
         refreshBtn.addEventListener('click', async () => {
             refreshBtn.classList.add('rotating');
@@ -5199,11 +5356,11 @@ function setupCommunityHub() {
             setTimeout(() => refreshBtn.classList.remove('rotating'), 500);
         });
     }
-    
+
     if (confirmSubmitBtn) {
         confirmSubmitBtn.addEventListener('click', handleSubmitToCommunity);
     }
-    
+
     if (previewLikeBtn) {
         previewLikeBtn.addEventListener('click', () => {
             if (currentPreviewId) {
@@ -5211,7 +5368,7 @@ function setupCommunityHub() {
             }
         });
     }
-    
+
     if (previewDownloadBtn) {
         previewDownloadBtn.addEventListener('click', () => {
             if (currentPreviewId) {
@@ -5228,7 +5385,7 @@ function setupCommunityHub() {
             }
         });
     }
-    
+
     // Close modals on overlay click
     [communityModal, submitModal, previewModal].forEach(modal => {
         if (modal) {
@@ -5239,7 +5396,7 @@ function setupCommunityHub() {
             });
         }
     });
-    
+
     console.log('Community Hub initialized.');
 }
 
@@ -5256,9 +5413,9 @@ function setupMusicPlayer() {
     const volumeSlider = document.getElementById('music-volume');
     const musicStatus = document.getElementById('music-status');
     const stationBtns = document.querySelectorAll('.station-btn');
-    
+
     if (!musicToggle || !musicAudio) return;
-    
+
     // Radio station URLs (public streams)
     const stations = {
         classical: {
@@ -5274,56 +5431,56 @@ function setupMusicPlayer() {
             fallback: 'https://qurango.net/radio/mohammed_siddiq_alminshawi_mojawwad'
         }
     };
-    
+
     let currentStation = null;
     let isPlaying = false;
-    
+
     // Toggle panel
     musicToggle.addEventListener('click', () => {
         musicPanel.classList.toggle('hidden');
     });
-    
+
     // Close panel when clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.music-player')) {
             musicPanel.classList.add('hidden');
         }
     });
-    
+
     // Station selection
     stationBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             const stationId = btn.dataset.station;
             const station = stations[stationId];
-            
+
             if (!station) return;
-            
+
             // Update UI
             stationBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
             currentStation = stationId;
             playPauseBtn.disabled = false;
-            
+
             // Set status
             musicStatus.textContent = `Loading ${station.name}...`;
             musicStatus.className = 'music-status loading';
-            
+
             // Try to load the stream
             try {
                 musicAudio.src = station.url;
                 musicAudio.volume = volumeSlider.value / 100;
-                
+
                 await musicAudio.play();
                 isPlaying = true;
                 updatePlayPauseIcon();
                 musicStatus.textContent = `Playing: ${station.name}`;
                 musicStatus.className = 'music-status playing';
                 musicToggle.classList.add('playing');
-                
+
             } catch (err) {
                 console.log('Primary stream failed, trying fallback...', err);
-                
+
                 // Try fallback
                 try {
                     musicAudio.src = station.fallback;
@@ -5333,7 +5490,7 @@ function setupMusicPlayer() {
                     musicStatus.textContent = `Playing: ${station.name}`;
                     musicStatus.className = 'music-status playing';
                     musicToggle.classList.add('playing');
-                    
+
                 } catch (fallbackErr) {
                     console.error('Fallback also failed:', fallbackErr);
                     musicStatus.textContent = 'Stream unavailable. Try again later.';
@@ -5344,11 +5501,11 @@ function setupMusicPlayer() {
             }
         });
     });
-    
+
     // Play/Pause
     playPauseBtn.addEventListener('click', () => {
         if (!currentStation) return;
-        
+
         if (isPlaying) {
             musicAudio.pause();
             isPlaying = false;
@@ -5369,7 +5526,7 @@ function setupMusicPlayer() {
         }
         updatePlayPauseIcon();
     });
-    
+
     function updatePlayPauseIcon() {
         const icon = playPauseBtn.querySelector('.material-symbols-rounded');
         if (icon) {
@@ -5377,12 +5534,12 @@ function setupMusicPlayer() {
         }
         musicIcon.textContent = isPlaying ? 'music_note' : 'music_off';
     }
-    
+
     // Volume control
     volumeSlider.addEventListener('input', () => {
         musicAudio.volume = volumeSlider.value / 100;
     });
-    
+
     // Handle audio errors
     musicAudio.addEventListener('error', () => {
         musicStatus.textContent = 'Stream error. Try another station.';
@@ -5391,20 +5548,20 @@ function setupMusicPlayer() {
         updatePlayPauseIcon();
         musicToggle.classList.remove('playing');
     });
-    
+
     // Handle stream end/stall
     musicAudio.addEventListener('stalled', () => {
         musicStatus.textContent = 'Buffering...';
         musicStatus.className = 'music-status loading';
     });
-    
+
     musicAudio.addEventListener('playing', () => {
         if (currentStation) {
             musicStatus.textContent = `Playing: ${stations[currentStation].name}`;
             musicStatus.className = 'music-status playing';
         }
     });
-    
+
     console.log('Music player initialized.');
 }
 
@@ -5421,10 +5578,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFlashcards();
     setupQuiz();
     setupSlideDeck();
-    
+
     // Initialize Community Hub
     setupCommunityHub();
-    
+
     // Initialize Music Player
     setupMusicPlayer();
 
