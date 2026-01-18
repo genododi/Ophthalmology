@@ -1,5 +1,6 @@
 {
   "id": 1768584967700,
+  "seqId": 111,
   "title": "THE KAHOOK DUAL BLADE (KDB): PRECISION EXCISIONAL GONIOTOMY",
   "summary": "The Kahook Dual Blade is a precision-engineered surgical instrument designed for Minimally Invasive Glaucoma Surgery (MIGS). It facilitates a cleaner excision of the trabecular meshwork to improve aqueous humor outflow and reduce intraocular pressure.",
   "date": "2026-01-16T17:36:07.700Z",
@@ -152,10 +153,9 @@
     ]
   },
   "chapterId": "glaucoma",
-  "_newlyImported": 1768587692880,
+  "_newlyImported": 1768584967700,
   "communityId": "sub_1768584869716_8vnzdj7xq",
   "communityAuthor": "309030",
   "communityDate": "2026-01-16T17:34:29.716Z",
-  "_serverSynced": true,
-  "seqId": 110
+  "_serverSynced": true
 }

@@ -1,5 +1,6 @@
 {
   "id": 1768146310850,
+  "seqId": 78,
   "title": "Microbial Keratitis: Clinical Assessment & Management",
   "summary": "A comprehensive guide to microbial keratitis, a common sight-threatening ophthalmic emergency. This poster outlines assessment protocols, microbiological processing, intensive sterilization phases, and advanced surgical interventions for corneal perforations.",
   "date": "2026-01-11T15:45:10.850Z",
@@ -340,6 +341,5 @@
     ]
   },
   "chapterId": "cornea",
-  "seqId": 77,
   "_serverSynced": true
 }

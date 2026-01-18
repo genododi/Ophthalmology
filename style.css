@@ -1205,6 +1205,7 @@ textarea:focus {
         background: linear-gradient(90deg, #dcfce7 0%, white 100%);
         box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
     }
+
     100% {
         background: linear-gradient(90deg, #f0fdf4 0%, white 100%);
         box-shadow: none;
@@ -1640,8 +1641,15 @@ textarea:focus {
 }
 
 @keyframes wave {
-    0%, 100% { height: 20%; }
-    50% { height: 80%; }
+
+    0%,
+    100% {
+        height: 20%;
+    }
+
+    50% {
+        height: 80%;
+    }
 }
 
 .audio-controls {
@@ -2562,8 +2570,13 @@ textarea:focus {
 }
 
 @keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ========================================
@@ -3338,16 +3351,16 @@ textarea:focus {
     .community-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .admin-card {
         grid-template-columns: 1fr;
     }
-    
+
     .admin-card-actions {
         flex-direction: row;
         flex-wrap: wrap;
     }
-    
+
     .moderation-stats {
         grid-template-columns: 1fr;
     }
@@ -3395,7 +3408,7 @@ textarea:focus {
     border-right: none;
 }
 
-.sidebar.collapsed + .main-content {
+.sidebar.collapsed+.main-content {
     margin-left: 0;
 }
 
@@ -3415,13 +3428,13 @@ textarea:focus {
 
 /* Smooth transitions for sidebar */
 .sidebar {
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-                padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.2s ease;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease;
 }
 
 /* Hide sidebar content when collapsed */
-.sidebar.collapsed > * {
+.sidebar.collapsed>* {
     opacity: 0;
     pointer-events: none;
 }
@@ -3431,11 +3444,11 @@ textarea:focus {
     .sidebar-toggle {
         left: 280px;
     }
-    
+
     .sidebar {
         width: 280px;
     }
-    
+
     .app-container.sidebar-collapsed .sidebar-toggle {
         left: 0;
     }
@@ -3476,8 +3489,15 @@ textarea:focus {
 }
 
 @keyframes pulse-music {
-    0%, 100% { box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); }
-    50% { box-shadow: 0 4px 25px rgba(139, 92, 246, 0.7); }
+
+    0%,
+    100% {
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 25px rgba(139, 92, 246, 0.7);
+    }
 }
 
 .music-toggle .material-symbols-rounded {
@@ -3690,4 +3710,265 @@ textarea:focus {
 .uncategorized-banner .btn-categorize-all .material-symbols-rounded {
     font-size: 1rem;
     color: white;
+}
+
+/* ========================================
+   SYNC STATUS MODAL
+   ======================================== */
+
+.sync-status-modal-body {
+    padding: 1.5rem;
+}
+
+.sync-status-preference {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1e40af;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.sync-status-preference .material-symbols-rounded {
+    color: #3b82f6;
+}
+
+.sync-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.sync-count {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.sync-count.local .material-symbols-rounded {
+    color: #22c55e;
+}
+
+.sync-count.server .material-symbols-rounded {
+    color: #3b82f6;
+}
+
+.sync-loading,
+.sync-success,
+.sync-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+    gap: 1rem;
+}
+
+.sync-loading .material-symbols-rounded {
+    font-size: 2.5rem;
+    color: #3b82f6;
+}
+
+.sync-success .material-symbols-rounded {
+    font-size: 3rem;
+    color: #22c55e;
+}
+
+.sync-error .material-symbols-rounded {
+    font-size: 2.5rem;
+    color: #ef4444;
+}
+
+.diff-section {
+    margin-bottom: 1.5rem;
+}
+
+.diff-section h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.diff-hint {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+}
+
+.diff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.diff-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.diff-item.local-only {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.diff-item.server-only {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.diff-item.deleted {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    text-decoration: line-through;
+    color: #ef4444;
+}
+
+.diff-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.diff-date {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+/* ========================================
+   BOOKMARK BUTTON STYLES
+   ======================================== */
+
+.btn-bookmark {
+    background: transparent !important;
+    border: none !important;
+    padding: 0.4rem !important;
+}
+
+.btn-bookmark:hover {
+    transform: scale(1.1);
+}
+
+.btn-small.btn-active {
+    background: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    color: #2563eb !important;
+}
+
+/* ========================================
+   COPY TO NOTES FLOATING BUTTON
+   ======================================== */
+
+.copy-to-notes-floating {
+    position: absolute;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: white;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: all 0.2s ease;
+    animation: popIn 0.2s ease-out;
+}
+
+.copy-to-notes-floating:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.copy-to-notes-floating.success {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+}
+
+.copy-to-notes-floating .material-symbols-rounded {
+    font-size: 1.1rem;
+}
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Rotating animation for sync icons */
+.rotating {
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }

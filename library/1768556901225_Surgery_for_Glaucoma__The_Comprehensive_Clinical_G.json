@@ -1,5 +1,6 @@
 {
   "id": 1768556901225,
+  "seqId": 107,
   "title": "Surgery for Glaucoma: The Comprehensive Clinical Guide",
   "summary": "An exhaustive visual reference covering the full spectrum of glaucoma surgical interventions, from gold-standard trabeculectomy and MMC augmentation to specialized angle procedures, MIGS, and tube drainage setons. Includes detailed operative steps, indication profiles, and post-operative management strategies.",
   "date": "2026-01-16T09:48:21.225Z",
@@ -263,7 +264,5 @@
   "communityId": "sub_1768552121957_b4wx95q5w",
   "communityAuthor": "Dodi",
   "communityDate": "2026-01-16T08:28:41.957Z",
-  "_serverSynced": true,
-  "_newlyImported": 1768587692880,
-  "seqId": 106
+  "_serverSynced": true
 }

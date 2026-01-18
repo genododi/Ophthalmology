@@ -614,7 +614,7 @@ async function fetchLibraryFromStatic() {
         return [];
     } catch (err) {
         console.log('Could not fetch static library index:', err.message);
-        return null; // Return null on error to distinguish from empty library
+        return [];
     }
 }
 
@@ -1321,6 +1321,7 @@ function setupKnowledgeBase() {
     let currentChapterFilter = 'all';
     let currentSearchTerm = ''; // NEW: Search state
     let currentSortMode = 'date'; // NEW: Sort state
+    let showBookmarkedOnly = false; // NEW: Bookmark filter state
     let selectionMode = false;
     let selectedItems = new Set();
 
@@ -1447,17 +1448,8 @@ function setupKnowledgeBase() {
             if (isGitHubPages()) {
                 console.log("Running on GitHub Pages. Fetching from static library index...");
                 serverItems = await fetchLibraryFromStatic();
-
-                // Safety Check: If serverItems is null, it means fetch failed (network error or file missing).
-                // Do NOT proceed with sync or deletion to avoid wiping data accidentally.
-                if (serverItems === null) {
-                    console.error("Failed to fetch library index. Aborting sync.");
-                    if (!silent) alert("Could not fetch library from server. Sync aborted to protect local data.");
-                    return;
-                }
-
                 if (serverItems.length === 0 && !silent) {
-                    console.log("Static library index is empty.");
+                    console.log("No items found in static library index.");
                 }
 
                 // Also fetch approved community submissions (the cloud pool)
@@ -1510,31 +1502,7 @@ function setupKnowledgeBase() {
                 const skippedTitles = [];
                 const deletedTitles = [];
 
-                // 1. AUTO-DELETE: Check for items that were on server (synced) but are now missing
-                // This means the Admin deleted them from the server, so we must remove them locally.
-                if (serverItems.length > 0) { // Only run if we have a valid server list
-                    const serverIdMap = new Set(serverItems.map(i => String(i.id)));
-                    const originalLength = localLibrary.length;
-
-                    localLibrary = localLibrary.filter(item => {
-                        // Only check items that CAME from server (marked as synced)
-                        // User-created local items (not synced) are preserved
-                        if (item._serverSynced) {
-                            // If item ID is NOT in the new server list, it was deleted by Admin
-                            if (item.id && !serverIdMap.has(String(item.id))) {
-                                console.log(`[Auto-Delete] Removing "${item.title}" because it was deleted from server.`);
-                                deletedTitles.push(item.title);
-                                return false; // Delete it
-                            }
-                        }
-                        return true; // Keep it
-                    });
-
-                    const autoDeleteCount = originalLength - localLibrary.length;
-                    deletedCount += autoDeleteCount;
-                }
-
-                // 2. ADMIN DELETION SYNC (Community Tracking): Check for explicitly tracked deletions
+                // ADMIN DELETION SYNC: Check for items deleted by admin
                 // Remote users will have these items removed from their library
                 try {
                     if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.getDeletedItems) {
@@ -2074,108 +2042,6 @@ function setupKnowledgeBase() {
         });
     }
 
-
-    // COMPARING WITH SERVER
-    const diffBtn = document.getElementById('diff-btn');
-    if (diffBtn) {
-        diffBtn.addEventListener('click', async () => {
-            const originalIcon = diffBtn.innerHTML;
-            diffBtn.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span>';
-            // Add spin style if not exists
-            if (!document.getElementById('spin-style')) {
-                const style = document.createElement('style');
-                style.id = 'spin-style';
-                style.innerHTML = '@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }';
-                document.head.appendChild(style);
-            }
-
-            try {
-                // Fetch server items
-                let serverItems = [];
-                if (isGitHubPages()) {
-                    serverItems = await fetchLibraryFromStatic();
-                } else {
-                    const response = await safeFetch('api/library/list');
-                    if (response.ok) serverItems = await response.json();
-                }
-
-                const localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-
-                // Normalization helper
-                const normalize = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-
-                // Index by Normalized Title for "Identity" comparison (since IDs might differ if re-imported)
-                const localMap = new Map();
-                localLibrary.forEach(i => localMap.set(normalize(i.title), i));
-
-                const serverMap = new Map();
-                serverItems.forEach(i => serverMap.set(normalize(i.title), i));
-
-                const onlyLocal = [];
-                const onlyServer = [];
-                const different = [];
-
-                // Check Local against Server
-                localLibrary.forEach(local => {
-                    const normTitle = normalize(local.title);
-                    if (!serverMap.has(normTitle)) {
-                        onlyLocal.push(local.title);
-                    } else {
-                        // Exists on both - check for differences
-                        const server = serverMap.get(normTitle);
-                        // Compare Chapters
-                        if ((local.chapterId || 'uncategorized') !== (server.chapterId || 'uncategorized')) {
-                            different.push(`${local.title} (Local: ${local.chapterId || 'None'} / Server: ${server.chapterId || 'None'})`);
-                        }
-                    }
-                });
-
-                // Check Server against Local
-                serverItems.forEach(server => {
-                    const normTitle = normalize(server.title);
-                    if (!localMap.has(normTitle)) {
-                        onlyServer.push(server.title);
-                    }
-                });
-
-                let msg = `📊 Library Sync Status\n\n`;
-                let totalDiff = onlyLocal.length + onlyServer.length + different.length;
-
-                if (totalDiff === 0) {
-                    msg += "✅ Perfectly Synced! Libraries are identical.";
-                } else {
-                    if (onlyLocal.length > 0) {
-                        msg += `🏠 On Local Only (${onlyLocal.length}):\n`;
-                        msg += onlyLocal.slice(0, 5).map(t => `  • ${t}`).join('\n');
-                        if (onlyLocal.length > 5) msg += `\n  ...and ${onlyLocal.length - 5} more`;
-                        msg += "\n\n";
-                    }
-
-                    if (onlyServer.length > 0) {
-                        msg += `☁️ On Server Only (${onlyServer.length}):\n`;
-                        msg += onlyServer.slice(0, 5).map(t => `  • ${t}`).join('\n');
-                        if (onlyServer.length > 5) msg += `\n  ...and ${onlyServer.length - 5} more`;
-                        msg += "\n\n";
-                    }
-
-                    if (different.length > 0) {
-                        msg += `⚠️ Mismatches (${different.length}):\n`;
-                        msg += different.slice(0, 5).map(d => `  • ${d}`).join('\n');
-                        if (different.length > 5) msg += `\n  ...and ${different.length - 5} more`;
-                    }
-                }
-
-                alert(msg);
-
-            } catch (err) {
-                console.error('Diff error:', err);
-                alert('Error comparing libraries: ' + err.message);
-            } finally {
-                diffBtn.innerHTML = originalIcon;
-            }
-        });
-    }
-
     // SAVE
     if (saveBtn) {
         saveBtn.addEventListener('click', () => {
@@ -2333,6 +2199,11 @@ function setupKnowledgeBase() {
             );
         }
 
+        // 2.5 Filter by Bookmarked (NEW)
+        if (showBookmarkedOnly) {
+            filteredLibrary = filteredLibrary.filter(item => item.bookmarked === true);
+        }
+
         // 3. Apply Sorting
         if (currentSortMode === 'date') {
             filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -2417,6 +2288,12 @@ function setupKnowledgeBase() {
                         <option value="newly_added" ${currentSortMode === 'newly_added' ? 'selected' : ''}>Sort by Newly Added</option>
                     </select>
                 </div>
+                <div class="bookmark-filter-wrapper">
+                    <button id="bookmark-filter-btn" class="btn-small ${showBookmarkedOnly ? 'btn-active' : ''}" title="Show Bookmarked Only">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">${showBookmarkedOnly ? 'bookmark' : 'bookmark_border'}</span>
+                        ${showBookmarkedOnly ? 'Bookmarked' : 'All'}
+                    </button>
+                </div>
             </div>
             <div class="toolbar-row" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                 <button class="btn-small ${selectionMode ? 'btn-active' : ''}" id="toggle-selection-btn">
@@ -2466,6 +2343,15 @@ function setupKnowledgeBase() {
             });
         }
 
+        // Bookmark Filter Handler
+        const bookmarkFilterBtn = toolbar.querySelector('#bookmark-filter-btn');
+        if (bookmarkFilterBtn) {
+            bookmarkFilterBtn.addEventListener('click', () => {
+                showBookmarkedOnly = !showBookmarkedOnly;
+                renderLibraryList();
+            });
+        }
+
         // Toggle selection mode
         toolbar.querySelector('#toggle-selection-btn').addEventListener('click', () => {
             selectionMode = !selectionMode;
@@ -2501,19 +2387,21 @@ function setupKnowledgeBase() {
                 const idsToDelete = Array.from(selectedItems);
 
                 // 1. Delete from Server (if connected)
-                try {
-                    const response = await safeFetch('api/library/delete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ids: idsToDelete })
-                    });
-                    const result = await response.json();
-                    if (!result.success) {
-                        console.error('Server delete failed:', result.error);
-                        alert('Warning: Failed to delete some files from server.');
+                if (window.location.protocol !== 'file:') {
+                    try {
+                        const response = await safeFetch('api/library/delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: idsToDelete })
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                            console.error('Server delete failed:', result.error);
+                            alert('Warning: Failed to delete some files from server.');
+                        }
+                    } catch (err) {
+                        console.error('Server connection failed during delete:', err);
                     }
-                } catch (err) {
-                    console.error('Server connection failed during delete:', err);
                 }
 
                 // 2. Delete from LocalStorage
@@ -2593,6 +2481,9 @@ function setupKnowledgeBase() {
                         <div class="saved-date">${new Date(item.date).toLocaleString()}</div>
                     </div>
                     <div class="saved-actions">
+                        <button class="btn-small btn-bookmark" data-id="${item.id}" title="${item.bookmarked ? 'Remove Bookmark' : 'Add Bookmark'}">
+                            <span class="material-symbols-rounded" style="font-size: 1.1rem; color: ${item.bookmarked ? '#eab308' : '#94a3b8'};">${item.bookmarked ? 'bookmark' : 'bookmark_border'}</span>
+                        </button>
                         <button class="btn-small btn-rename" data-id="${item.id}" title="Rename">
                             <span class="material-symbols-rounded" style="font-size: 1rem;">edit</span>
                         </button>
@@ -2616,6 +2507,20 @@ function setupKnowledgeBase() {
                     }
                     renderLibraryList(); // Re-render to update selected styling if needed, or just update class
                     updateExportButtonVisibility();
+                });
+            });
+
+            // Bookmark toggle handlers
+            listContainer.querySelectorAll('.btn-bookmark').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const button = e.target.closest('.btn-bookmark');
+                    const id = parseInt(button.dataset.id);
+                    const targetItem = library.find(i => i.id === id);
+                    if (targetItem) {
+                        targetItem.bookmarked = !targetItem.bookmarked;
+                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                        renderLibraryList();
+                    }
                 });
             });
 
@@ -2692,17 +2597,6 @@ function setupKnowledgeBase() {
                                 }
                             }
 
-                            // Delete from Server
-                            try {
-                                await safeFetch('api/library/delete', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ids: [id] })
-                                });
-                            } catch (err) {
-                                console.error('Failed to delete from server:', err);
-                            }
-
                             // Auto-Sync
                             syncLibraryToServer();
 
@@ -2715,6 +2609,276 @@ function setupKnowledgeBase() {
                 });
             });
         }
+    }
+}
+
+/* Library Sync Status - Compare local vs server/admin knowledge base */
+function setupSyncStatus() {
+    const syncStatusBtn = document.getElementById('sync-status-btn');
+    const syncStatusModal = document.getElementById('sync-status-modal');
+    const closeBtn = document.getElementById('close-sync-status-btn');
+    const contentEl = document.getElementById('sync-status-content');
+    const exportBtn = document.getElementById('export-local-only-btn');
+    const refreshBtn = document.getElementById('refresh-sync-status-btn');
+
+    if (!syncStatusBtn || !syncStatusModal) return;
+
+    let currentDifferences = { localOnly: [], serverOnly: [], deletedByAdmin: [] };
+
+    // Normalize title for comparison
+    const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+
+    async function comparLibraries() {
+        if (!contentEl) return;
+
+        contentEl.innerHTML = `
+            <div class="sync-loading">
+                <span class="material-symbols-rounded rotating">sync</span>
+                <p>Comparing libraries...</p>
+            </div>
+        `;
+
+        try {
+            // Get local library
+            const localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const localTitles = new Map();
+            localLibrary.forEach(item => {
+                localTitles.set(normalizeTitle(item.title), item);
+            });
+
+            // Get server library
+            let serverItems = [];
+            if (isGitHubPages()) {
+                serverItems = await fetchLibraryFromStatic();
+            } else {
+                try {
+                    const response = await safeFetch('api/library/list');
+                    if (response.ok) {
+                        serverItems = await response.json();
+                    }
+                } catch (e) {
+                    console.log('Could not fetch server library:', e.message);
+                }
+            }
+
+            const serverTitles = new Map();
+            serverItems.forEach(item => {
+                serverTitles.set(normalizeTitle(item.title), item);
+            });
+
+            // Get deleted items from admin
+            let deletedItems = [];
+            try {
+                if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.getDeletedItems) {
+                    deletedItems = await CommunitySubmissions.getDeletedItems();
+                }
+            } catch (e) {
+                console.log('Could not fetch deleted items:', e.message);
+            }
+
+            // Find differences
+            const localOnly = [];
+            const serverOnly = [];
+            const deletedByAdmin = [];
+
+            // Items only on local
+            localLibrary.forEach(item => {
+                const normTitle = normalizeTitle(item.title);
+                if (!serverTitles.has(normTitle)) {
+                    localOnly.push(item);
+                }
+            });
+
+            // Items only on server
+            serverItems.forEach(item => {
+                const normTitle = normalizeTitle(item.title);
+                if (!localTitles.has(normTitle)) {
+                    serverOnly.push(item);
+                }
+            });
+
+            // Items deleted by admin that are still in local
+            deletedItems.forEach(normTitle => {
+                if (localTitles.has(normTitle)) {
+                    deletedByAdmin.push(localTitles.get(normTitle));
+                }
+            });
+
+            currentDifferences = { localOnly, serverOnly, deletedByAdmin };
+
+            // Render results
+            renderDifferences(localOnly, serverOnly, deletedByAdmin, localLibrary.length, serverItems.length);
+
+            // Show/hide export button
+            if (exportBtn) {
+                exportBtn.style.display = localOnly.length > 0 ? 'flex' : 'none';
+            }
+
+        } catch (err) {
+            console.error('Sync status error:', err);
+            contentEl.innerHTML = `
+                <div class="sync-error">
+                    <span class="material-symbols-rounded">error</span>
+                    <p>Could not compare libraries: ${err.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    function renderDifferences(localOnly, serverOnly, deletedByAdmin, localCount, serverCount) {
+        const allSynced = localOnly.length === 0 && serverOnly.length === 0 && deletedByAdmin.length === 0;
+
+        let html = `
+            <div class="sync-summary">
+                <div class="sync-count local">
+                    <span class="material-symbols-rounded">folder</span>
+                    <span><strong>${localCount}</strong> Local</span>
+                </div>
+                <div class="sync-count server">
+                    <span class="material-symbols-rounded">cloud</span>
+                    <span><strong>${serverCount}</strong> Server</span>
+                </div>
+            </div>
+        `;
+
+        if (allSynced) {
+            html += `
+                <div class="sync-success">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    <p>Libraries are in sync!</p>
+                </div>
+            `;
+        } else {
+            // Local Only
+            if (localOnly.length > 0) {
+                html += `
+                    <div class="diff-section">
+                        <h4><span class="material-symbols-rounded" style="color: #22c55e;">add_circle</span> Only on Your Device (${localOnly.length})</h4>
+                        <p class="diff-hint">These items are not on the server/admin library</p>
+                        <div class="diff-list">
+                            ${localOnly.map(item => `
+                                <div class="diff-item local-only">
+                                    <span class="diff-title">${item.title}</span>
+                                    <span class="diff-date">${new Date(item.date).toLocaleDateString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Server Only
+            if (serverOnly.length > 0) {
+                html += `
+                    <div class="diff-section">
+                        <h4><span class="material-symbols-rounded" style="color: #3b82f6;">cloud_download</span> Only on Server (${serverOnly.length})</h4>
+                        <p class="diff-hint">Click "Sync with Server" to download these</p>
+                        <div class="diff-list">
+                            ${serverOnly.map(item => `
+                                <div class="diff-item server-only">
+                                    <span class="diff-title">${item.title}</span>
+                                    <span class="diff-date">${new Date(item.date).toLocaleDateString()}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Deleted by Admin
+            if (deletedByAdmin.length > 0) {
+                html += `
+                    <div class="diff-section">
+                        <h4><span class="material-symbols-rounded" style="color: #ef4444;">delete</span> Deleted by Admin (${deletedByAdmin.length})</h4>
+                        <p class="diff-hint">These will be removed on next sync</p>
+                        <div class="diff-list">
+                            ${deletedByAdmin.map(item => `
+                                <div class="diff-item deleted">
+                                    <span class="diff-title">${item.title}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        contentEl.innerHTML = html;
+    }
+
+    // Open modal
+    syncStatusBtn.addEventListener('click', () => {
+        syncStatusModal.classList.add('active');
+        comparLibraries();
+    });
+
+    // Close modal
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            syncStatusModal.classList.remove('active');
+        });
+    }
+
+    syncStatusModal.addEventListener('click', (e) => {
+        if (e.target === syncStatusModal) {
+            syncStatusModal.classList.remove('active');
+        }
+    });
+
+    // Refresh button
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', comparLibraries);
+    }
+
+    // Export local-only to admin (via Community Pool)
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            if (currentDifferences.localOnly.length === 0) {
+                alert('No local-only items to export.');
+                return;
+            }
+
+            const count = currentDifferences.localOnly.length;
+            if (!confirm(`Export ${count} local-only item${count > 1 ? 's' : ''} to the admin for review?`)) return;
+
+            const savedUsername = localStorage.getItem('community_username') || '';
+            const userName = prompt('Enter your name for the submissions:', savedUsername);
+
+            if (!userName || !userName.trim()) {
+                alert('A name is required.');
+                return;
+            }
+
+            localStorage.setItem('community_username', userName.trim());
+
+            exportBtn.disabled = true;
+            exportBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Exporting...';
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const item of currentDifferences.localOnly) {
+                try {
+                    const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (err) {
+                    failCount++;
+                }
+            }
+
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Export Local-Only to Admin';
+
+            if (successCount > 0) {
+                alert(`✅ ${successCount} item${successCount > 1 ? 's' : ''} submitted for admin review!${failCount > 0 ? `\n❌ ${failCount} failed.` : ''}`);
+            } else {
+                alert('Failed to export items. Please try again.');
+            }
+        });
     }
 }
 
@@ -2841,8 +3005,113 @@ document.addEventListener('DOMContentLoaded', () => {
     setupPrintButton();
     setupPosterButton();
     setupKnowledgeBase();
+    setupSyncStatus();
     setupFTPServer();
+    setupCopyToNotes();
 });
+
+/* Copy Highlighted Text to Notes App */
+function setupCopyToNotes() {
+    const outputContainer = document.getElementById('output-container');
+    if (!outputContainer) return;
+
+    // Create floating button
+    const floatingBtn = document.createElement('div');
+    floatingBtn.id = 'copy-to-notes-btn';
+    floatingBtn.className = 'copy-to-notes-floating';
+    floatingBtn.innerHTML = `
+        <span class="material-symbols-rounded">note_add</span>
+        <span class="btn-label">Copy to Notes</span>
+    `;
+    floatingBtn.style.display = 'none';
+    document.body.appendChild(floatingBtn);
+
+    let currentSelection = '';
+
+    // Track text selection
+    document.addEventListener('mouseup', (e) => {
+        // Only track selection in the infographic area
+        if (!outputContainer.contains(e.target)) {
+            floatingBtn.style.display = 'none';
+            return;
+        }
+
+        const selection = window.getSelection();
+        const selectedText = selection.toString().trim();
+
+        if (selectedText.length > 5) {
+            currentSelection = selectedText;
+
+            // Position the button near the selection
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+
+            floatingBtn.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+            floatingBtn.style.left = (rect.left + window.scrollX + (rect.width / 2) - 70) + 'px';
+            floatingBtn.style.display = 'flex';
+        } else {
+            floatingBtn.style.display = 'none';
+        }
+    });
+
+    // Hide button when clicking elsewhere
+    document.addEventListener('mousedown', (e) => {
+        if (!floatingBtn.contains(e.target)) {
+            // Short delay to allow button click to register
+            setTimeout(() => {
+                if (!floatingBtn.matches(':hover')) {
+                    floatingBtn.style.display = 'none';
+                }
+            }, 100);
+        }
+    });
+
+    // Copy to Notes button click
+    floatingBtn.addEventListener('click', async () => {
+        if (!currentSelection) return;
+
+        const noteContent = `📚 FRCS Picky Notes\n${new Date().toLocaleString()}\n\n${currentSelection}`;
+
+        try {
+            // Try clipboard first
+            await navigator.clipboard.writeText(noteContent);
+
+            // Change button to show success
+            const originalHTML = floatingBtn.innerHTML;
+            floatingBtn.innerHTML = `
+                <span class="material-symbols-rounded">check</span>
+                <span class="btn-label">Copied!</span>
+            `;
+            floatingBtn.classList.add('success');
+
+            // Attempt to open Notes app on macOS using URL scheme
+            // This will prompt user to open Notes app
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            if (isMac) {
+                // Show instruction for macOS users
+                setTimeout(() => {
+                    const openNotes = confirm('Text copied to clipboard!\\n\\nWould you like to open Notes app to paste it?\\n\\n(Look for or create a note called "FRCS picky notes")');
+                    if (openNotes) {
+                        // macOS Notes URL scheme
+                        window.open('notes://');
+                    }
+                }, 500);
+            }
+
+            setTimeout(() => {
+                floatingBtn.innerHTML = originalHTML;
+                floatingBtn.classList.remove('success');
+                floatingBtn.style.display = 'none';
+            }, 2000);
+
+        } catch (err) {
+            console.error('Copy failed:', err);
+
+            // Fallback: show text in prompt for manual copy
+            prompt('Copy this text manually:', currentSelection);
+        }
+    });
+}
 
 function setLoading(isLoading) {
     generateBtn.disabled = isLoading;
