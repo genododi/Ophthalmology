@@ -2311,6 +2311,10 @@ function setupKnowledgeBase() {
                         <span class="material-symbols-rounded">delete</span>
                         Delete Selected (${selectedItems.size})
                     </button>
+                    <button class="btn-small btn-community-submit" id="submit-selected-community-btn" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none;">
+                        <span class="material-symbols-rounded">group_add</span>
+                        Submit to Community (${selectedItems.size})
+                    </button>
                     <select id="assign-chapter-select" class="chapter-select">
                         <option value="">Assign to Chapter...</option>
                         ${chapters.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('')}
@@ -2413,6 +2417,77 @@ function setupKnowledgeBase() {
                 selectedItems.clear();
                 renderLibraryList();
                 alert('Selected items deleted.');
+            });
+        }
+
+        // SUBMIT SELECTED TO COMMUNITY HANDLER
+        const submitCommunityBtn = toolbar.querySelector('#submit-selected-community-btn');
+        if (submitCommunityBtn) {
+            submitCommunityBtn.addEventListener('click', async () => {
+                if (selectedItems.size === 0) return;
+
+                const itemsToSubmit = library.filter(item => selectedItems.has(item.id));
+                const itemWord = itemsToSubmit.length === 1 ? 'infographic' : 'infographics';
+
+                if (!confirm(`Submit ${itemsToSubmit.length} ${itemWord} to the Community Pool for admin review?`)) return;
+
+                // Prompt for username
+                const savedUsername = localStorage.getItem('community_username') || '';
+                const userName = prompt('Enter your name for the submissions:', savedUsername);
+
+                if (!userName || !userName.trim()) {
+                    alert('A name is required for community submissions.');
+                    return;
+                }
+
+                localStorage.setItem('community_username', userName.trim());
+
+                // Show progress
+                const originalContent = submitCommunityBtn.innerHTML;
+                let successCount = 0;
+                let failCount = 0;
+
+                for (let i = 0; i < itemsToSubmit.length; i++) {
+                    const item = itemsToSubmit[i];
+
+                    // Update button with progress
+                    submitCommunityBtn.innerHTML = `
+                        <span class="material-symbols-rounded rotating">sync</span>
+                        Submitting ${i + 1}/${itemsToSubmit.length}...
+                    `;
+                    submitCommunityBtn.disabled = true;
+
+                    try {
+                        const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
+                        if (result.success) {
+                            successCount++;
+                        } else {
+                            failCount++;
+                            console.error('Failed to submit:', item.title, result.message);
+                        }
+                    } catch (err) {
+                        failCount++;
+                        console.error('Error submitting:', item.title, err);
+                    }
+                }
+
+                // Reset button
+                submitCommunityBtn.innerHTML = originalContent;
+                submitCommunityBtn.disabled = false;
+
+                // Show result
+                if (successCount > 0) {
+                    const msg = failCount > 0
+                        ? `✅ ${successCount} submitted successfully.\n❌ ${failCount} failed.`
+                        : `✅ ${successCount} ${itemWord} submitted successfully!`;
+                    alert(msg + '\n\nThe admin will review your submissions.');
+                    selectionMode = false;
+                    selectedItems.clear();
+                    renderLibraryList();
+                    updateExportButtonVisibility();
+                } else {
+                    alert('All submissions failed. Please check your connection and try again.');
+                }
             });
         }
 
