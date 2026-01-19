@@ -1362,35 +1362,17 @@ function setupKnowledgeBase() {
 
                     localStorage.setItem('community_username', userName.trim());
 
-                    // Submit each item to community pool
-                    let successCount = 0;
-                    let failCount = 0;
+                    // Submit multiple items at once
+                    const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
 
-                    for (const item of itemsToExport) {
-                        try {
-                            const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
-                            if (result.success) {
-                                successCount++;
-                            } else {
-                                failCount++;
-                                console.error('Failed to submit:', item.title, result.message);
-                            }
-                        } catch (err) {
-                            failCount++;
-                            console.error('Error submitting:', item.title, err);
-                        }
-                    }
-
-                    if (successCount > 0) {
-                        const msg = failCount > 0
-                            ? `✅ ${successCount} submitted successfully.\n❌ ${failCount} failed.`
-                            : `✅ ${successCount} ${successCount === 1 ? 'infographic' : 'infographics'} submitted successfully!`;
+                    if (result.success) {
+                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} submitted successfully!`;
                         alert(msg + '\n\nThe admin will review your submissions.');
                         selectionMode = false;
                         selectedItems.clear();
                         renderLibraryList();
                     } else {
-                        alert('All submissions failed. Please try again.');
+                        alert(`Submission failed: ${result.message}`);
                     }
                 } catch (err) {
                     console.error('Community submission error:', err);
@@ -2464,49 +2446,27 @@ function setupKnowledgeBase() {
 
                 // Show progress
                 const originalContent = submitCommunityBtn.innerHTML;
-                let successCount = 0;
-                let failCount = 0;
+                try {
+                    // Use new batch submit function
+                    const result = await CommunitySubmissions.submitMultiple(itemsToSubmit, userName.trim());
 
-                for (let i = 0; i < itemsToSubmit.length; i++) {
-                    const item = itemsToSubmit[i];
-
-                    // Update button with progress
-                    submitCommunityBtn.innerHTML = `
-                        <span class="material-symbols-rounded rotating">sync</span>
-                        Submitting ${i + 1}/${itemsToSubmit.length}...
-                    `;
-                    submitCommunityBtn.disabled = true;
-
-                    try {
-                        const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
-                        if (result.success) {
-                            successCount++;
-                        } else {
-                            failCount++;
-                            console.error('Failed to submit:', item.title, result.message);
-                        }
-                    } catch (err) {
-                        failCount++;
-                        console.error('Error submitting:', item.title, err);
+                    if (result.success) {
+                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} submitted successfully!`;
+                        alert(msg + '\n\nThe admin will review your submissions.');
+                        selectionMode = false;
+                        selectedItems.clear();
+                        renderLibraryList();
+                        updateExportButtonVisibility();
+                    } else {
+                        alert(`Submission failed: ${result.message}`);
                     }
-                }
-
-                // Reset button
-                submitCommunityBtn.innerHTML = originalContent;
-                submitCommunityBtn.disabled = false;
-
-                // Show result
-                if (successCount > 0) {
-                    const msg = failCount > 0
-                        ? `✅ ${successCount} submitted successfully.\n❌ ${failCount} failed.`
-                        : `✅ ${successCount} ${itemWord} submitted successfully!`;
-                    alert(msg + '\n\nThe admin will review your submissions.');
-                    selectionMode = false;
-                    selectedItems.clear();
-                    renderLibraryList();
-                    updateExportButtonVisibility();
-                } else {
-                    alert('All submissions failed. Please check your connection and try again.');
+                } catch (err) {
+                    console.error('Community submission error:', err);
+                    alert('Error submitting to community pool: ' + err.message);
+                } finally {
+                    // Reset button
+                    submitCommunityBtn.innerHTML = originalContent;
+                    submitCommunityBtn.disabled = false;
                 }
             });
         }
@@ -2619,7 +2579,7 @@ function setupKnowledgeBase() {
                 });
             });
 
-            // Rename handlers - available to all users
+            // Rename handlers - requires admin password
             listContainer.querySelectorAll('.btn-rename').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const button = e.target.closest('.btn-rename');
@@ -2627,6 +2587,13 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
 
                     if (targetItem) {
+                        // Admin password required for rename
+                        const password = prompt('Enter admin password to rename this item:');
+                        if (password !== '309030') {
+                            if (password !== null) alert('Incorrect password.');
+                            return;
+                        }
+
                         const newTitle = prompt('Enter new title:', targetItem.title);
                         if (newTitle && newTitle.trim()) {
                             targetItem.title = newTitle.trim();
@@ -2657,12 +2624,19 @@ function setupKnowledgeBase() {
                 });
             });
 
-            // Delete handlers - available to all users
+            // Delete handlers - requires admin password
             listContainer.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const button = e.target.closest('.btn-delete');
                     const id = parseInt(button.dataset.id);
                     const itemToDelete = library.find(i => i.id === id);
+
+                    // Admin password required for delete
+                    const password = prompt('Enter admin password to delete this item:');
+                    if (password !== '309030') {
+                        if (password !== null) alert('Incorrect password.');
+                        return;
+                    }
 
                     if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
                         const newLibrary = library.filter(i => i.id !== id);
@@ -3425,6 +3399,17 @@ async function generateInfographicData(apiKey, topic) {
     throw lastError || new Error("All models failed.");
 }
 
+// Helper to escape HTML characters
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function renderInfographic(data) {
     outputContainer.innerHTML = '';
     outputContainer.classList.remove('empty-state');
@@ -3449,9 +3434,9 @@ function renderInfographic(data) {
 
     header.innerHTML = `
         <div class="header-decoration"></div>
-        <h1 class="poster-title">${data.title}</h1>
+        <h1 class="poster-title">${escapeHtml(data.title)}</h1>
         <div class="header-content-wrapper" style="display: flex; gap: 2rem; align-items: start;">
-            <p class="poster-summary" style="flex: 1;">${data.summary}</p>
+            <p class="poster-summary" style="flex: 1;">${escapeHtml(data.summary)}</p>
             ${illustrationHtml}
         </div>
     `;
@@ -6034,6 +6019,91 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Music Player
     setupMusicPlayer();
 
+    // Initialize Narrator
+    setupNarrator();
+
     // Initially disable tools
     disableStudioTools();
 });
+
+// ==========================================
+// STORY NARRATOR
+// ==========================================
+function setupNarrator() {
+    const readBtn = document.getElementById('read-aloud-btn');
+    if (!readBtn) return;
+
+    let isReading = false;
+    let utterance = null;
+
+    readBtn.addEventListener('click', () => {
+        if (isReading) {
+            // Stop reading
+            window.speechSynthesis.cancel();
+            isReading = false;
+            readBtn.classList.remove('active');
+            readBtn.innerHTML = '<span class="material-symbols-rounded">record_voice_over</span>';
+            return;
+        }
+
+        if (!currentInfographicData) {
+            alert('Please generate or load an infographic first.');
+            return;
+        }
+
+        // build text to read
+        const data = currentInfographicData;
+        let textToRead = `${data.title}. ${data.summary || ''}. `;
+
+        if (data.sections) {
+            data.sections.forEach(section => {
+                textToRead += `${section.title}. `;
+                if (Array.isArray(section.content)) {
+                    textToRead += section.content.join('. ');
+                } else if (typeof section.content === 'string') {
+                    textToRead += section.content;
+                } else if (typeof section.content === 'object') {
+                    // handle objects like mnemonics or centers
+                    if (section.content.mnemonic) {
+                        textToRead += `Mnemonic: ${section.content.mnemonic}. ${section.content.explanation}. `;
+                    }
+                    if (section.content.center) {
+                        textToRead += `${section.content.center}. ${section.content.branches.join('. ')}. `;
+                    }
+                }
+                textToRead += '. ';
+            });
+        }
+
+        // Start reading
+        utterance = new SpeechSynthesisUtterance(textToRead);
+
+        // Select a voice (prefer English)
+        const voices = window.speechSynthesis.getVoices();
+        const englishVoice = voices.find(v => v.lang.startsWith('en-GB')) || voices.find(v => v.lang.startsWith('en-US'));
+        if (englishVoice) {
+            utterance.voice = englishVoice;
+        }
+
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onend = () => {
+            isReading = false;
+            readBtn.classList.remove('active');
+            readBtn.innerHTML = '<span class="material-symbols-rounded">record_voice_over</span>';
+        };
+
+        utterance.onerror = (e) => {
+            console.error('Speech synthesis error:', e);
+            isReading = false;
+            readBtn.classList.remove('active');
+            readBtn.innerHTML = '<span class="material-symbols-rounded">record_voice_over</span>';
+        };
+
+        window.speechSynthesis.speak(utterance);
+        isReading = true;
+        readBtn.classList.add('active');
+        readBtn.innerHTML = '<span class="material-symbols-rounded">stop_circle</span>';
+    });
+}

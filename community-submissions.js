@@ -338,6 +338,64 @@ async function submitToCommunity(infographicData, userName) {
 }
 
 /**
+ * Submit MULTIPLE infographics to the community pool (Batch)
+ * Fetches once, appends all, updates once to prevent race conditions
+ */
+async function submitMultiple(infographicsList, userName) {
+    if (!infographicsList || infographicsList.length === 0) {
+        return { success: false, message: 'No infographics provided.' };
+    }
+
+    if (!userName || userName.trim().length === 0) {
+        return { success: false, message: 'Please provide your name.' };
+    }
+
+    try {
+        const userIP = await getUserIP();
+        const currentData = await fetchSubmissions();
+        currentData.submissions = currentData.submissions || [];
+
+        const newSubmissions = [];
+
+        // Prepare all submissions
+        for (const item of infographicsList) {
+            const submission = {
+                id: generateSubmissionId() + Math.random().toString(36).substr(2, 5), // Ensure unique ID
+                userName: sanitizeInput(userName),
+                title: (item.title || item.data?.title) || 'Untitled Infographic',
+                summary: (item.summary || item.data?.summary) || '',
+                submittedAt: new Date().toISOString(),
+                userIP: userIP,
+                likes: 0,
+                likedBy: [],
+                status: 'pending',
+                data: item.data || item
+            };
+            newSubmissions.push(submission);
+        }
+
+        // Batch prepend (newest first)
+        currentData.submissions.unshift(...newSubmissions);
+
+        // Single update
+        const success = await updateSubmissions(currentData);
+
+        if (success) {
+            return {
+                success: true,
+                count: newSubmissions.length,
+                message: `Successfully submitted ${newSubmissions.length} infographics!`
+            };
+        } else {
+            return { success: false, message: 'Batch submission failed. Please try again.' };
+        }
+    } catch (err) {
+        console.error('Batch submission error:', err);
+        return { success: false, message: 'An error occurred during batch submission.' };
+    }
+}
+
+/**
  * Get all pending submissions (for public view)
  */
 async function getPendingSubmissions() {
@@ -634,12 +692,10 @@ function generateSubmissionCardHTML(submission, isAdmin = false) {
                     <span class="material-symbols-rounded">visibility</span>
                     Preview
                 </button>
-                ${isAdmin ? `
                 <button class="community-btn download-btn" onclick="handleDownloadSubmission('${submission.id}')">
-                    <span class="material-symbols-rounded">admin_panel_settings</span>
+                    <span class="material-symbols-rounded">download</span>
                     Add to Library
                 </button>
-                ` : ''}
                 ${isAdmin ? `
                 <button class="community-btn approve-btn" onclick="handleApproveSubmission('${submission.id}')">
                     <span class="material-symbols-rounded">check_circle</span>
@@ -805,6 +861,7 @@ window.CommunitySubmissions = {
 
     // Submission functions
     submit: submitToCommunity,
+    submitMultiple: submitMultiple, // Batch submit
     getPending: getPendingSubmissions,
     getApproved: getApprovedSubmissions,
     getAll: getAllSubmissions,
