@@ -232,8 +232,17 @@
             </div>
             <div class="modal-body sync-status-modal-body">
                 <div class="sync-status-preference">
-                    <span class="material-symbols-rounded">info</span>
-                    <span>Preference: <strong>Local over Server</strong> for conflicts</span>
+                    <span class="material-symbols-rounded">tune</span>
+                    <span>Sync Preference:</span>
+                    <div class="preference-toggle" id="sync-preference-toggle">
+                        <button class="pref-btn active" data-pref="local"
+                            title="Keep local versions when conflicts occur">
+                            <span class="material-symbols-rounded">folder</span> Local First
+                        </button>
+                        <button class="pref-btn" data-pref="server" title="Prefer server versions when conflicts occur">
+                            <span class="material-symbols-rounded">cloud</span> Server First
+                        </button>
+                    </div>
                 </div>
                 <div id="sync-status-content" class="sync-status-content">
                     <div class="sync-loading">

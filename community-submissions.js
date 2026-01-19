@@ -52,9 +52,9 @@ const COMMUNITY_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
  */
 function autoDetectChapterFromTitle(title) {
     if (!title) return 'uncategorized';
-    
+
     const titleLower = title.toLowerCase();
-    
+
     // Clinical ophthalmology auto-categorization rules
     const rules = [
         // Neuro-ophthalmology
@@ -104,7 +104,7 @@ function autoDetectChapterFromTitle(title) {
         // Evidence
         { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr'], chapter: 'evidence' },
     ];
-    
+
     for (const rule of rules) {
         for (const keyword of rule.keywords) {
             if (titleLower.includes(keyword)) {
@@ -112,7 +112,7 @@ function autoDetectChapterFromTitle(title) {
             }
         }
     }
-    
+
     return 'uncategorized';
 }
 
@@ -172,9 +172,9 @@ function sanitizeInput(input) {
  * Check if JSONBin is configured
  */
 function isJSONBinConfigured() {
-    return JSONBIN_CONFIG.BIN_ID && 
-           JSONBIN_CONFIG.BIN_ID !== 'YOUR_BIN_ID_HERE' &&
-           JSONBIN_CONFIG.MASTER_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
+    return JSONBIN_CONFIG.BIN_ID &&
+        JSONBIN_CONFIG.BIN_ID !== 'YOUR_BIN_ID_HERE' &&
+        JSONBIN_CONFIG.MASTER_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
 }
 
 /**
@@ -323,8 +323,8 @@ async function submitToCommunity(infographicData, userName) {
         const success = await updateSubmissions(currentData);
 
         if (success) {
-            return { 
-                success: true, 
+            return {
+                success: true,
                 message: 'Your infographic has been submitted for review!',
                 submissionId: submission.id
             };
@@ -426,7 +426,7 @@ async function approveSubmission(submissionId, pin) {
 
     try {
         const data = await fetchSubmissions();
-        
+
         // Find the submission
         const index = (data.submissions || []).findIndex(s => s.id === submissionId);
         if (index === -1) {
@@ -467,7 +467,7 @@ async function rejectSubmission(submissionId, pin) {
 
     try {
         const data = await fetchSubmissions();
-        
+
         // Find and remove the submission
         const index = (data.submissions || []).findIndex(s => s.id === submissionId);
         if (index === -1) {
@@ -502,7 +502,7 @@ async function rejectSubmission(submissionId, pin) {
 async function downloadToLocalLibrary(submissionId) {
     try {
         const data = await fetchSubmissions();
-        
+
         // Find in both pending and approved
         let submission = (data.submissions || []).find(s => s.id === submissionId);
         if (!submission) {
@@ -525,13 +525,13 @@ async function downloadToLocalLibrary(submissionId) {
         // DUPLICATE CHECK: Normalize title for comparison
         const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
         const submissionTitleNorm = normalizeTitle(submission.title);
-        
+
         // Check if already exists by communityId, exact match, OR normalized title
-        const existsExact = library.some(item => 
+        const existsExact = library.some(item =>
             item.communityId === submissionId ||
             (item.title === submission.title && item.date === submission.submittedAt)
         );
-        
+
         const existsByTitle = library.some(item => {
             const itemTitleNorm = normalizeTitle(item.title);
             return itemTitleNorm === submissionTitleNorm && itemTitleNorm.length > 0;
@@ -540,7 +540,7 @@ async function downloadToLocalLibrary(submissionId) {
         if (existsExact) {
             return { success: false, message: 'This infographic is already in your library.' };
         }
-        
+
         if (existsByTitle) {
             return { success: false, message: `An infographic with a similar title "${submission.title}" already exists in your library.` };
         }
@@ -548,7 +548,7 @@ async function downloadToLocalLibrary(submissionId) {
         // Calculate next seqId (highest number for newest)
         let nextSeqId = 1;
         if (library.length > 0) {
-            const maxSeqId = library.reduce((max, item) => 
+            const maxSeqId = library.reduce((max, item) =>
                 (item.seqId > max ? item.seqId : max), 0);
             nextSeqId = maxSeqId + 1;
         }
@@ -575,9 +575,9 @@ async function downloadToLocalLibrary(submissionId) {
         library.unshift(newItem);
         localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
-        return { 
-            success: true, 
-            message: `"${submission.title}" added to your library!` 
+        return {
+            success: true,
+            message: `"${submission.title}" added to your library!`
         };
     } catch (err) {
         console.error('Download error:', err);
@@ -594,7 +594,7 @@ async function downloadToLocalLibrary(submissionId) {
  */
 function generateSubmissionCardHTML(submission, isAdmin = false) {
     const dateStr = formatDate(submission.submittedAt);
-    const statusBadge = submission.status === 'approved' 
+    const statusBadge = submission.status === 'approved'
         ? '<span class="status-badge approved">✓ Approved</span>'
         : '<span class="status-badge pending">⏳ Pending Review</span>';
 
@@ -660,6 +660,86 @@ function generateSubmissionCardHTML(submission, isAdmin = false) {
 // ============================================
 
 /**
+ * Normalize title for matching (consistent with script.js)
+ */
+function normalizeTitle(t) {
+    return (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Remove a deleted item from ALL pools: pending, approved, and adds to deleted list
+ * This ensures when admin deletes something, it's gone everywhere
+ * @param {string} title - The title of the item (will be normalized)
+ */
+async function removeFromAllPools(title) {
+    if (!isJSONBinConfigured()) {
+        console.log('JSONBin not configured, cannot remove from community pools.');
+        return { success: false, removed: { pending: 0, approved: 0 } };
+    }
+
+    try {
+        const data = await fetchSubmissions();
+        const normTitle = normalizeTitle(title);
+
+        let removedFromPending = 0;
+        let removedFromApproved = 0;
+
+        // Remove from pending submissions
+        if (data.submissions && data.submissions.length > 0) {
+            const originalLength = data.submissions.length;
+            data.submissions = data.submissions.filter(sub => {
+                const subNormTitle = normalizeTitle(sub.title);
+                return subNormTitle !== normTitle;
+            });
+            removedFromPending = originalLength - data.submissions.length;
+        }
+
+        // Remove from approved submissions
+        if (data.approved && data.approved.length > 0) {
+            const originalLength = data.approved.length;
+            data.approved = data.approved.filter(sub => {
+                const subNormTitle = normalizeTitle(sub.title);
+                return subNormTitle !== normTitle;
+            });
+            removedFromApproved = originalLength - data.approved.length;
+        }
+
+        // Also add to deleted list so remote users will remove it
+        if (!data.deleted) {
+            data.deleted = [];
+        }
+        if (!data.deleted.includes(normTitle)) {
+            data.deleted.push(normTitle);
+            // Keep only last 100 deletions
+            if (data.deleted.length > 100) {
+                data.deleted = data.deleted.slice(-100);
+            }
+        }
+
+        // Update the bin if anything was changed
+        if (removedFromPending > 0 || removedFromApproved > 0) {
+            await updateSubmissions(data);
+            console.log(`[Admin Delete] Removed from pools - Pending: ${removedFromPending}, Approved: ${removedFromApproved}`);
+        } else {
+            // Still update to ensure deleted list is saved
+            await updateSubmissions(data);
+            console.log(`[Admin Delete] No matches found in pools, but added to deleted list: "${normTitle}"`);
+        }
+
+        return {
+            success: true,
+            removed: {
+                pending: removedFromPending,
+                approved: removedFromApproved
+            }
+        };
+    } catch (err) {
+        console.error('Error removing from pools:', err);
+        return { success: false, removed: { pending: 0, approved: 0 } };
+    }
+}
+
+/**
  * Track a deleted item so remote users will also delete it
  * @param {string} normalizedTitle - Normalized title of the deleted item
  */
@@ -668,28 +748,28 @@ async function trackDeletion(normalizedTitle) {
         console.log('JSONBin not configured, cannot track deletion for remote sync.');
         return { success: false };
     }
-    
+
     try {
         const data = await fetchSubmissions();
-        
+
         // Initialize deleted array if it doesn't exist
         if (!data.deleted) {
             data.deleted = [];
         }
-        
+
         // Add to deleted list if not already there
         if (!data.deleted.includes(normalizedTitle)) {
             data.deleted.push(normalizedTitle);
-            
+
             // Keep only last 100 deletions to prevent unbounded growth
             if (data.deleted.length > 100) {
                 data.deleted = data.deleted.slice(-100);
             }
-            
+
             await updateSubmissions(data);
             console.log(`[Deletion Sync] Tracked deletion of: ${normalizedTitle}`);
         }
-        
+
         return { success: true };
     } catch (err) {
         console.error('Error tracking deletion:', err);
@@ -704,7 +784,7 @@ async function getDeletedItems() {
     if (!isJSONBinConfigured()) {
         return [];
     }
-    
+
     try {
         const data = await fetchSubmissions();
         return data.deleted || [];
@@ -722,26 +802,27 @@ async function getDeletedItems() {
 window.CommunitySubmissions = {
     // Configuration
     isConfigured: isJSONBinConfigured,
-    
+
     // Submission functions
     submit: submitToCommunity,
     getPending: getPendingSubmissions,
     getApproved: getApprovedSubmissions,
     getAll: getAllSubmissions,
-    
+
     // User actions
     like: likeSubmission,
     downloadToLibrary: downloadToLocalLibrary,
-    
+
     // Admin functions
     verifyAdmin: verifyAdminPIN,
     approve: approveSubmission,
     reject: rejectSubmission,
-    
+
     // Deletion sync
     trackDeletion: trackDeletion,
     getDeletedItems: getDeletedItems,
-    
+    removeFromAllPools: removeFromAllPools,
+
     // Utilities
     getUserIP,
     formatDate,

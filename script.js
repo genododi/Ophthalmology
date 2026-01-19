@@ -1550,6 +1550,10 @@ function setupKnowledgeBase() {
                     }
                 });
 
+                // Get user's sync preference: 'local' (default) or 'server'
+                const syncPreference = typeof getSyncPreference === 'function' ? getSyncPreference() : 'local';
+                console.log(`[Sync] Using preference: ${syncPreference === 'local' ? 'Local First' : 'Server First'}`);
+
                 // Track what changed for detailed logging
                 const updateDetails = [];
 
@@ -1603,19 +1607,35 @@ function setupKnowledgeBase() {
                             localItem._chapterUpdated = Date.now();
                         }
 
-                        // For title/summary: Only update if item has a "lastServerSync" marker older than server
-                        // OR if this is first sync. Skip title/summary comparison to avoid false positives.
-                        // Trust that server title is correct - update once and mark as synced
-                        if (!localItem._serverSynced) {
-                            // First time syncing this item - accept server values
+                        // SYNC PREFERENCE HANDLING:
+                        // 'local' (default): Keep local data, only sync metadata
+                        // 'server': Overwrite local with server data
+                        if (syncPreference === 'server') {
+                            // SERVER FIRST: Always accept server's version
                             if (localItem.title !== serverItem.title) {
+                                changes.push(`title updated`);
                                 localItem.title = serverItem.title;
                             }
                             if (localItem.summary !== serverItem.summary) {
                                 localItem.summary = serverItem.summary;
                             }
+                            // Overwrite local data with server data
                             localItem.data = serverItem.data;
                             localItem._serverSynced = true;
+                        } else {
+                            // LOCAL FIRST: Only update if first sync or if local has no data
+                            if (!localItem._serverSynced) {
+                                // First time syncing this item - accept server values
+                                if (localItem.title !== serverItem.title) {
+                                    localItem.title = serverItem.title;
+                                }
+                                if (localItem.summary !== serverItem.summary) {
+                                    localItem.summary = serverItem.summary;
+                                }
+                                localItem.data = serverItem.data;
+                                localItem._serverSynced = true;
+                            }
+                            // If already synced, keep local version (Local First behavior)
                         }
 
                         // Preserve local seqId if it exists, otherwise use server's or generate new
@@ -2651,7 +2671,7 @@ function setupKnowledgeBase() {
 
                     const password = prompt('Enter admin password to delete:');
                     if (password === '309030') {
-                        if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from all remote users\' libraries on their next sync.')) {
+                        if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
                             const newLibrary = library.filter(i => i.id !== id);
 
                             // Reassign sequential IDs after deletion (no gaps)
@@ -2659,15 +2679,30 @@ function setupKnowledgeBase() {
 
                             localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
-                            // Track deletion for remote sync (by normalized title)
+                            // COMPREHENSIVE DELETION: Remove from ALL pools (pending, approved, and track for remote sync)
                             if (itemToDelete && itemToDelete.title) {
-                                const normalizedTitle = (itemToDelete.title || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-                                if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.trackDeletion) {
+                                if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.removeFromAllPools) {
                                     try {
-                                        await CommunitySubmissions.trackDeletion(normalizedTitle);
-                                        console.log(`[Admin Delete] Tracked deletion for remote sync: "${itemToDelete.title}"`);
+                                        const result = await CommunitySubmissions.removeFromAllPools(itemToDelete.title);
+                                        console.log(`[Admin Delete] Complete removal for: "${itemToDelete.title}"`, result);
+
+                                        // Show detailed feedback
+                                        let message = `Item deleted from local library.`;
+                                        if (result.removed && (result.removed.pending > 0 || result.removed.approved > 0)) {
+                                            message += `\n\nAlso removed from community:`;
+                                            if (result.removed.pending > 0) message += `\n• ${result.removed.pending} pending submission(s)`;
+                                            if (result.removed.approved > 0) message += `\n• ${result.removed.approved} approved item(s)`;
+                                        }
+                                        message += `\n\nRemote users will have this item removed on their next sync.`;
+
+                                        // Auto-Sync
+                                        syncLibraryToServer();
+
+                                        renderLibraryList();
+                                        alert(message);
+                                        return; // Already handled alert, skip the default one
                                     } catch (err) {
-                                        console.log('Could not track deletion for remote sync:', err.message);
+                                        console.log('Could not complete removal from pools:', err.message);
                                     }
                                 }
                             }
@@ -2688,6 +2723,16 @@ function setupKnowledgeBase() {
 }
 
 /* Library Sync Status - Compare local vs server/admin knowledge base */
+const SYNC_PREFERENCE_KEY = 'ophthalmic_sync_preference'; // 'local' or 'server'
+
+function getSyncPreference() {
+    return localStorage.getItem(SYNC_PREFERENCE_KEY) || 'local';
+}
+
+function setSyncPreference(preference) {
+    localStorage.setItem(SYNC_PREFERENCE_KEY, preference);
+}
+
 function setupSyncStatus() {
     const syncStatusBtn = document.getElementById('sync-status-btn');
     const syncStatusModal = document.getElementById('sync-status-modal');
@@ -2695,10 +2740,47 @@ function setupSyncStatus() {
     const contentEl = document.getElementById('sync-status-content');
     const exportBtn = document.getElementById('export-local-only-btn');
     const refreshBtn = document.getElementById('refresh-sync-status-btn');
+    const preferenceToggle = document.getElementById('sync-preference-toggle');
 
     if (!syncStatusBtn || !syncStatusModal) return;
 
     let currentDifferences = { localOnly: [], serverOnly: [], deletedByAdmin: [] };
+
+    // Initialize preference toggle
+    if (preferenceToggle) {
+        const currentPref = getSyncPreference();
+        const prefButtons = preferenceToggle.querySelectorAll('.pref-btn');
+
+        prefButtons.forEach(btn => {
+            // Set initial active state
+            if (btn.dataset.pref === currentPref) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+
+            // Add click handlers
+            btn.addEventListener('click', () => {
+                const newPref = btn.dataset.pref;
+                setSyncPreference(newPref);
+
+                // Update button states
+                prefButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Show confirmation
+                const prefName = newPref === 'local' ? 'Local First' : 'Server First';
+                console.log(`Sync preference changed to: ${prefName}`);
+
+                // Show a toast-like notification in the modal
+                const toast = document.createElement('div');
+                toast.className = 'sync-pref-toast';
+                toast.innerHTML = `<span class="material-symbols-rounded">check_circle</span> Preference set to ${prefName}`;
+                preferenceToggle.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            });
+        });
+    }
 
     // Normalize title for comparison
     const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
