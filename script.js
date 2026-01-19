@@ -2619,7 +2619,7 @@ function setupKnowledgeBase() {
                 });
             });
 
-            // Rename handlers
+            // Rename handlers - available to all users
             listContainer.querySelectorAll('.btn-rename').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const button = e.target.closest('.btn-rename');
@@ -2627,23 +2627,18 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
 
                     if (targetItem) {
-                        const password = prompt('Enter admin password to rename:');
-                        if (password === '309030') {
-                            const newTitle = prompt('Enter new title:', targetItem.title);
-                            if (newTitle && newTitle.trim()) {
-                                targetItem.title = newTitle.trim();
-                                if (targetItem.data) {
-                                    targetItem.data.title = newTitle.trim();
-                                }
-                                localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
-
-                                // Auto-Sync
-                                syncLibraryToServer();
-
-                                renderLibraryList();
+                        const newTitle = prompt('Enter new title:', targetItem.title);
+                        if (newTitle && newTitle.trim()) {
+                            targetItem.title = newTitle.trim();
+                            if (targetItem.data) {
+                                targetItem.data.title = newTitle.trim();
                             }
-                        } else if (password !== null) {
-                            alert('Incorrect password. Renaming requires admin access.');
+                            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+
+                            // Auto-Sync
+                            syncLibraryToServer();
+
+                            renderLibraryList();
                         }
                     }
                 });
@@ -2662,59 +2657,54 @@ function setupKnowledgeBase() {
                 });
             });
 
-            // Delete handlers
+            // Delete handlers - available to all users
             listContainer.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const button = e.target.closest('.btn-delete');
                     const id = parseInt(button.dataset.id);
                     const itemToDelete = library.find(i => i.id === id);
 
-                    const password = prompt('Enter admin password to delete:');
-                    if (password === '309030') {
-                        if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
-                            const newLibrary = library.filter(i => i.id !== id);
+                    if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
+                        const newLibrary = library.filter(i => i.id !== id);
 
-                            // Reassign sequential IDs after deletion (no gaps)
-                            reassignSequentialIds(newLibrary);
+                        // Reassign sequential IDs after deletion (no gaps)
+                        reassignSequentialIds(newLibrary);
 
-                            localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
+                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
-                            // COMPREHENSIVE DELETION: Remove from ALL pools (pending, approved, and track for remote sync)
-                            if (itemToDelete && itemToDelete.title) {
-                                if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.removeFromAllPools) {
-                                    try {
-                                        const result = await CommunitySubmissions.removeFromAllPools(itemToDelete.title);
-                                        console.log(`[Admin Delete] Complete removal for: "${itemToDelete.title}"`, result);
+                        // COMPREHENSIVE DELETION: Remove from ALL pools (pending, approved, and track for remote sync)
+                        if (itemToDelete && itemToDelete.title) {
+                            if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.removeFromAllPools) {
+                                try {
+                                    const result = await CommunitySubmissions.removeFromAllPools(itemToDelete.title);
+                                    console.log(`[Delete] Complete removal for: "${itemToDelete.title}"`, result);
 
-                                        // Show detailed feedback
-                                        let message = `Item deleted from local library.`;
-                                        if (result.removed && (result.removed.pending > 0 || result.removed.approved > 0)) {
-                                            message += `\n\nAlso removed from community:`;
-                                            if (result.removed.pending > 0) message += `\n• ${result.removed.pending} pending submission(s)`;
-                                            if (result.removed.approved > 0) message += `\n• ${result.removed.approved} approved item(s)`;
-                                        }
-                                        message += `\n\nRemote users will have this item removed on their next sync.`;
-
-                                        // Auto-Sync
-                                        syncLibraryToServer();
-
-                                        renderLibraryList();
-                                        alert(message);
-                                        return; // Already handled alert, skip the default one
-                                    } catch (err) {
-                                        console.log('Could not complete removal from pools:', err.message);
+                                    // Show detailed feedback
+                                    let message = `Item deleted from local library.`;
+                                    if (result.removed && (result.removed.pending > 0 || result.removed.approved > 0)) {
+                                        message += `\n\nAlso removed from community:`;
+                                        if (result.removed.pending > 0) message += `\n• ${result.removed.pending} pending submission(s)`;
+                                        if (result.removed.approved > 0) message += `\n• ${result.removed.approved} approved item(s)`;
                                     }
+                                    message += `\n\nRemote users will have this item removed on their next sync.`;
+
+                                    // Auto-Sync
+                                    syncLibraryToServer();
+
+                                    renderLibraryList();
+                                    alert(message);
+                                    return; // Already handled alert, skip the default one
+                                } catch (err) {
+                                    console.log('Could not complete removal from pools:', err.message);
                                 }
                             }
-
-                            // Auto-Sync
-                            syncLibraryToServer();
-
-                            renderLibraryList();
-                            alert('Item deleted. Remote users will have this item removed on their next sync.');
                         }
-                    } else if (password !== null) {
-                        alert('Incorrect password. Deletion requires admin access.');
+
+                        // Auto-Sync
+                        syncLibraryToServer();
+
+                        renderLibraryList();
+                        alert('Item deleted. Remote users will have this item removed on their next sync.');
                     }
                 });
             });
