@@ -230,7 +230,7 @@ async function updateSubmissions(data) {
     if (!isJSONBinConfigured()) {
         console.warn('JSONBin not configured. Saving to localStorage demo mode.');
         saveLocalDemoSubmissions(data);
-        return true;
+        return { success: true };
     }
 
     try {
@@ -244,15 +244,21 @@ async function updateSubmissions(data) {
         });
 
         if (!response.ok) {
-            throw new Error(`JSONBin update failed: ${response.status}`);
+            return {
+                success: false,
+                message: `JSONBin Error: ${response.status} ${response.statusText}`
+            };
         }
 
         // Clear cache to force refresh
         localStorage.removeItem(COMMUNITY_CACHE_KEY);
-        return true;
+        return { success: true };
     } catch (err) {
         console.error('Error updating submissions:', err);
-        return false;
+        return {
+            success: false,
+            message: `Network Error: ${err.message}`
+        };
     }
 }
 
@@ -320,16 +326,16 @@ async function submitToCommunity(infographicData, userName) {
         currentData.submissions.unshift(submission);
 
         // Update storage
-        const success = await updateSubmissions(currentData);
+        const result = await updateSubmissions(currentData);
 
-        if (success) {
+        if (result.success) {
             return {
                 success: true,
                 message: 'Your infographic has been submitted for review!',
                 submissionId: submission.id
             };
         } else {
-            return { success: false, message: 'Failed to submit. Please try again.' };
+            return { success: false, message: result.message || 'Failed to submit. Please try again.' };
         }
     } catch (err) {
         console.error('Submission error:', err);
@@ -378,16 +384,16 @@ async function submitMultiple(infographicsList, userName) {
         currentData.submissions.unshift(...newSubmissions);
 
         // Single update
-        const success = await updateSubmissions(currentData);
+        const result = await updateSubmissions(currentData);
 
-        if (success) {
+        if (result.success) {
             return {
                 success: true,
                 count: newSubmissions.length,
                 message: `Successfully submitted ${newSubmissions.length} infographics!`
             };
         } else {
-            return { success: false, message: 'Batch submission failed. Please try again.' };
+            return { success: false, message: result.message || 'Batch submission failed. Please try again.' };
         }
     } catch (err) {
         console.error('Batch submission error:', err);
@@ -452,7 +458,12 @@ async function likeSubmission(submissionId) {
         submission.likes = (submission.likes || 0) + 1;
 
         // Update storage
-        await updateSubmissions(data);
+        // Update storage
+        const result = await updateSubmissions(data);
+
+        if (!result.success) {
+            return { success: false, message: result.message || 'Failed to like.' };
+        }
 
         return { success: true, likes: submission.likes };
     } catch (err) {
@@ -500,12 +511,13 @@ async function approveSubmission(submissionId, pin) {
         data.approved.unshift(submission);
 
         // Update storage
-        const success = await updateSubmissions(data);
+        // Update storage
+        const result = await updateSubmissions(data);
 
-        if (success) {
+        if (result.success) {
             return { success: true, message: 'Submission approved!' };
         } else {
-            return { success: false, message: 'Failed to approve.' };
+            return { success: false, message: result.message || 'Failed to approve.' };
         }
     } catch (err) {
         console.error('Approve error:', err);
@@ -536,12 +548,13 @@ async function rejectSubmission(submissionId, pin) {
         data.submissions.splice(index, 1);
 
         // Update storage
-        const success = await updateSubmissions(data);
+        // Update storage
+        const result = await updateSubmissions(data);
 
-        if (success) {
+        if (result.success) {
             return { success: true, message: 'Submission rejected and removed.' };
         } else {
-            return { success: false, message: 'Failed to reject.' };
+            return { success: false, message: result.message || 'Failed to reject.' };
         }
     } catch (err) {
         console.error('Reject error:', err);
@@ -774,12 +787,16 @@ async function removeFromAllPools(title) {
 
         // Update the bin if anything was changed
         if (removedFromPending > 0 || removedFromApproved > 0) {
-            await updateSubmissions(data);
-            console.log(`[Admin Delete] Removed from pools - Pending: ${removedFromPending}, Approved: ${removedFromApproved}`);
+            const result = await updateSubmissions(data);
+            if (result.success) {
+                console.log(`[Admin Delete] Removed from pools - Pending: ${removedFromPending}, Approved: ${removedFromApproved}`);
+            }
         } else {
             // Still update to ensure deleted list is saved
-            await updateSubmissions(data);
-            console.log(`[Admin Delete] No matches found in pools, but added to deleted list: "${normTitle}"`);
+            const result = await updateSubmissions(data);
+            if (result.success) {
+                console.log(`[Admin Delete] No matches found in pools, but added to deleted list: "${normTitle}"`);
+            }
         }
 
         return {
@@ -822,8 +839,10 @@ async function trackDeletion(normalizedTitle) {
                 data.deleted = data.deleted.slice(-100);
             }
 
-            await updateSubmissions(data);
-            console.log(`[Deletion Sync] Tracked deletion of: ${normalizedTitle}`);
+            const result = await updateSubmissions(data);
+            if (result.success) {
+                console.log(`[Deletion Sync] Tracked deletion of: ${normalizedTitle}`);
+            }
         }
 
         return { success: true };
