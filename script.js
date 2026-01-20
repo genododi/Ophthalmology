@@ -5,6 +5,167 @@ const apiKeyInput = document.getElementById('api-key');
 const topicInput = document.getElementById('topic-input');
 const outputContainer = document.getElementById('output-container');
 
+// ============================================
+// RESOURCE FILE UPLOAD HANDLING (PDF/TXT)
+// ============================================
+
+const resourceUpload = document.getElementById('resource-upload');
+const uploadTriggerBtn = document.getElementById('upload-trigger-btn');
+const uploadedFilesList = document.getElementById('uploaded-files-list');
+
+// Store extracted text from uploaded files
+let uploadedResourcesText = [];
+
+/**
+ * Extract text from PDF using PDF.js
+ */
+async function extractPDFText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+            try {
+                if (typeof pdfjsLib === 'undefined') {
+                    reject(new Error('PDF.js library not loaded'));
+                    return;
+                }
+
+                const typedArray = new Uint8Array(e.target.result);
+                const pdf = await pdfjsLib.getDocument(typedArray).promise;
+                let fullText = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n\n';
+                }
+
+                resolve(fullText.trim());
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+/**
+ * Extract text from TXT file
+ */
+async function extractTXTText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+    });
+}
+
+/**
+ * Format file size for display
+ */
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/**
+ * Render the uploaded files list
+ */
+function renderUploadedFiles() {
+    if (!uploadedFilesList) return;
+
+    if (uploadedResourcesText.length === 0) {
+        uploadedFilesList.innerHTML = '';
+        return;
+    }
+
+    uploadedFilesList.innerHTML = uploadedResourcesText.map((item, index) => `
+        <div class="uploaded-file-item ${item.status}" data-index="${index}">
+            <div class="uploaded-file-info">
+                <span class="material-symbols-rounded">${item.type === 'pdf' ? 'picture_as_pdf' : 'description'}</span>
+                <span class="uploaded-file-name" title="${item.name}">${item.name}</span>
+                <span class="uploaded-file-size">(${formatFileSize(item.size)})</span>
+            </div>
+            ${item.status !== 'processing' ? `
+                <button class="remove-file-btn" onclick="removeUploadedFile(${index})" title="Remove file">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+/**
+ * Remove an uploaded file
+ */
+window.removeUploadedFile = function (index) {
+    uploadedResourcesText.splice(index, 1);
+    renderUploadedFiles();
+};
+
+/**
+ * Handle file upload
+ */
+async function handleFileUpload(files) {
+    for (const file of files) {
+        const fileType = file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'txt';
+
+        // Add to list with processing status
+        const fileEntry = {
+            name: file.name,
+            size: file.size,
+            type: fileType,
+            status: 'processing',
+            text: ''
+        };
+        uploadedResourcesText.push(fileEntry);
+        renderUploadedFiles();
+
+        try {
+            let text;
+            if (fileType === 'pdf') {
+                text = await extractPDFText(file);
+            } else {
+                text = await extractTXTText(file);
+            }
+
+            fileEntry.text = text;
+            fileEntry.status = 'success';
+        } catch (err) {
+            console.error(`Error extracting text from ${file.name}:`, err);
+            fileEntry.status = 'error';
+            fileEntry.error = err.message;
+        }
+
+        renderUploadedFiles();
+    }
+}
+
+/**
+ * Get combined text from all uploaded resources
+ */
+function getUploadedResourcesText() {
+    return uploadedResourcesText
+        .filter(item => item.status === 'success' && item.text)
+        .map(item => `[Source: ${item.name}]\n${item.text}`)
+        .join('\n\n---\n\n');
+}
+
+// Setup file upload event listeners
+if (uploadTriggerBtn && resourceUpload) {
+    uploadTriggerBtn.addEventListener('click', () => resourceUpload.click());
+
+    resourceUpload.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleFileUpload(Array.from(e.target.files));
+            e.target.value = ''; // Reset input so same file can be re-uploaded
+        }
+    });
+}
+
 // Add Print Button Logic if not present (will be added to HTML separately)
 function setupPrintButton() {
     const printBtn = document.getElementById('print-btn');
@@ -3258,15 +3419,27 @@ generateBtn.addEventListener('click', async () => {
         return;
     }
 
-    if (!topic) {
-        alert('Please enter a topic or text content');
+    if (!topic && uploadedResourcesText.filter(f => f.status === 'success').length === 0) {
+        alert('Please enter a topic or upload resource files');
         return;
+    }
+
+    // Combine topic with uploaded resources text
+    const resourcesText = getUploadedResourcesText();
+    let combinedInput = topic;
+
+    if (resourcesText) {
+        if (topic) {
+            combinedInput = `${topic}\n\n=== REFERENCE MATERIALS ===\n\n${resourcesText}`;
+        } else {
+            combinedInput = resourcesText;
+        }
     }
 
     setLoading(true);
 
     try {
-        const data = await generateInfographicData(apiKey, topic);
+        const data = await generateInfographicData(apiKey, combinedInput);
         currentInfographicData = data;
         renderInfographic(data);
     } catch (error) {
@@ -5756,6 +5929,75 @@ function setupCommunityHub() {
 
     if (submitCommunityBtn) {
         submitCommunityBtn.addEventListener('click', openSubmitModal);
+    }
+
+    // Add All to Library button (Bulk download approved submissions)
+    const addAllToLibraryBtn = document.getElementById('add-all-to-library-btn');
+    const addAllProgress = document.getElementById('add-all-progress');
+
+    if (addAllToLibraryBtn) {
+        addAllToLibraryBtn.addEventListener('click', async () => {
+            const approved = cachedSubmissions.approved || [];
+
+            if (approved.length === 0) {
+                alert('No approved infographics to add.');
+                return;
+            }
+
+            // Confirm action
+            if (!confirm(`Add all ${approved.length} approved infographics to your library?`)) {
+                return;
+            }
+
+            // Disable button and show progress
+            addAllToLibraryBtn.disabled = true;
+            const originalHTML = addAllToLibraryBtn.innerHTML;
+            addAllToLibraryBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Processing...';
+
+            if (addAllProgress) {
+                addAllProgress.style.display = 'flex';
+                addAllProgress.className = 'bulk-progress';
+            }
+
+            let added = 0;
+            let skipped = 0;
+            let failed = 0;
+
+            for (let i = 0; i < approved.length; i++) {
+                const submission = approved[i];
+
+                // Update progress
+                if (addAllProgress) {
+                    addAllProgress.textContent = `Processing ${i + 1}/${approved.length}...`;
+                }
+
+                try {
+                    const result = await CommunitySubmissions.downloadToLibrary(submission.id);
+                    if (result.success) {
+                        added++;
+                    } else if (result.message && result.message.includes('already')) {
+                        skipped++;
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to add ${submission.title}:`, err);
+                    failed++;
+                }
+            }
+
+            // Show final result
+            if (addAllProgress) {
+                addAllProgress.className = 'bulk-progress success';
+                addAllProgress.textContent = `Done: ${added} added, ${skipped} skipped, ${failed} failed`;
+            }
+
+            // Re-enable button
+            addAllToLibraryBtn.disabled = false;
+            addAllToLibraryBtn.innerHTML = originalHTML;
+
+            alert(`Bulk import complete!\n\n✓ Added: ${added}\n⊘ Already in library: ${skipped}\n✗ Failed: ${failed}`);
+        });
     }
 
     if (closeCommBtn) {

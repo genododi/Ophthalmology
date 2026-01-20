@@ -30,6 +30,14 @@
         }
       }
     </script>
+    <!-- PDF.js for client-side PDF text extraction -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Configure PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
 </head>
 
 <body>
@@ -59,6 +67,20 @@
                 <label for="topic-input">Topic or Text</label>
                 <textarea id="topic-input"
                     placeholder="Paste your text or describe an ophthalmic topic (e.g., 'Glaucoma management guidelines')..."></textarea>
+            </div>
+
+            <!-- Resource Upload Section -->
+            <div class="control-group resource-upload-group">
+                <label>Attach Resources (Optional)</label>
+                <div class="file-upload-wrapper">
+                    <input type="file" id="resource-upload" accept=".pdf,.txt" multiple hidden>
+                    <button type="button" class="file-upload-btn" id="upload-trigger-btn">
+                        <span class="material-symbols-rounded">upload_file</span>
+                        Upload PDF or TXT
+                    </button>
+                </div>
+                <div id="uploaded-files-list" class="uploaded-files"></div>
+                <small class="hint">Upload PDF or TXT files to use as source material for generation</small>
             </div>
 
             <button id="generate-btn" class="primary-btn">
@@ -713,6 +735,14 @@
                         <p>These infographics have been reviewed and approved by the administrator. They are available
                             for everyone to use!</p>
                     </div>
+                    <div class="community-bulk-actions">
+                        <button id="add-all-to-library-btn" class="btn-primary"
+                            style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-symbols-rounded">library_add</span>
+                            Add All to Library
+                        </button>
+                        <span id="add-all-progress" class="bulk-progress" style="display: none;"></span>
+                    </div>
                     <div id="approved-submissions-list" class="community-grid">
                         <!-- Approved items will be injected here -->
                     </div>
@@ -853,6 +883,7 @@
     </div>
 
     <!-- Script -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="community-submissions.js"></script>
     <!-- Load Google Generative AI as fallback for local file:// protocol -->
     <script>

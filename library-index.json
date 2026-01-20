@@ -1,5 +1,932 @@
 [
   {
+    "id": 1768912683512,
+    "seqId": 117,
+    "title": "EPIRETINAL MEMBRANES: A Comprehensive Clinical Guide",
+    "summary": "An exhaustive visual guide to Epiretinal Membranes (ERM), detailing synonyms, pathogenesis, and clinical features. It covers advanced surgical interventions, prognostic factors, and the comprehensive list of secondary causes including retinal insults and vascular disease.",
+    "date": "2026-01-20T12:38:03.512Z",
+    "data": {
+      "title": "EPIRETINAL MEMBRANES: A Comprehensive Clinical Guide",
+      "summary": "An exhaustive visual guide to Epiretinal Membranes (ERM), detailing synonyms, pathogenesis, and clinical features. It covers advanced surgical interventions, prognostic factors, and the comprehensive list of secondary causes including retinal insults and vascular disease.",
+      "summary_illustration": "<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"2\"/><circle cx=\"50\" cy=\"50\" r=\"10\" fill=\"hsl(215, 90%, 45%)\" opacity=\"0.2\"/><path d=\"M30 40 Q 50 35 70 40 M 30 50 Q 50 45 70 50 M 30 60 Q 50 55 70 60\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"0.5\"/><path d=\"M35 35 L 40 65 M 50 35 L 50 65 M 65 35 L 60 65\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"0.3\" opacity=\"0.5\"/><text x=\"50\" y=\"85\" font-size=\"8\" text-anchor=\"middle\" fill=\"hsl(215, 90%, 45%)\" font-family=\"Arial\">Macular Pucker</text></svg>",
+      "sections": [
+        {
+          "title": "Nomenclature & Synonyms",
+          "icon": "label",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "center": "Epiretinal Membranes (ERM)",
+            "branches": [
+              "Macular Pucker (Appearance)",
+              "Cellophane Maculopathy (Appearance)",
+              "Premacular Fibrosis (Uncertain Pathogenesis)",
+              "Idiopathic Premacular Gliosis (Uncertain Pathogenesis)"
+            ]
+          }
+        },
+        {
+          "title": "Epidemiology & Prevalence",
+          "icon": "groups",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Condition is commoner with increasing age.",
+            "Thought to be related to PVD.",
+            "Present in 6% of those over 50y.",
+            "Commoner in females (♀).",
+            "Occurs after retinal insults (see Box 12.3).",
+            "Discussion applies mainly to the idiopathic form."
+          ]
+        },
+        {
+          "title": "Pathogenesis",
+          "icon": "biotech",
+          "type": "process",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "1. Membranes are fibrocellular and avascular.",
+            "2. Retinal glial cells proliferate.",
+            "3. Cells migrate through defects in the Internal Limiting Membrane (ILM).",
+            "4. ILM defects arise most commonly during PVD."
+          ]
+        },
+        {
+          "title": "Clinical Features",
+          "icon": "visibility",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "Symptoms: Asymptomatic, metamorphopsia, dVA.",
+            "Appearance: Membrane may be transparent (look for glistening light reflex), translucent, or white.",
+            "Vascular/Structural: Retinal striae; vessels may be tortuous, straightened, or obscured; pseudohole.",
+            "NB: The features are well demonstrated on red-free light."
+          ]
+        },
+        {
+          "title": "Clinical Complications",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "Fovea ectopia",
+            "Tractional macular detachment",
+            "CMO (Cystoid Macular Oedema)",
+            "Intra-retinal haemorrhages",
+            "Preretinal haemorrhages"
+          ]
+        },
+        {
+          "title": "Investigations",
+          "icon": "microscope",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "headers": [
+              "Modality",
+              "Findings & Utility"
+            ],
+            "rows": [
+              [
+                "OCT",
+                "Confirms diagnosis; differentiates pseudo- vs true hole; compares pre- and post-operative status. Severity doesn't correlate with VA."
+              ],
+              [
+                "FFA",
+                "Seldom used now due to OCT; nicely demonstrates vascular abnormalities and any associated CMO."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Treatment Indications & Surgery",
+          "icon": "medical_services",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": [
+            "Indications: Severely symptomatic membranes VA <6/12.",
+            "Assessment: Ensure macular function is not limited by additional underlying pathology (e.g. ischaemia due to a vein occlusion).",
+            "Surgery: Vitrectomy/membrane peel.",
+            "Dye Visualization: Surgeons assist visualization by staining with ILM blue, membrane dual and brilliant blue G.",
+            "Safety Note: Due to concerns about retinal toxicity, previous dyes such as ICG are not generally used."
+          ]
+        },
+        {
+          "title": "Double Stain Technique",
+          "icon": "science",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": "A double stain technique to peel the ERM and ILM has reduced the recurrence rate of the ERM by removing the ILM that acts as a scaffold for proliferating cells. Reference: 17 Shimada H et al. Double staining with brilliant blue G and double peeling for epiretinal membrane. Ophthalmology. 2009;116:1370–6. E PIRETI n AL m E m BRA n ES 549"
+        },
+        {
+          "title": "Surgical Complications (Statistically)",
+          "icon": "analytics",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Cataract (NS within 2y)",
+                "value": 70
+              },
+              {
+                "label": "Worsened Acuity",
+                "value": 15
+              },
+              {
+                "label": "Symptomatic Recurrence",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "Other Surgical Risks",
+          "icon": "emergency_home",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "Retinal tears",
+            "Retinal detachment",
+            "Retinal toxicity from dyes"
+          ]
+        },
+        {
+          "title": "Prognosis",
+          "icon": "trending_up",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Status",
+              "Outcome Percentage",
+              "Details"
+            ],
+            "rows": [
+              [
+                "Fairly Stable",
+                "Over 75%",
+                "No further reduction in VA after diagnosis."
+              ],
+              [
+                "Post-Surgery",
+                "60–85%",
+                "Visual improvement (≥2 Snellen lines)."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Prognostic Factors & Secondary Causes",
+          "icon": "fact_check",
+          "type": "remember",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "POOR PROGNOSIS",
+            "explanation": "Duration of symptoms before surgery; Underlying macular pathology; Lower preoperative acuity (though significant improvement may still occur)."
+          }
+        },
+        {
+          "title": "Box 12.3: Causes of ERMs",
+          "icon": "list_alt",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": [
+            "Idiopathic.",
+            "Retinal detachment surgery.",
+            "Cryotherapy.",
+            "Photocoagulation.",
+            "Trauma (blunt or penetrating).",
+            "Posterior uveitis.",
+            "Persistent vitreous haemorrhage.",
+            "Retinal vascular disease (e.g. BRVo)."
+          ]
+        }
+      ]
+    },
+    "chapterId": "vitreoretinal",
+    "_newlyImported": 1768912683512,
+    "communityId": "sub_1768905301567_f600tayxfxaeht",
+    "communityAuthor": "Nina",
+    "communityDate": "2026-01-20T10:35:01.567Z",
+    "_serverSynced": true
+  },
+  {
+    "id": 1768912681547,
+    "seqId": 116,
+    "title": "Choroidal Detachments & Uveal Effusion Syndrome",
+    "summary": "A comprehensive clinical overview of choroidal detachments and uveal effusion syndrome (UES). This guide explores clinical features, differential diagnosis against retinal detachment, classification types, and modern management strategies.",
+    "date": "2026-01-20T12:38:01.547Z",
+    "data": {
+      "title": "Choroidal Detachments & Uveal Effusion Syndrome",
+      "summary": "A comprehensive clinical overview of choroidal detachments and uveal effusion syndrome (UES). This guide explores clinical features, differential diagnosis against retinal detachment, classification types, and modern management strategies.",
+      "summary_illustration": "<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><circle cx='50' cy='50' r='45' stroke='hsl(215, 90%, 45%)' stroke-width='2' fill='none'/><path d='M20 50 Q35 30 50 50 T80 50' stroke='hsl(215, 90%, 45%)' stroke-width='3' fill='none'/><path d='M20 60 Q35 40 50 60 T80 60' stroke='hsl(215, 90%, 45%)' stroke-width='2' fill='none' opacity='0.5'/><text x='50' y='85' font-size='8' text-anchor='middle' fill='hsl(215, 90%, 45%)' font-family='Arial'>CHOROIDAL</text></svg>",
+      "sections": [
+        {
+          "title": "Introduction to Choroidal Detachments",
+          "icon": "visibility",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "Choroidal detachments (see Tables 12.11 and 12.12) are usually seen in the context of acute hypotony, e.g. after glaucoma filtration surgery or cyclodestructive procedures. They are usually easily distinguished from retinal detachments."
+        },
+        {
+          "title": "Clinical Features",
+          "icon": "clinical_notes",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Smooth convex dome(s) of normal/slightly dark retinal colour.",
+            "Arises from extreme periphery (may include ciliary body, and ora serrata becomes easily visible).",
+            "Posterior extension limited by vortex vein adhesions to the scleral canals."
+          ]
+        },
+        {
+          "title": "Critical Warnings",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "Choroidal detachments may touch (‘kissing choroidals’), causing retinal adhesion and retinal detachment.",
+            "US (Ultrasound) should be used to distinguish 'kissing choroidals' from choroidal haemorrhage or tumour."
+          ]
+        },
+        {
+          "title": "Management & Treatment",
+          "icon": "medical_services",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": [
+            "Step 1: Management is either by observation (e.g. if this reflects an appropriate post-trabeculectomy fall in IoP) or by treating the underlying disease process.",
+            "Step 2: Choroidal haemorrhage may require surgical drainage.",
+            "Step 3: Surgical drainage may be best left until the blood has liquefied."
+          ]
+        },
+        {
+          "title": "RRD vs Choroidal Detachment (Table 12.11)",
+          "icon": "compare_arrows",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": {
+            "headers": [
+              "Feature",
+              "RRD",
+              "Choroidal detachment"
+            ],
+            "rows": [
+              [
+                "Colour",
+                "Pale",
+                "Darker/normal colour"
+              ],
+              [
+                "Dome",
+                "Convex corrugated",
+                "Convex smooth"
+              ],
+              [
+                "Breaks",
+                "Present",
+                "Absent"
+              ],
+              [
+                "Ora serrata",
+                "Visible with indentation",
+                "Easily visible"
+              ],
+              [
+                "Maximal extent (Anterior)",
+                "Ora serrata",
+                "Ciliary body"
+              ],
+              [
+                "Maximal extent (Posterior)",
+                "Unlimited",
+                "Vortex veins"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Common Causes of Choroidal Detachment (Table 12.12)",
+          "icon": "list",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": {
+            "headers": [
+              "Effusion",
+              "Haemorrhage"
+            ],
+            "rows": [
+              [
+                "Hypotony",
+                "Intra-operative"
+              ],
+              [
+                "Extensive PRP",
+                "Trauma"
+              ],
+              [
+                "Extensive cryotherapy",
+                "Spontaneous"
+              ],
+              [
+                "Posterior uveitis",
+                ""
+              ],
+              [
+                "Uveal effusion syndrome",
+                ""
+              ],
+              [
+                "Nanophthalmos",
+                ""
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Uveal Effusion Syndrome (UES)",
+          "icon": "info",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "This is a rare syndrome of the choroid and ciliary body, causing ERD, thought to arise from impaired posterior segment drainage usually associated with scleral thickening. Idiopathic uveal effusion syndrome usually affects healthy adult men."
+        },
+        {
+          "title": "UES Classification",
+          "icon": "account_tree",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": {
+            "center": "Idiopathic UES Types",
+            "branches": [
+              "Type 1: Nanophthalmic eyes",
+              "Type 2: Non-nanophthalmic eyes with clinically abnormal sclera",
+              "Type 3: Non-nanophthalmic eyes with clinically normal sclera"
+            ]
+          }
+        },
+        {
+          "title": "UES Clinical Features & Predictors",
+          "icon": "biotech",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Combined choroidal detachments and ERD.",
+            "Nanophthalmos and the presence of clinically detectable thickened/rigid sclera are a good predictor both for histologically abnormal sclera and of a good response to surgery."
+          ]
+        },
+        {
+          "title": "UES Treatment",
+          "icon": "home_repair_service",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "Surgery: scleral windows (± application of mmC) may decompress the vortex veins."
+          ]
+        },
+        {
+          "title": "Scientific Source & Reference",
+          "icon": "menu_book",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": "Uyama m et al. Uveal effusion syndrome: clinical features, surgical treatment, histological examination of the sclera and pathophysiology. Ophthalmology. 2000;107:441–9. CHoRoIDAL DETACHmEnTS AnD UVEAL EFFUSIonS ynDRomE. Page 547."
+        }
+      ]
+    },
+    "chapterId": "vitreoretinal",
+    "_newlyImported": 1768912681547,
+    "communityId": "sub_1768905301567_1vb0jcb36rskbv",
+    "communityAuthor": "Nina",
+    "communityDate": "2026-01-20T10:35:01.567Z",
+    "_chapterUpdated": 1768915485791,
+    "_serverSynced": true
+  },
+  {
+    "id": 1768912671474,
+    "seqId": 115,
+    "title": "Scleral Buckling Procedures: A Comprehensive Clinical Guide",
+    "summary": "This poster provides an exhaustive overview of Scleral Buckling, detailing its physiological mechanisms, specific surgical indications, and step-by-step methodology. It covers everything from technical suture placement and buckle selection to potential complications and visual prognosis.",
+    "date": "2026-01-20T12:37:51.474Z",
+    "data": {
+      "title": "Scleral Buckling Procedures: A Comprehensive Clinical Guide",
+      "summary": "This poster provides an exhaustive overview of Scleral Buckling, detailing its physiological mechanisms, specific surgical indications, and step-by-step methodology. It covers everything from technical suture placement and buckle selection to potential complications and visual prognosis.",
+      "summary_illustration": "<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><circle cx='50' cy='50' r='40' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='2'/><path d='M20 50 Q 50 20 80 50 Q 50 80 20 50' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='4' stroke-dasharray='4 2'/><rect x='15' y='45' width='70' height='10' rx='2' fill='rgba(0, 100, 255, 0.2)' stroke='hsl(215, 90%, 45%)' stroke-width='1'/><circle cx='50' cy='50' r='10' fill='hsl(215, 90%, 45%)'/></svg>",
+      "sections": [
+        {
+          "title": "Proposed Mechanisms of Action",
+          "icon": "settings_suggest",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "center": "Mechanism of the Buckle",
+            "branches": [
+              "Moving the RPE closer to the retina",
+              "Moving the retina closer to the posterior vitreous cortex",
+              "Reduce flow through the break (including fluid pumped during eye movements)",
+              "Relieve vitreous traction on flap tears"
+            ]
+          }
+        },
+        {
+          "title": "Surgical Indications",
+          "icon": "assignment_turned_in",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "Most simple RRD and dialyses: procedure of choice in situations where there is no pre-existing PVD, as a vitrectomy would require the induction of PVD during surgery (potentially hazardous manoeuvre).",
+            "Segmental buckles: for single breaks or multiple breaks within 1 clock-hour.",
+            "Encircling bands: traditionally for extensive/multiple breaks or breaks in the presence of high-risk features (e.g. aphakia/pseudophakia, etc.); however, the majority of these would now have a vitrectomy (and no local buckle or encirclement)."
+          ]
+        },
+        {
+          "title": "Mandatory Consent: Risks & Complications",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "Operation mechanism and purpose",
+            "Failure of the procedure",
+            "Diplopia (double vision)",
+            "Refractive change",
+            "Inflammation",
+            "Infection",
+            "Haemorrhage",
+            "Explant extrusion",
+            "Worsened vision"
+          ]
+        },
+        {
+          "title": "Surgical Methodology: Initial Steps",
+          "icon": "precision_manufacturing",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": [
+            "Step 1: Perform appropriate conjunctival peritomy.",
+            "Step 2: Inspect sclera for thinning and anomalous vortex veins.",
+            "Step 3: Place traction sutures around selected rectus muscles to assist positioning.",
+            "Step 4: Identify break by indirect ophthalmoscope and indentation, using the cryoprobe (or one of a number of instruments specifically designed for this purpose).",
+            "Step 5: Apply cryopexy to all breaks. Each application should last just long enough for the retina to whiten; the probe should not be removed until thawing has occurred.",
+            "Step 6: Mark the external position of the break on the sclera, using indentation and a marker pen."
+          ]
+        },
+        {
+          "title": "Surgical Methodology: Buckling & Suturing",
+          "icon": "architecture",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "Step 7: Select buckle size: this should cover double the width of the retinal tear; position so that it extends from the ora serrata to cover the posterior lip of the break.",
+            "Step 8: Place partial-thickness 5-0 non-absorbable sutures, using a spatulated needle. These are usually mattress-type sutures and are placed at least 1mm away from the buckle on either side.",
+            "Step 9: Tighten sutures. NB Tighter sutures results in a higher buckle, but overtightening can result in scleral ‘cheese wiring’.",
+            "Step 10: Confirm buckle position is correct and that arterial perfusion of the optic nerve is unaffected.",
+            "Step 11: Close conjunctiva (e.g. with 7-0 absorbable suture)."
+          ]
+        },
+        {
+          "title": "Technical Suturing Notes",
+          "icon": "psychology",
+          "type": "remember",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "NB Notes",
+            "explanation": "Wider separation of sutures may result in a higher buckle. The number of sutures depends on the size of the explant."
+          }
+        },
+        {
+          "title": "Comprehensive Complications",
+          "icon": "medical_services",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": {
+            "headers": [
+              "Intra-operative Complications",
+              "Post-operative Complications"
+            ],
+            "rows": [
+              [
+                "Scleral perforation",
+                "Infection"
+              ],
+              [
+                "SRF drainage problems (retinal incarceration)",
+                "Glaucoma"
+              ],
+              [
+                "Choroidal/subretinal haemorrhage",
+                "Extrusion"
+              ],
+              [
+                "---",
+                "Choroidal effusion/detachment"
+              ],
+              [
+                "---",
+                "ERm (Epiretinal membrane)"
+              ],
+              [
+                "---",
+                "Cmo (Cystoid macular oedema)"
+              ],
+              [
+                "---",
+                "Diplopia"
+              ],
+              [
+                "---",
+                "Refractive change"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Prognosis Statistics",
+          "icon": "query_stats",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Anatomical Success",
+                "value": 90
+              },
+              {
+                "label": "VA 6/18 (Macula-off)",
+                "value": 50
+              }
+            ]
+          }
+        },
+        {
+          "title": "Table 12.14 Buckle Options",
+          "icon": "layers",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Feature",
+              "Options"
+            ],
+            "rows": [
+              [
+                "Material",
+                "Solid silicone rubber vs silicone sponge"
+              ],
+              [
+                "Orientation",
+                "Radial vs circumferential segmental vs encircling"
+              ],
+              [
+                "Size",
+                "Wide range available (and can be cut to size)"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Drainage Procedures",
+          "icon": "colorize",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": "Trans-scleral drainage of SRF, with a 27–30G needle or 5-0 spatulated needle, is done in an area of deep SRF, preferably below the level of the macula and in the bed of the scleral explant. Doing this while maintaining the IoP elevated (e.g. by digital pressure on the globe) reduces risk of haemorrhage. It is not commonly done, as most buckling procedures can succeed without this manoeuvre. Drainage of SRF is sometimes combined with the injection of intravitreal air in the DACE (drain–air–cryotherapy–explant) procedure."
+        },
+        {
+          "title": "Enhancement of Visualization",
+          "icon": "visibility",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "One of the difficulties in scleral buckling procedures can be the visualization. It is possible to insert an intraocular light source (chandelier) to improve the visualization. This enables the surgeon to perform the scleral buckling operation using the microscope and an indirect viewing system. The main concern that has been raised about this is that an extraocular operation is being converted into an intraocular operation."
+        }
+      ]
+    },
+    "chapterId": "vitreoretinal",
+    "_newlyImported": 1768912671474,
+    "communityId": "sub_1768896531450_kxj8i2i5o",
+    "communityAuthor": "Nina",
+    "communityDate": "2026-01-20T08:08:51.450Z",
+    "_serverSynced": true
+  },
+  {
+    "id": 1768912668954,
+    "seqId": 114,
+    "title": "Vitrectomy: Surgical Mechanics, Methods, and Tamponade Management",
+    "summary": "An exhaustive clinical guide to vitrectomy, detailing surgical access, small-gauge advantages, specific indications for retinal detachments and macular pathology, operative steps, and the selection of gaseous and fluid tamponade agents including post-operative posturing protocols.",
+    "date": "2026-01-20T12:37:48.954Z",
+    "data": {
+      "title": "Vitrectomy: Surgical Mechanics, Methods, and Tamponade Management",
+      "summary": "An exhaustive clinical guide to vitrectomy, detailing surgical access, small-gauge advantages, specific indications for retinal detachments and macular pathology, operative steps, and the selection of gaseous and fluid tamponade agents including post-operative posturing protocols.",
+      "summary_illustration": "<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><circle cx='100' cy='100' r='80' stroke='#1d4ed8' stroke-width='4' fill='none'/><path d='M60 100 Q100 60 140 100' stroke='#1d4ed8' stroke-width='2' fill='none'/><line x1='100' y1='20' x2='100' y2='60' stroke='#1d4ed8' stroke-width='3'/><line x1='150' y1='40' x2='120' y2='75' stroke='#1d4ed8' stroke-width='3'/><line x1='50' y1='40' x2='80' y2='75' stroke='#1d4ed8' stroke-width='3'/><circle cx='100' cy='110' r='30' fill='#1d4ed8' opacity='0.2'/></svg>",
+      "sections": [
+        {
+          "title": "Surgical Mechanism and Access",
+          "icon": "settings_suggest",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "Mechanism: Vitrectomy removes dynamic tractional forces exerted on the retina by the vitreous; static tractional forces arising from membranes/fibrovascular proliferation can be removed at the same time. Vitrectomy also allows surgical access to the retina to permit drainage of the SRF, removal of intraocular membranes, removal of retained lens fragments, removal of intraocular FBs, biopsy of subretinal lesions, and insertion of tamponade agents. Transconjunctival sutureless 23G, 25G, and 27G vitrectomy systems are gaining in popularity over 20G systems in most developed countries."
+        },
+        {
+          "title": "Small-Gauge Surgery Comparison",
+          "icon": "straighten",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "headers": [
+              "Advantages",
+              "Disadvantages"
+            ],
+            "rows": [
+              [
+                "Reduced operating time",
+                "i risk of hypotony"
+              ],
+              [
+                "Improved patient comfort (smaller incisions/no sutures)",
+                "i rate of cataract, compared to scleral buckling surgery"
+              ],
+              [
+                "Reduced post-operative inflammation",
+                ""
+              ],
+              [
+                "more rapid visual recovery",
+                ""
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Anatomical Success & Prognosis",
+          "icon": "monitoring",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Simple RRD Success",
+                "value": 90
+              },
+              {
+                "label": "Repeated Procedures",
+                "value": 100
+              }
+            ],
+            "plain_text": "Prognosis: Anatomical success for simple RRD 790%; chance of anatomical success rises with repeated procedures. Success rate is reduced if the detachment is related to a giant retinal tear or if there is proliferative vitreo-retinopathy (scarring). 465 564 CHAPTER 12 Vitreoretinal"
+          }
+        },
+        {
+          "title": "Clinical Indications",
+          "icon": "list_alt",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": {
+            "center": "Indications for Vitrectomy",
+            "branches": [
+              "Retinal detachments: RRD (posterior breaks, giant retinal tears, PVR, media opacity, bullous, aphakia/pseudophakia) and TRD",
+              "Diagnostic: biopsy for endophthalmitis, lymphoma",
+              "Pharmacological: administration of antibiotics, steroids",
+              "Macular pathology: vitreomacular traction, macular holes, ERms",
+              "Trauma: removal of FB",
+              "Persistent media opacity: vitreous haemorrhage, inflammatory debris, floaters (severe)",
+              "Complications of cataract surgery: dropped nucleus, dislocated IoL"
+            ]
+          }
+        },
+        {
+          "title": "Surgical Method: Step-by-Step",
+          "icon": "precision_manufacturing",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "Consent: explain operation purpose, postoperative gas bubble, importance of posturing, and complications (failure, inflammation, infection, haemorrhage, worsened vision).",
+            "Insert three entry site sleeved cannulae 4mm (phakic) or 3.5mm (aphakic/pseudophakic) behind limbus (inferotemporally, superotemporally, superonasally). V ITRECTomy: o UTLI n E 563",
+            "Secure infusion cannula to inferotemporal cannula. Maintain globe/aspiration and increase pressure if bleeding occurs. Visualize tip before turning on infusion.",
+            "Insert light-pipe and vitrector through two superior cannulae under visualization (CL or indirect microscope system with inverter).",
+            "Vitrectomy: of posterior vitreous face and extending out to the periphery.",
+            "Replace infusion fluid with tamponade agent (usually gas, sometimes oil for complicated cases).",
+            "Remove cannulae and assess wound for leak (should self-seal).",
+            "Post-operative care: if gas used, advise re posturing; warn against air travel/nitrous oxide until resorbed."
+          ]
+        },
+        {
+          "title": "Surgical Complications",
+          "icon": "report_problem",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Intra-operative: retinal breaks (posterior, peripheral), choroidal haemorrhage, lens touch.",
+            "Post-operative: retinal breaks/RRD, cataract, glaucoma, inflammation, endophthalmitis (1/2,000), hypotony, corneal decompensation, sympathetic ophthalmia (0.01% of routine vitrectomy).",
+            "Tamponade gas-associated: iIoP, posterior subcapsular ‘feathering’ of the lens (usually temporary), anterior IoL movement (if pseudophakic).",
+            "Silicone oil-associated: iIoP, hyperoleum (‘inverse hypopyon’), adherence to silicone IoL, oil keratopathy (if oil in AC), peri-oil fibrosis, cataract, emulsification, and 2° glaucoma."
+          ]
+        },
+        {
+          "title": "Perfluorocarbon ('Heavy') Liquids",
+          "icon": "science",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Indications: Repositioning of giant retinal tears, Flattening PVR-associated retina, Floating up dislocated lens fragments or IoLs, Assisting haemostasis.",
+            "Agents: Perfluoro-n-octane (most common), perfluorodecalin."
+          ]
+        },
+        {
+          "title": "Tamponade Selection Criteria",
+          "icon": "biotech",
+          "type": "plain_text",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": "Indications: Simple RD (air or SF6/air mix). Complicated RD (PVR, GRT, recurrences): C3F8/air mix, silicone oil, or ‘heavy’ silicone oil. Silicone oil and C3F8 are similarly effective in PVR; oil allows better final VA in anterior disease, no posturing required, and easier visualization. ‘Heavy’ silicone oils (denser than water) tamponade the inferior retina (useful for inferior breaks/retinectomy with PVR). Non-RD cases may not require tamponade."
+        },
+        {
+          "title": "Table 12.15: Common Gaseous Tamponade Agents",
+          "icon": "air",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Agent",
+              "Symbol",
+              "Expansion if 100%",
+              "Non-expansile concentration (%)",
+              "Duration (wk)"
+            ],
+            "rows": [
+              [
+                "Air",
+                "Air",
+                "nil",
+                "100",
+                "≤1"
+              ],
+              [
+                "Sulfur hexafluoride",
+                "SF6",
+                "×2",
+                "20",
+                "1–2"
+              ],
+              [
+                "Perfluoroethane",
+                "C2F6",
+                "×3",
+                "16",
+                "4–6"
+              ],
+              [
+                "Perfluoropropane",
+                "C3F8",
+                "×4",
+                "12",
+                "8–10"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Table 12.16: Common Fluid Tamponade Agents",
+          "icon": "water_drop",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Agent",
+              "Symbol",
+              "Density (g/mL)",
+              "Viscosity (cs)",
+              "Max Duration"
+            ],
+            "rows": [
+              [
+                "Balanced salt solution",
+                "BSS",
+                "1",
+                "-",
+                "-"
+              ],
+              [
+                "Perfluorocarbon liquid (heavy)",
+                "PFCL",
+                "2",
+                "Molecule dependent (low)",
+                "Intra-operative only"
+              ],
+              [
+                "Silicone oil",
+                "Si oil",
+                "0.97",
+                "1,000 to 5,000",
+                "Ideally 3–6mo (or long term)"
+              ],
+              [
+                "Combined SFA and Si oil (Densiron)",
+                "Densiron",
+                "1.06",
+                "1,387",
+                "Ideally <6wk (emulsification risk)"
+              ],
+              [
+                "OxaneHD",
+                "OxaneHD",
+                "1.02",
+                "3,300",
+                "-"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Post-Operative Tamponade Complications",
+          "icon": "warning",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "iIoP (may be related to overfill)",
+            "posterior subcapsular ‘feathering’ of the lens",
+            "anterior IoL movement (if pseudophakic)"
+          ]
+        },
+        {
+          "title": "Posturing Requirements",
+          "icon": "airline_seat_flat",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": [
+            "Aims: Achieve effective tamponade of the break and keep gas bubble away from the crystalline lens.",
+            "Timing: Start same day of surgery, 50min in every hour including sleeping posture.",
+            "Duration: Continue for 1–2wk (varies by agent).",
+            "Position: Dependent on break location; aim to move break as superiorly as possible."
+          ]
+        },
+        {
+          "title": "CRITICAL WARNINGS",
+          "icon": "dangerous",
+          "type": "red_flag",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Advise against flying until the gas bubble has resolved.",
+            "Advise against the use of nitrous oxide anaesthetic agents until the gas bubble has resolved.",
+            "Failure to follow travel/anaesthesia warnings can result in blindness due to expansion of the gas bubble and subsequent iIoP."
+          ]
+        }
+      ]
+    },
+    "chapterId": "vitreoretinal",
+    "_newlyImported": 1768912668954,
+    "communityId": "sub_1768896101987_030qcjm81",
+    "communityAuthor": "Nina",
+    "communityDate": "2026-01-20T08:01:41.988Z",
+    "_serverSynced": true
+  },
+  {
     "id": 1768758986272,
     "seqId": 113,
     "title": "PVD Induction: Precision Surgical Techniques",
@@ -163,11 +1090,11 @@
     "_newlyImported": 1768758986272,
     "communityId": "sub_1768757082875_gzi4xmw43",
     "communityAuthor": "Nano",
-    "communityDate": "2026-01-18T17:24:42.876Z"
+    "communityDate": "2026-01-18T17:24:42.876Z",
+    "_serverSynced": true
   },
   {
     "id": 1768758684757,
-    "seqId": 112,
     "title": "Vitreous Base Shaving: Precision in the Periphery",
     "summary": "A specialized vitreoretinal surgical technique focused on the meticulous removal of vitreous gel from the vitreous base area. This procedure is critical for relieving peripheral traction and minimizing the risk of proliferative vitreoretinopathy (PVR).",
     "date": "2026-01-18T17:51:24.757Z",
@@ -320,10 +1247,12 @@
       ]
     },
     "chapterId": "vitreoretinal",
-    "_newlyImported": 1768758684757,
+    "_newlyImported": 1768758756578,
     "communityId": "sub_1768662048012_pcjxx55hy",
     "communityAuthor": "Nano",
-    "communityDate": "2026-01-17T15:00:48.012Z"
+    "communityDate": "2026-01-17T15:00:48.012Z",
+    "seqId": 112,
+    "_serverSynced": true
   },
   {
     "id": 1768584967700,
@@ -776,7 +1705,8 @@
     "communityId": "sub_1768552126016_wpoiy058j",
     "communityAuthor": "Dodi",
     "communityDate": "2026-01-16T08:28:46.016Z",
-    "_serverSynced": true
+    "_serverSynced": true,
+    "bookmarked": false
   },
   {
     "id": 1768556905621,

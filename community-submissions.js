@@ -40,7 +40,7 @@ const IP_SERVICE_URL = 'https://api.ipify.org?format=json';
 
 // Local storage key for caching
 const COMMUNITY_CACHE_KEY = 'ophthalmic_community_cache';
-const COMMUNITY_CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+const COMMUNITY_CACHE_EXPIRY = 1 * 60 * 1000; // 1 minute (reduced from 5 for better cross-user sync)
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -56,53 +56,199 @@ function autoDetectChapterFromTitle(title) {
     const titleLower = title.toLowerCase();
 
     // Clinical ophthalmology auto-categorization rules
+    // Enhanced with more clinical terms, abbreviations, and compound phrases
     const rules = [
-        // Neuro-ophthalmology
-        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'horner', 'anisocoria', 'gaze palsy', 'diplopia cranial', 'aion', 'naion'], chapter: 'neuro' },
+        // Neuro-ophthalmology - Very comprehensive for visual pathway disorders
+        {
+            keywords: [
+                'neuro', 'optic nerve', 'optic neuritis', 'papill', 'visual field', 'pupil', 'nystagmus',
+                'cranial nerve', 'chiasm', 'intracranial', 'iih', 'horner', 'anisocoria', 'gaze palsy',
+                'diplopia cranial', 'aion', 'naion', 'pion', 'lhon',
+                // Additional neuro terms
+                'gca', 'giant cell arteritis', 'temporal arteritis', 'brao', 'crao',
+                'iii nerve', 'iv nerve', 'vi nerve', 'third nerve', 'fourth nerve', 'sixth nerve',
+                'cn iii', 'cn iv', 'cn vi', 'oculomotor', 'trochlear', 'abducens',
+                'pseudotumor cerebri', 'optic disc drusen', 'optic atrophy', 'disc swelling',
+                'relative afferent', 'rapd', 'marcus gunn', 'afferent pupil',
+                'myasthenia', 'nmj', 'neuromuscular junction', 'ocular myasthenia',
+                'supranuclear', 'ino', 'internuclear', 'one-and-a-half syndrome',
+                'functional visual loss', 'non-organic', 'functional'
+            ], chapter: 'neuro'
+        },
         // Glaucoma
-        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs', 'tube shunt', 'filtering', 'rnfl', 'optic disc cupping', 'visual field glaucoma', 'pigmentary glaucoma', 'pseudoexfoliation'], chapter: 'glaucoma' },
+        {
+            keywords: [
+                'glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure',
+                'poag', 'pacg', 'migs', 'tube shunt', 'filtering', 'rnfl', 'optic disc cupping',
+                'visual field glaucoma', 'pigmentary glaucoma', 'pseudoexfoliation',
+                'kahook', 'kdb', 'istent', 'hydrus', 'xen gel', 'preserflo',
+                'ahmed valve', 'baerveldt', 'goniotomy', 'trabeculotomy',
+                'selective laser', 'slt', 'alt', 'cyclodiode', 'cyclophotocoagulation'
+            ], chapter: 'glaucoma'
+        },
         // Vitreoretinal
-        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd', 'epiretinal membrane', 'erm', 'scleral buckle', 'rhegmatogenous', 'tractional', 'pvr', 'silicone oil', 'floaters'], chapter: 'vitreoretinal' },
-        // Medical Retina
-        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'brvo', 'crvo', 'drusen', 'cnv', 'anti-vegf', 'intravitreal', 'wet amd', 'dry amd', 'geographic atrophy'], chapter: 'medical_retina' },
+        {
+            keywords: [
+                'vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd',
+                'epiretinal membrane', 'erm', 'scleral buckle', 'rhegmatogenous', 'tractional',
+                'pvr', 'silicone oil', 'floaters', 'vitreomacular', 'vmt'
+            ], chapter: 'vitreoretinal'
+        },
+        // Medical Retina - Expanded with all anti-VEGF agents
+        {
+            keywords: [
+                'diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr',
+                'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'brvo', 'crvo',
+                'drusen', 'cnv', 'anti-vegf', 'intravitreal', 'wet amd', 'dry amd', 'geographic atrophy',
+                // Anti-VEGF agents
+                'eylea', 'lucentis', 'avastin', 'vabysmo', 'beovu', 'brolucizumab', 'faricimab',
+                'ranibizumab', 'aflibercept', 'bevacizumab',
+                // DR staging
+                'pdr', 'npdr', 'proliferative', 'non-proliferative',
+                'ozurdex', 'iluvien', 'dexamethasone implant'
+            ], chapter: 'medical_retina'
+        },
         // Cornea
-        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'dsaek', 'dmek', 'pterygium', 'dry eye', 'fuchs', 'corneal dystrophy', 'corneal ulcer', 'herpetic', 'acanthamoeba', 'cross-linking', 'graft rejection'], chapter: 'cornea' },
-        // Lens / Cataract
-        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'pco', 'yag capsulotomy', 'femtosecond', 'ectopia lentis', 'aphakia', 'pseudophakia'], chapter: 'lens' },
+        {
+            keywords: [
+                'cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'dsaek', 'dmek',
+                'pterygium', 'dry eye', 'fuchs', 'corneal dystrophy', 'corneal ulcer', 'herpetic',
+                'acanthamoeba', 'cross-linking', 'graft rejection',
+                'dalk', 'pk', 'penetrating keratoplasty', 'endothelial keratoplasty'
+            ], chapter: 'cornea'
+        },
+        // Lens / Cataract - Expanded IOL terms
+        {
+            keywords: [
+                'cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'pco', 'yag capsulotomy',
+                'femtosecond', 'ectopia lentis', 'aphakia', 'pseudophakia',
+                'intraocular lens', 'multifocal iol', 'toric iol', 'edof', 'monofocal',
+                'refractive lens exchange', 'rle', 'clear lens extraction',
+                'flacs', 'femto cataract'
+            ], chapter: 'lens'
+        },
         // Uveitis
-        { keywords: ['uveitis', 'iritis', 'iridocyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'vkh', 'birdshot', 'hypopyon', 'synechia', 'toxoplasm', 'cmv retinitis'], chapter: 'uveitis' },
-        // Strabismus
-        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'duane', 'brown syndrome'], chapter: 'strabismus' },
+        {
+            keywords: [
+                'uveitis', 'iritis', 'iridocyclitis', 'choroiditis', 'panuveitis', 'hla-b27',
+                'behcet', 'sarcoid', 'vkh', 'birdshot', 'hypopyon', 'synechia', 'toxoplasm',
+                'cmv retinitis', 'vogt-koyanagi-harada', 'sympathetic ophthalmia'
+            ], chapter: 'uveitis'
+        },
+        // Strabismus - Expanded with patterns and surgical terms
+        {
+            keywords: [
+                'strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'diplopia',
+                'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test',
+                'duane', 'brown syndrome',
+                'a-pattern', 'v-pattern', 'alphabet pattern', 'hess chart', 'lees screen',
+                'prism', 'prism diopter', 'recession', 'resection', 'adjustable suture',
+                'concomitant', 'incomitant', 'paralytic', 'restrictive'
+            ], chapter: 'strabismus'
+        },
         // Paediatric
-        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'leukocoria', 'retinoblastoma child', 'infantile', 'neonatal'], chapter: 'paediatric' },
+        {
+            keywords: [
+                'paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity',
+                'leukocoria', 'retinoblastoma child', 'infantile', 'neonatal',
+                'ophthalmia neonatorum', 'congenital cataract', 'childhood glaucoma'
+            ], chapter: 'paediatric'
+        },
         // Orbit
-        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital cellulitis', 'blow out', 'orbital fracture', 'orbital tumor', 'decompression'], chapter: 'orbit' },
+        {
+            keywords: [
+                'orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital cellulitis',
+                'blow out', 'orbital fracture', 'orbital tumor', 'decompression',
+                'ted', 'thyroid eye disease', 'graves orbitopathy'
+            ], chapter: 'orbit'
+        },
         // Lids
-        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'hordeolum', 'trichiasis', 'lagophthalmos', 'lid tumor', 'bcc eyelid', 'levator', 'blepharoplasty'], chapter: 'lids' },
+        {
+            keywords: [
+                'lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion',
+                'hordeolum', 'trichiasis', 'lagophthalmos', 'lid tumor', 'bcc eyelid',
+                'levator', 'blepharoplasty', 'dermatochalasis'
+            ], chapter: 'lids'
+        },
         // Lacrimal
-        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dcr', 'punctum', 'canalicul', 'watery eye'], chapter: 'lacrimal' },
+        {
+            keywords: [
+                'lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dcr',
+                'punctum', 'canalicul', 'watery eye', 'dacryocystorhinostomy'
+            ], chapter: 'lacrimal'
+        },
         // Conjunctiva
-        { keywords: ['conjunctiv', 'pinguecula', 'allergic eye', 'vernal', 'trachoma', 'subconjunctival', 'chemosis', 'pemphigoid ocular', 'stevens-johnson'], chapter: 'conjunctiva' },
+        {
+            keywords: [
+                'conjunctiv', 'pinguecula', 'allergic eye', 'vernal', 'trachoma',
+                'subconjunctival', 'chemosis', 'pemphigoid ocular', 'stevens-johnson'
+            ], chapter: 'conjunctiva'
+        },
         // Sclera
         { keywords: ['scleritis', 'episcleritis', 'sclera', 'necrotizing scleritis'], chapter: 'sclera' },
-        // Refractive
-        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'icl', 'phakic iol', 'biometry', 'iol calculation'], chapter: 'refractive' },
+        // Refractive - Enhanced
+        {
+            keywords: [
+                'refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk',
+                'smile', 'presbyopia', 'icl', 'phakic iol', 'biometry', 'iol calculation',
+                'spectacles', 'glasses', 'contact lens', 'orthokeratology',
+                'excimer', 'femtosecond laser'
+            ], chapter: 'refractive'
+        },
         // Trauma
-        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema', 'open globe', 'chemical burn', 'penetrating', 'iofb', 'commotio'], chapter: 'trauma' },
+        {
+            keywords: [
+                'trauma', 'injury', 'foreign body', 'hyphema', 'open globe', 'chemical burn',
+                'penetrating', 'iofb', 'commotio', 'laceration', 'blunt trauma',
+                'thermal injury', 'alkali burn', 'acid burn'
+            ], chapter: 'trauma'
+        },
         // Tumours
-        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'choroidal nevus', 'enucleation', 'plaque'], chapter: 'tumours' },
+        {
+            keywords: [
+                'tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta',
+                'choroidal nevus', 'enucleation', 'plaque', 'ocular oncology'
+            ], chapter: 'tumours'
+        },
         // Surgery
-        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'perioperative', 'complication', 'post-op', 'intraoperative'], chapter: 'surgery_care' },
+        {
+            keywords: [
+                'surgery', 'surgical', 'anaesthe', 'anesthe', 'perioperative', 'complication',
+                'post-op', 'intraoperative', 'topical anesthesia', 'retrobulbar', 'peribulbar'
+            ], chapter: 'surgery_care'
+        },
         // Lasers
-        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'prp', 'panretinal', 'micropulse', 'pdt'], chapter: 'lasers' },
+        {
+            keywords: [
+                'laser', 'yag', 'argon', 'photocoagulation', 'slt', 'prp', 'panretinal',
+                'micropulse', 'pdt', 'photodynamic'
+            ], chapter: 'lasers'
+        },
         // Therapeutics
-        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid eye', 'anti-vegf', 'pharmacology', 'intravitreal injection', 'eylea', 'lucentis', 'avastin'], chapter: 'therapeutics' },
+        {
+            keywords: [
+                'drug', 'medication', 'drops', 'antibiotic', 'steroid eye', 'anti-vegf',
+                'pharmacology', 'intravitreal injection', 'eylea', 'lucentis', 'avastin',
+                'topical therapy', 'preservative free'
+            ], chapter: 'therapeutics'
+        },
         // Clinical Skills
-        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry', 'gonioscopy', 'visual acuity', 'ophthalmoscopy', 'clinical assessment'], chapter: 'clinical_skills' },
+        {
+            keywords: [
+                'examination', 'slit lamp', 'fundoscopy', 'tonometry', 'gonioscopy',
+                'visual acuity', 'ophthalmoscopy', 'clinical assessment', 'refraction technique'
+            ], chapter: 'clinical_skills'
+        },
         // Investigations
-        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa', 'icg', 'visual field test', 'perimetry', 'ultrasound eye', 'b-scan', 'topography', 'electrophysiology'], chapter: 'investigations' },
+        {
+            keywords: [
+                'investigation', 'imaging', 'angiography', 'oct', 'ffa', 'icg', 'visual field test',
+                'perimetry', 'ultrasound eye', 'b-scan', 'topography', 'electrophysiology',
+                'oct-a', 'octa', 'specular microscopy', 'pachymetry', 'biometry'
+            ], chapter: 'investigations'
+        },
         // Evidence
-        { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr'], chapter: 'evidence' },
+        { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr', 'protocol'], chapter: 'evidence' },
     ];
 
     for (const rule of rules) {
@@ -179,20 +325,29 @@ function isJSONBinConfigured() {
 
 /**
  * Fetch all submissions from JSONBin
+ * @param {boolean} forceRefresh - If true, bypass cache and fetch fresh data
  */
-async function fetchSubmissions() {
+async function fetchSubmissions(forceRefresh = false) {
     if (!isJSONBinConfigured()) {
         console.warn('JSONBin not configured. Using demo mode with localStorage.');
         return getLocalDemoSubmissions();
     }
 
-    // Check cache first
-    const cached = localStorage.getItem(COMMUNITY_CACHE_KEY);
-    if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < COMMUNITY_CACHE_EXPIRY) {
-            console.log('Using cached community submissions');
-            return data;
+    // Force refresh: clear cache
+    if (forceRefresh) {
+        localStorage.removeItem(COMMUNITY_CACHE_KEY);
+        console.log('Force refresh: cache cleared');
+    }
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+        const cached = localStorage.getItem(COMMUNITY_CACHE_KEY);
+        if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < COMMUNITY_CACHE_EXPIRY) {
+                console.log('Using cached community submissions');
+                return data;
+            }
         }
     }
 
@@ -323,6 +478,103 @@ function saveLocalDemoSubmissions(data) {
 }
 
 // ============================================
+// DATA SIZE MANAGEMENT (100kb limit workaround)
+// ============================================
+
+// Max pending submissions to keep (prevents unbounded growth)
+const MAX_PENDING_SUBMISSIONS = 30;
+const MAX_APPROVED_SUBMISSIONS = 50;
+const PENDING_MAX_AGE_DAYS = 30;
+
+/**
+ * Minimize infographic data for storage (strips unnecessary fields)
+ * This reduces data size significantly while preserving core content
+ */
+function minimizeInfographicData(data) {
+    if (!data) return data;
+
+    const minimized = {
+        title: data.title || '',
+        summary: data.summary || '',
+        sections: []
+    };
+
+    // Copy sections but strip SVG illustrations (largest data culprit)
+    if (data.sections && Array.isArray(data.sections)) {
+        minimized.sections = data.sections.map(section => ({
+            title: section.title || '',
+            type: section.type || '',
+            layout: section.layout || 'half_width',
+            color_theme: section.color_theme || 'blue',
+            content: section.content
+            // Omit: icon (small), any embedded SVGs or large strings
+        }));
+    }
+
+    // Exclude summary_illustration (SVG) as it's typically very large
+    // It can be regenerated if needed
+
+    return minimized;
+}
+
+/**
+ * Calculate approximate JSON size in bytes
+ */
+function estimateJSONSize(obj) {
+    return new TextEncoder().encode(JSON.stringify(obj)).length;
+}
+
+/**
+ * Clean up old pending submissions and limit counts to stay under 100kb
+ * Called automatically before submissions
+ */
+function cleanupDataForSizeLimit(data) {
+    let modified = false;
+
+    // 1. Remove pending submissions older than MAX_AGE_DAYS
+    if (data.submissions && data.submissions.length > 0) {
+        const cutoffDate = Date.now() - (PENDING_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+        const originalCount = data.submissions.length;
+
+        data.submissions = data.submissions.filter(sub => {
+            const submittedAt = new Date(sub.submittedAt).getTime();
+            return submittedAt > cutoffDate;
+        });
+
+        if (data.submissions.length < originalCount) {
+            console.log(`[Size Cleanup] Removed ${originalCount - data.submissions.length} old pending submissions`);
+            modified = true;
+        }
+    }
+
+    // 2. Limit pending submissions to MAX_PENDING
+    if (data.submissions && data.submissions.length > MAX_PENDING_SUBMISSIONS) {
+        const removed = data.submissions.length - MAX_PENDING_SUBMISSIONS;
+        data.submissions = data.submissions.slice(0, MAX_PENDING_SUBMISSIONS);
+        console.log(`[Size Cleanup] Trimmed ${removed} oldest pending submissions (over limit)`);
+        modified = true;
+    }
+
+    // 3. Limit approved submissions to MAX_APPROVED (keep newest)
+    if (data.approved && data.approved.length > MAX_APPROVED_SUBMISSIONS) {
+        const removed = data.approved.length - MAX_APPROVED_SUBMISSIONS;
+        data.approved = data.approved.slice(0, MAX_APPROVED_SUBMISSIONS);
+        console.log(`[Size Cleanup] Trimmed ${removed} oldest approved submissions (over limit)`);
+        modified = true;
+    }
+
+    // 4. Check estimated size and warn
+    const estimatedSize = estimateJSONSize(data);
+    console.log(`[Size Check] Estimated bin size: ${(estimatedSize / 1024).toFixed(1)} KB`);
+
+    if (estimatedSize > 90000) { // 90kb warning threshold
+        console.warn('[Size Warning] Approaching 100kb limit! Consider pruning data.');
+    }
+
+    return { data, modified, estimatedSize };
+}
+
+
 // SUBMISSION FUNCTIONS
 // ============================================
 
@@ -345,7 +597,7 @@ async function submitToCommunity(infographicData, userName) {
         // Get user IP
         const userIP = await getUserIP();
 
-        // Create submission object
+        // Create submission object with MINIMIZED data to save space
         const submission = {
             id: generateSubmissionId(),
             userName: sanitizeInput(userName),
@@ -356,7 +608,7 @@ async function submitToCommunity(infographicData, userName) {
             likes: 0,
             likedBy: [], // Array of IPs who liked
             status: 'pending', // pending, approved, rejected
-            data: infographicData
+            data: minimizeInfographicData(infographicData) // Use minimized data to reduce size
         };
 
         // Fetch current submissions
@@ -366,8 +618,11 @@ async function submitToCommunity(infographicData, userName) {
         currentData.submissions = currentData.submissions || [];
         currentData.submissions.unshift(submission);
 
+        // Cleanup old/excess submissions to prevent 100kb limit
+        const { data: cleanedData, estimatedSize } = cleanupDataForSizeLimit(currentData);
+
         // Update storage
-        const result = await updateSubmissions(currentData);
+        const result = await updateSubmissions(cleanedData);
 
         if (result.success) {
             return {

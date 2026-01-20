@@ -1,6 +1,5 @@
 {
   "id": 1768758684757,
-  "seqId": 112,
   "title": "Vitreous Base Shaving: Precision in the Periphery",
   "summary": "A specialized vitreoretinal surgical technique focused on the meticulous removal of vitreous gel from the vitreous base area. This procedure is critical for relieving peripheral traction and minimizing the risk of proliferative vitreoretinopathy (PVR).",
   "date": "2026-01-18T17:51:24.757Z",
@@ -153,8 +152,10 @@
     ]
   },
   "chapterId": "vitreoretinal",
-  "_newlyImported": 1768758684757,
+  "_newlyImported": 1768758756578,
   "communityId": "sub_1768662048012_pcjxx55hy",
   "communityAuthor": "Nano",
-  "communityDate": "2026-01-17T15:00:48.012Z"
+  "communityDate": "2026-01-17T15:00:48.012Z",
+  "seqId": 112,
+  "_serverSynced": true
 }
