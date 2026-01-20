@@ -209,6 +209,8 @@ async function fetchSubmissions() {
 
         const result = await response.json();
         const data = result.record || { submissions: [], approved: [] };
+        // Store the version for updates
+        data._binVersion = result.metadata?.version;
 
         // Cache the result
         localStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({
@@ -234,16 +236,36 @@ async function updateSubmissions(data) {
     }
 
     try {
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+        };
+
+        // Add version header if available (required for v3 API updates)
+        if (data._binVersion) {
+            headers['X-Bin-Version'] = data._binVersion;
+        }
+
         const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-            },
+            headers,
             body: JSON.stringify(data)
         });
 
         if (!response.ok) {
+            // If version conflict, try fetching fresh and retry
+            if (response.status === 409) {
+                console.log('Version conflict, refreshing and retrying...');
+                const freshData = await fetchSubmissions();
+                freshData.submissions = freshData.submissions || [];
+                // Re-add new submissions
+                const newSubs = data.submissions.filter(s =>
+                    !freshData.submissions.some(fs => fs.id === s.id)
+                );
+                freshData.submissions.unshift(...newSubs);
+                freshData._binVersion = undefined; // Clear for retry
+                return updateSubmissions(freshData);
+            }
             return {
                 success: false,
                 message: `JSONBin Error: ${response.status} ${response.statusText}`
