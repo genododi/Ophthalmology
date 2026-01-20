@@ -242,20 +242,24 @@ async function updateSubmissions(data) {
         };
 
         // Add version header if available (required for v3 API updates)
-        if (data._binVersion) {
+        if (data._binVersion !== undefined && data._binVersion !== null) {
             headers['X-Bin-Version'] = data._binVersion;
         }
+
+        const payload = { ...data };
+        delete payload._binVersion;
 
         const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
             method: 'PUT',
             headers,
-            body: JSON.stringify(data)
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
             // If version conflict, try fetching fresh and retry
             if (response.status === 409) {
                 console.log('Version conflict, refreshing and retrying...');
+                localStorage.removeItem(COMMUNITY_CACHE_KEY);
                 const freshData = await fetchSubmissions();
                 freshData.submissions = freshData.submissions || [];
                 // Re-add new submissions
@@ -263,12 +267,27 @@ async function updateSubmissions(data) {
                     !freshData.submissions.some(fs => fs.id === s.id)
                 );
                 freshData.submissions.unshift(...newSubs);
-                freshData._binVersion = undefined; // Clear for retry
                 return updateSubmissions(freshData);
             }
+
+            let errorDetails = '';
+            try {
+                const responseText = await response.text();
+                if (responseText) {
+                    try {
+                        const parsed = JSON.parse(responseText);
+                        errorDetails = parsed.message || parsed.error || responseText;
+                    } catch {
+                        errorDetails = responseText;
+                    }
+                }
+            } catch {
+                // Ignore read errors
+            }
+
             return {
                 success: false,
-                message: `JSONBin Error: ${response.status} ${response.statusText}`
+                message: `JSONBin Error: ${response.status} ${response.statusText}${errorDetails ? ` - ${errorDetails}` : ''}`
             };
         }
 
