@@ -14,21 +14,35 @@
 // CONFIGURATION
 // ============================================
 
-// JSONBin.io Configuration - Replace with your own bin
+// JSONBin.io Configuration - Multi-Bin Sharding to bypass 100kb limit
+// Each bin type stays under 100kb by only storing its specific data
+// 
 // To set up: 
 // 1. Go to https://jsonbin.io and create a free account
-// 2. Create a new bin with initial content: {"submissions": [], "approved": []}
-// 3. Get your bin ID and API key
+// 2. Create THREE bins with initial content:
+//    - PENDING_BIN: {"submissions": []}
+//    - APPROVED_BIN: {"approved": []}
+//    - META_BIN: {"deleted": [], "stats": {}}
+// 3. Get your bin IDs and API key
 // 4. Update these values
 
 const JSONBIN_CONFIG = {
-    // Public bin ID for submissions
-    BIN_ID: '69679ff543b1c97be9303398',
     // Master key for read/write operations
     MASTER_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
-    // Access key for public read (using same as master key)
-    ACCESS_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
-    BASE_URL: 'https://api.jsonbin.io/v3/b'
+    BASE_URL: 'https://api.jsonbin.io/v3/b',
+
+    // Multi-bin architecture - each bin < 100kb
+    BINS: {
+        // Pending submissions bin (user submissions awaiting approval)
+        PENDING: '69679ff543b1c97be9303398', // Original bin - now only pending
+        // Approved submissions bin (admin-approved content)
+        APPROVED: null, // Set to null = use same bin for backwards compatibility. Create new bin and set ID here for sharding.
+        // Metadata bin (deleted items, stats) 
+        META: null // Set to null = use pending bin for backwards compatibility
+    },
+
+    // Legacy single-bin ID (for backwards compatibility during migration)
+    LEGACY_BIN_ID: '69679ff543b1c97be9303398'
 };
 
 // Admin PIN for approval operations (simple security)
@@ -38,9 +52,43 @@ const ADMIN_PIN = '309030'; // Change this to your preferred PIN
 // IP lookup service (free, no API key needed)
 const IP_SERVICE_URL = 'https://api.ipify.org?format=json';
 
-// Local storage key for caching
-const COMMUNITY_CACHE_KEY = 'ophthalmic_community_cache';
+// Local storage keys for caching (separate for each bin type)
+const CACHE_KEYS = {
+    PENDING: 'ophthalmic_community_pending_cache',
+    APPROVED: 'ophthalmic_community_approved_cache',
+    META: 'ophthalmic_community_meta_cache',
+    // Legacy cache key
+    LEGACY: 'ophthalmic_community_cache'
+};
+const COMMUNITY_CACHE_KEY = CACHE_KEYS.LEGACY; // For backwards compatibility
 const COMMUNITY_CACHE_EXPIRY = 1 * 60 * 1000; // 1 minute (reduced from 5 for better cross-user sync)
+
+// ============================================
+// STORAGE PROVIDER SELECTION
+// ============================================
+
+// Storage provider: 'firebase', 'jsonbin', or 'auto'
+// 'auto' = use Firebase if configured, otherwise JSONBin
+const STORAGE_PROVIDER = 'auto';
+
+/**
+ * Get the active storage provider
+ * Returns 'firebase' if Firebase is configured and available, otherwise 'jsonbin'
+ */
+function getActiveStorageProvider() {
+    if (STORAGE_PROVIDER === 'firebase') return 'firebase';
+    if (STORAGE_PROVIDER === 'jsonbin') return 'jsonbin';
+
+    // Auto-detect: prefer Firebase if configured
+    if (typeof window.FirebaseStorage !== 'undefined' && window.FirebaseStorage.isConfigured()) {
+        console.log('[Storage] Using Firebase (no size limits)');
+        return 'firebase';
+    }
+
+    // Fallback to JSONBin
+    console.log('[Storage] Using JSONBin (100kb limit applies)');
+    return 'jsonbin';
+}
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -318,9 +366,21 @@ function sanitizeInput(input) {
  * Check if JSONBin is configured
  */
 function isJSONBinConfigured() {
-    return JSONBIN_CONFIG.BIN_ID &&
-        JSONBIN_CONFIG.BIN_ID !== 'YOUR_BIN_ID_HERE' &&
-        JSONBIN_CONFIG.MASTER_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
+    const hasPendingBin = JSONBIN_CONFIG.BINS?.PENDING || JSONBIN_CONFIG.LEGACY_BIN_ID;
+    const hasMasterKey = JSONBIN_CONFIG.MASTER_KEY && JSONBIN_CONFIG.MASTER_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
+    return hasPendingBin && hasMasterKey;
+}
+
+/**
+ * Get the appropriate bin ID for a given type
+ * Falls back to LEGACY_BIN_ID for backwards compatibility
+ */
+function getBinId(type = 'PENDING') {
+    if (JSONBIN_CONFIG.BINS && JSONBIN_CONFIG.BINS[type]) {
+        return JSONBIN_CONFIG.BINS[type];
+    }
+    // Fallback to legacy single-bin
+    return JSONBIN_CONFIG.LEGACY_BIN_ID;
 }
 
 /**
@@ -328,6 +388,15 @@ function isJSONBinConfigured() {
  * @param {boolean} forceRefresh - If true, bypass cache and fetch fresh data
  */
 async function fetchSubmissions(forceRefresh = false) {
+    // Check which storage provider to use
+    const provider = getActiveStorageProvider();
+
+    if (provider === 'firebase' && window.FirebaseStorage) {
+        console.log('[Fetch] Using Firebase storage');
+        return await window.FirebaseStorage.fetchSubmissions();
+    }
+
+    // Use JSONBin
     if (!isJSONBinConfigured()) {
         console.warn('JSONBin not configured. Using demo mode with localStorage.');
         return getLocalDemoSubmissions();
@@ -352,7 +421,8 @@ async function fetchSubmissions(forceRefresh = false) {
     }
 
     try {
-        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+        const binId = getBinId('PENDING'); // Use pending bin for all reads (legacy mode)
+        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${binId}/latest`, {
             headers: {
                 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
             }
@@ -404,7 +474,8 @@ async function updateSubmissions(data) {
         const payload = { ...data };
         delete payload._binVersion;
 
-        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
+        const binId = getBinId('PENDING'); // Use pending bin for all writes (legacy mode)
+        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${binId}`, {
             method: 'PUT',
             headers,
             body: JSON.stringify(payload)
@@ -481,10 +552,12 @@ function saveLocalDemoSubmissions(data) {
 // DATA SIZE MANAGEMENT (100kb limit workaround)
 // ============================================
 
-// Max pending submissions to keep (prevents unbounded growth)
-const MAX_PENDING_SUBMISSIONS = 30;
-const MAX_APPROVED_SUBMISSIONS = 50;
-const PENDING_MAX_AGE_DAYS = 30;
+// AGGRESSIVE limits to keep bin under 100kb
+// Each infographic with sections can be 2-5kb, so these limits are conservative
+const MAX_PENDING_SUBMISSIONS = 15;  // Reduced from 30
+const MAX_APPROVED_SUBMISSIONS = 25; // Reduced from 50
+const PENDING_MAX_AGE_DAYS = 14;     // Reduced from 30 days
+const MAX_BIN_SIZE_BYTES = 95000;    // 95kb target (with 5kb safety margin)
 
 /**
  * Minimize infographic data for storage (strips unnecessary fields)
@@ -526,6 +599,7 @@ function estimateJSONSize(obj) {
 
 /**
  * Clean up old pending submissions and limit counts to stay under 100kb
+ * Uses AGGRESSIVE iterative pruning to guarantee staying under limit
  * Called automatically before submissions
  */
 function cleanupDataForSizeLimit(data) {
@@ -563,12 +637,60 @@ function cleanupDataForSizeLimit(data) {
         modified = true;
     }
 
-    // 4. Check estimated size and warn
-    const estimatedSize = estimateJSONSize(data);
-    console.log(`[Size Check] Estimated bin size: ${(estimatedSize / 1024).toFixed(1)} KB`);
+    // 4. Strip large likedBy arrays from all submissions (can grow unbounded)
+    const stripLikedByArrays = (items) => {
+        if (!items) return;
+        items.forEach(item => {
+            if (item.likedBy && item.likedBy.length > 10) {
+                item.likedBy = item.likedBy.slice(-10); // Keep only last 10 likes
+                modified = true;
+            }
+        });
+    };
+    stripLikedByArrays(data.submissions);
+    stripLikedByArrays(data.approved);
 
-    if (estimatedSize > 90000) { // 90kb warning threshold
-        console.warn('[Size Warning] Approaching 100kb limit! Consider pruning data.');
+    // 5. AGGRESSIVE ITERATIVE PRUNING: Keep removing oldest until under 95kb
+    let estimatedSize = estimateJSONSize(data);
+    let iterations = 0;
+    const maxIterations = 20; // Safety limit
+
+    while (estimatedSize > MAX_BIN_SIZE_BYTES && iterations < maxIterations) {
+        iterations++;
+        let removedSomething = false;
+
+        // First try removing oldest approved (they're larger and already downloaded)
+        if (data.approved && data.approved.length > 5) {
+            data.approved.pop(); // Remove oldest approved
+            removedSomething = true;
+            console.log(`[Size Prune ${iterations}] Removed oldest approved to reduce size`);
+        }
+        // Then try removing oldest pending
+        else if (data.submissions && data.submissions.length > 3) {
+            data.submissions.pop(); // Remove oldest pending
+            removedSomething = true;
+            console.log(`[Size Prune ${iterations}] Removed oldest pending to reduce size`);
+        }
+        // If still over, remove deleted list items
+        else if (data.deleted && data.deleted.length > 10) {
+            data.deleted = data.deleted.slice(-10);
+            removedSomething = true;
+            console.log(`[Size Prune ${iterations}] Trimmed deleted list`);
+        }
+
+        if (!removedSomething) {
+            console.warn('[Size Prune] Cannot reduce size further - minimum items reached');
+            break;
+        }
+
+        estimatedSize = estimateJSONSize(data);
+        modified = true;
+    }
+
+    console.log(`[Size Check] Final bin size: ${(estimatedSize / 1024).toFixed(1)} KB (target: <${MAX_BIN_SIZE_BYTES / 1024}KB)`);
+
+    if (estimatedSize > MAX_BIN_SIZE_BYTES) {
+        console.error('[Size Error] Still over 95kb after maximum pruning!');
     }
 
     return { data, modified, estimatedSize };
@@ -580,6 +702,7 @@ function cleanupDataForSizeLimit(data) {
 
 /**
  * Submit an infographic to the community pool
+ * Uses Firebase if configured (no size limits), otherwise JSONBin
  * @param {Object} infographicData - The infographic data to submit
  * @param {string} userName - The submitter's name
  * @returns {Promise<Object>} - Result with success status and message
@@ -597,7 +720,7 @@ async function submitToCommunity(infographicData, userName) {
         // Get user IP
         const userIP = await getUserIP();
 
-        // Create submission object with MINIMIZED data to save space
+        // Create submission object
         const submission = {
             id: generateSubmissionId(),
             userName: sanitizeInput(userName),
@@ -606,10 +729,22 @@ async function submitToCommunity(infographicData, userName) {
             submittedAt: new Date().toISOString(),
             userIP: userIP,
             likes: 0,
-            likedBy: [], // Array of IPs who liked
-            status: 'pending', // pending, approved, rejected
-            data: minimizeInfographicData(infographicData) // Use minimized data to reduce size
+            likedBy: [],
+            status: 'pending',
+            data: minimizeInfographicData(infographicData)
         };
+
+        // Check which storage provider to use
+        const provider = getActiveStorageProvider();
+
+        if (provider === 'firebase' && window.FirebaseStorage) {
+            // Use Firebase - no size limits!
+            console.log('[Submit] Using Firebase storage');
+            return await window.FirebaseStorage.submit(submission);
+        }
+
+        // Use JSONBin with size management
+        console.log('[Submit] Using JSONBin storage');
 
         // Fetch current submissions
         const currentData = await fetchSubmissions();
