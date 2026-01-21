@@ -2839,14 +2839,15 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
 
                     if (targetItem) {
-                        // Admin password removed
-                        /*
-                        const password = prompt('Enter admin password to rename this item:');
-                        if (password !== '309030') {
-                            if (password !== null) alert('Incorrect password.');
-                            return;
+                        // Admin password required for rename only if running locally (server mode)
+                        // Remote users (GitHub Pages) can rename freely for their local view
+                        if (!isGitHubPages()) {
+                            const password = prompt('Enter admin password to rename this item:');
+                            if (password !== '309030') {
+                                if (password !== null) alert('Incorrect password.');
+                                return;
+                            }
                         }
-                        */
 
                         const newTitle = prompt('Enter new title:', targetItem.title);
                         if (newTitle && newTitle.trim()) {
@@ -2885,16 +2886,22 @@ function setupKnowledgeBase() {
                     const id = parseInt(button.dataset.id);
                     const itemToDelete = library.find(i => i.id === id);
 
-                    // Admin password removed
-                    /*
-                    const password = prompt('Enter admin password to delete this item:');
-                    if (password !== '309030') {
-                        if (password !== null) alert('Incorrect password.');
-                        return;
+                    // Admin password required for delete only if running locally (server mode)
+                    // Remote users can delete freely from their local view
+                    if (!isGitHubPages()) {
+                        const password = prompt('Enter admin password to delete this item:');
+                        if (password !== '309030') {
+                            if (password !== null) alert('Incorrect password.');
+                            return;
+                        }
                     }
-                    */
 
-                    if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
+                    // Adjust confirmation message based on user type
+                    const confirmMsg = isGitHubPages()
+                        ? 'Remove this item from your library?'
+                        : 'Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery';
+
+                    if (confirm(confirmMsg)) {
                         const newLibrary = library.filter(i => i.id !== id);
 
                         // Reassign sequential IDs after deletion (no gaps)
@@ -2902,8 +2909,22 @@ function setupKnowledgeBase() {
 
                         localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
 
-                        // COMPREHENSIVE DELETION: Remove from ALL pools (pending, approved, and track for remote sync)
-                        if (itemToDelete && itemToDelete.title) {
+                        // TRACK LOCAL DELETION (For Remote Users)
+                        if (isGitHubPages()) {
+                            try {
+                                const userDeletedKey = 'ophthalmic_user_deleted_items';
+                                let deletedList = JSON.parse(localStorage.getItem(userDeletedKey) || '[]');
+                                if (!deletedList.includes(String(id))) {
+                                    deletedList.push(String(id));
+                                    localStorage.setItem(userDeletedKey, JSON.stringify(deletedList));
+                                }
+                            } catch (e) {
+                                console.warn('Failed to track local deletion:', e);
+                            }
+                        }
+
+                        // COMPREHENSIVE DELETION (For Admin/Server Mode only)
+                        if (!isGitHubPages() && itemToDelete && itemToDelete.title) {
                             if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.removeFromAllPools) {
                                 try {
                                     const result = await CommunitySubmissions.removeFromAllPools(itemToDelete.title);
@@ -3229,31 +3250,27 @@ function setupSyncStatus() {
             localStorage.setItem('community_username', userName.trim());
 
             exportBtn.disabled = true;
+            exportBtn.disabled = true;
             exportBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Exporting...';
 
-            let successCount = 0;
-            let failCount = 0;
+            try {
+                // Use submitMultiple for robust batch processing
+                const itemsToSubmit = currentDifferences.localOnly.map(item => item.data || item);
+                const result = await CommunitySubmissions.submitMultiple(itemsToSubmit, userName.trim());
 
-            for (const item of currentDifferences.localOnly) {
-                try {
-                    const result = await CommunitySubmissions.submit(item.data || item, userName.trim());
-                    if (result.success) {
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-                } catch (err) {
-                    failCount++;
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+
+                if (result.success) {
+                    alert(`✅ ${result.count} item${result.count > 1 ? 's' : ''} published to the Community Hub!`);
+                } else {
+                    alert(`Failed to export items: ${result.message}`);
                 }
-            }
-
-            exportBtn.disabled = false;
-            exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
-
-            if (successCount > 0) {
-                alert(`✅ ${successCount} item${successCount > 1 ? 's' : ''} published to the Community Hub!${failCount > 0 ? `\n❌ ${failCount} failed.` : ''}`);
-            } else {
-                alert('Failed to export items. Please try again.');
+            } catch (err) {
+                console.error('Export error:', err);
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+                alert('An error occurred during export. Please try again.');
             }
         });
     }
