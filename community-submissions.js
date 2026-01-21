@@ -31,14 +31,15 @@ const JSONBIN_CONFIG = {
     MASTER_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
     BASE_URL: 'https://api.jsonbin.io/v3/b',
 
-    // Multi-bin architecture - each bin < 100kb
+    // Multi-bin architecture - each bin < 100kb for FREE tier
+    // This bypasses the 100kb limit by splitting data across bins
     BINS: {
         // Pending submissions bin (user submissions awaiting approval)
-        PENDING: '69679ff543b1c97be9303398', // Original bin - now only pending
-        // Approved submissions bin (admin-approved content)
-        APPROVED: null, // Set to null = use same bin for backwards compatibility. Create new bin and set ID here for sharding.
-        // Metadata bin (deleted items, stats) 
-        META: null // Set to null = use pending bin for backwards compatibility
+        PENDING: '69679ff543b1c97be9303398',
+        // Approved submissions bin (admin-approved content) - NEWLY CREATED
+        APPROVED: '69704dc143b1c97be93e4d8c',
+        // Metadata bin (deleted items, stats) - uses pending bin
+        META: null
     },
 
     // Legacy single-bin ID (for backwards compatibility during migration)
@@ -396,16 +397,18 @@ async function fetchSubmissions(forceRefresh = false) {
         return await window.FirebaseStorage.fetchSubmissions();
     }
 
-    // Use JSONBin
+    // Use JSONBin with MULTI-BIN SHARDING
     if (!isJSONBinConfigured()) {
         console.warn('JSONBin not configured. Using demo mode with localStorage.');
         return getLocalDemoSubmissions();
     }
 
-    // Force refresh: clear cache
+    // Force refresh: clear all caches
     if (forceRefresh) {
+        localStorage.removeItem(CACHE_KEYS.PENDING);
+        localStorage.removeItem(CACHE_KEYS.APPROVED);
         localStorage.removeItem(COMMUNITY_CACHE_KEY);
-        console.log('Force refresh: cache cleared');
+        console.log('Force refresh: all caches cleared');
     }
 
     // Check cache first (unless force refresh)
@@ -421,11 +424,50 @@ async function fetchSubmissions(forceRefresh = false) {
     }
 
     try {
-        const binId = getBinId('PENDING'); // Use pending bin for all reads (legacy mode)
-        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${binId}/latest`, {
-            headers: {
-                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-            }
+        // MULTI-BIN FETCH: Read from separate bins in parallel
+        const pendingBinId = getBinId('PENDING');
+        const approvedBinId = getBinId('APPROVED');
+        const useMultiBin = JSONBIN_CONFIG.BINS.APPROVED && approvedBinId !== pendingBinId;
+
+        if (useMultiBin) {
+            console.log('[Fetch] Using multi-bin sharding (no 100kb limit!)');
+
+            // Fetch from both bins in parallel
+            const [pendingRes, approvedRes] = await Promise.all([
+                fetch(`${JSONBIN_CONFIG.BASE_URL}/${pendingBinId}/latest`, {
+                    headers: { 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY }
+                }),
+                fetch(`${JSONBIN_CONFIG.BASE_URL}/${approvedBinId}/latest`, {
+                    headers: { 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY }
+                })
+            ]);
+
+            const pendingData = pendingRes.ok ? (await pendingRes.json()).record : { submissions: [] };
+            const approvedData = approvedRes.ok ? (await approvedRes.json()).record : { approved: [] };
+
+            // Aggregate data from both bins
+            const data = {
+                submissions: pendingData.submissions || [],
+                approved: approvedData.approved || [],
+                deleted: pendingData.deleted || [],
+                _pendingVersion: pendingRes.ok ? (await pendingRes.json())?.metadata?.version : null,
+                _approvedVersion: approvedRes.ok ? (await approvedRes.json())?.metadata?.version : null
+            };
+
+            // Cache the aggregated result
+            localStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({
+                data,
+                timestamp: Date.now()
+            }));
+
+            console.log(`[Fetch] Got ${data.submissions.length} pending, ${data.approved.length} approved`);
+            return data;
+        }
+
+        // LEGACY: Single-bin mode (fallback)
+        console.log('[Fetch] Using single-bin mode');
+        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${pendingBinId}/latest`, {
+            headers: { 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY }
         });
 
         if (!response.ok) {
@@ -434,7 +476,6 @@ async function fetchSubmissions(forceRefresh = false) {
 
         const result = await response.json();
         const data = result.record || { submissions: [], approved: [] };
-        // Store the version for updates
         data._binVersion = result.metadata?.version;
 
         // Cache the result
@@ -941,8 +982,47 @@ async function approveSubmission(submissionId, pin) {
         data.approved = data.approved || [];
         data.approved.unshift(submission);
 
-        // Update storage
-        // Update storage
+        // MULTI-BIN MODE: Write to separate bins
+        const useMultiBin = JSONBIN_CONFIG.BINS.APPROVED &&
+            getBinId('APPROVED') !== getBinId('PENDING');
+
+        if (useMultiBin) {
+            console.log('[Approve] Using multi-bin mode - updating both bins');
+
+            // Update PENDING bin (remove the approved item)
+            const pendingResult = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('PENDING')}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                },
+                body: JSON.stringify({
+                    submissions: data.submissions,
+                    deleted: data.deleted || []
+                })
+            });
+
+            // Update APPROVED bin (add the approved item)
+            const approvedResult = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('APPROVED')}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                },
+                body: JSON.stringify({ approved: data.approved })
+            });
+
+            if (pendingResult.ok && approvedResult.ok) {
+                // Clear cache to force refresh
+                localStorage.removeItem(COMMUNITY_CACHE_KEY);
+                return { success: true, message: 'Submission approved!' };
+            } else {
+                const errText = !pendingResult.ok ? await pendingResult.text() : await approvedResult.text();
+                return { success: false, message: `Failed to approve: ${errText}` };
+            }
+        }
+
+        // LEGACY: Single-bin mode
         const result = await updateSubmissions(data);
 
         if (result.success) {
