@@ -1417,6 +1417,30 @@ function autoDetectChapter(title) {
                 'hawk', 'harrier', 'tenaya', 'lucerne'
             ], chapter: 'evidence'
         },
+
+        // ══════════════════════════════════════════════════════════════════
+        // AIDS TO DIAGNOSIS
+        // ══════════════════════════════════════════════════════════════════
+        {
+            keywords: [
+                'signs', 'symptoms', 'differential diagnosis', 'grading', 'classification',
+                'staging', 'diagnostic criteria', 'clinical pearls', 'mnemonic',
+                'syndrome', 'triad', 'pathognomonic', 'epidemiology'
+            ], chapter: 'aids'
+        },
+
+        // ══════════════════════════════════════════════════════════════════
+        // VISION IN CONTEXT
+        // ══════════════════════════════════════════════════════════════════
+        {
+            keywords: [
+                'dvla', 'driving', 'visual standards', 'driving vision',
+                'cvi', 'certificate of visual impairment', 'registration', 'blind registration',
+                'low vision', 'lva', 'visual aid', 'rehabilitation',
+                'occupational', 'screening', 'public health',
+                'quality of life', 'prom', 'patient reported'
+            ], chapter: 'vision_context'
+        },
     ];
 
     for (const rule of rules) {
@@ -2257,6 +2281,13 @@ function setupKnowledgeBase() {
 
     // OPEN LIBRARY
     const openLibrary = () => {
+        // Guest Access Fix: Auto-sync if library is empty
+        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        if (library.length === 0) {
+            console.log("Library empty. Triggering auto-sync for guest access...");
+            syncFromServer(true); // Silent sync
+        }
+
         renderLibraryList();
         modal.classList.add('active');
     };
