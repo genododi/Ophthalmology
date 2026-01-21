@@ -851,6 +851,8 @@ function autoDetectChapter(title) {
                 // Intracranial conditions
                 'iih', 'pseudotumor', 'benign intracranial', 'idiopathic intracranial',
                 'raised icp', 'intracranial pressure', 'pituitary', 'sellar',
+                // Neuromuscular
+                'myasthenia', 'nmj', 'neuromuscular junction', 'ocular myasthenia',
                 // General neuro-ophth
                 'neuro-ophth', 'neuroophth', 'visual pathway', 'afferent', 'efferent'
             ], chapter: 'neuro'
@@ -1644,21 +1646,31 @@ function setupKnowledgeBase() {
 
             // Merge community approved items into serverItems for unified processing
             // Convert community format to library format
-            communityApproved.forEach(submission => {
-                if (submission.data) {
-                    const libraryItem = {
-                        id: submission.id || Date.now(),
-                        title: submission.title || submission.data.title || 'Community Infographic',
-                        summary: submission.summary || submission.data.summary || '',
-                        date: submission.approvedAt || submission.submittedAt || new Date().toISOString(),
-                        data: submission.data,
-                        chapterId: submission.chapterId || 'uncategorized',
-                        communitySource: true, // Mark as from community
-                        author: submission.userName
-                    };
-                    serverItems.push(libraryItem);
-                }
-            });
+            if (communityApproved.length > 0) {
+                console.log(`[Sync] processing ${communityApproved.length} community items`);
+                communityApproved.forEach(submission => {
+                    if (submission.data) {
+                        const libraryItem = {
+                            id: submission.id || Date.now(),
+                            title: submission.title || submission.data.title || 'Community Infographic',
+                            summary: submission.summary || submission.data.summary || '',
+                            date: submission.approvedAt || submission.submittedAt || new Date().toISOString(),
+                            data: submission.data,
+                            chapterId: submission.chapterId || 'uncategorized',
+                            communitySource: true, // Mark as from community
+                            citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
+                            author: submission.userName
+                        };
+
+                        // Auto-categorize if needed
+                        if (libraryItem.chapterId === 'uncategorized') {
+                            libraryItem.chapterId = autoDetectChapter(libraryItem.title);
+                        }
+
+                        serverItems.push(libraryItem);
+                    }
+                });
+            }
 
             if (serverItems.length > 0 || isGitHubPages()) {
                 let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
@@ -2267,7 +2279,7 @@ function setupKnowledgeBase() {
                         alert('Community module not loaded. Please refresh the page and try again.');
                     } else {
                         const savedUsername = localStorage.getItem('community_username') || '';
-                        const userName = prompt('Enter your name for the Community Hub:', savedUsername);
+                        const userName = prompt('Enter your name for the Community Hub (this will be public):', savedUsername);
 
                         if (!userName || !userName.trim()) {
                             alert('A name is required to publish to the Community Hub.');
@@ -2277,6 +2289,18 @@ function setupKnowledgeBase() {
                                 const result = await CommunitySubmissions.submit(newItem.data, userName.trim());
                                 if (result.success) {
                                     alert(result.message || '✅ Published to the Community Hub!');
+
+                                    // IMMEDIATE RECOGNITION: Update local item to reflect community status
+                                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                                    // Find the item we just added (it's at the top, index 0)
+                                    if (library.length > 0) {
+                                        library[0].communitySource = true;
+                                        library[0].author = userName.trim();
+                                        library[0].citation = `Author: ${userName.trim()}`;
+                                        library[0]._serverSynced = true; // Mark as synced since it's in the cloud
+                                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                                        renderLibraryList(); // Refresh UI to show the "Author" tag
+                                    }
                                 } else {
                                     alert(`Publish failed: ${result.message || 'Unknown error.'}`);
                                 }
