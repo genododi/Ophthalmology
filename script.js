@@ -1530,7 +1530,7 @@ function setupKnowledgeBase() {
             // No limit on number of items - users can submit as many as they want
             if (isGitHubPages()) {
                 const itemWord = itemsToExport.length === 1 ? 'infographic' : 'infographics';
-                if (!confirm(`You are accessing remotely. ${itemsToExport.length} ${itemWord} will be submitted to the Community Pool for admin review. Continue?`)) return;
+                if (!confirm(`You are accessing remotely. ${itemsToExport.length} ${itemWord} will be published to the Community Hub and become available to everyone. Continue?`)) return;
 
                 const originalIcon = exportBtn.innerHTML;
                 exportBtn.innerHTML = '<span class="material-symbols-rounded">sync</span>';
@@ -1551,8 +1551,8 @@ function setupKnowledgeBase() {
                     const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
 
                     if (result.success) {
-                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} submitted successfully!`;
-                        alert(msg + '\n\nThe admin will review your submissions.');
+                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} published successfully!`;
+                        alert(msg + '\n\nThey are now live in the Community Hub.');
                         selectionMode = false;
                         selectedItems.clear();
                         renderLibraryList();
@@ -1561,7 +1561,7 @@ function setupKnowledgeBase() {
                     }
                 } catch (err) {
                     console.error('Community submission error:', err);
-                    alert('Error submitting to community pool: ' + err.message);
+                    alert('Error submitting to the Community Hub: ' + err.message);
                 } finally {
                     exportBtn.innerHTML = originalIcon;
                 }
@@ -2231,7 +2231,7 @@ function setupKnowledgeBase() {
 
     // SAVE
     if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
             if (!currentInfographicData) {
                 alert("Only generated infographics can be saved.");
                 return;
@@ -2260,16 +2260,45 @@ function setupKnowledgeBase() {
 
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
-            // Auto-upload to server so it saves to the library/ folder
-            safeFetch('api/library/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify([newItem])
-            }).then(() => {
-                console.log('Saved to server library folder.');
-            }).catch(err => {
-                console.log('Server sync skipped (server offline):', err.message);
-            });
+            if (isGitHubPages()) {
+                const wantsShare = confirm('Share this infographic to the Community Hub now? It will be published instantly for all visitors.');
+                if (wantsShare) {
+                    if (!window.CommunitySubmissions) {
+                        alert('Community module not loaded. Please refresh the page and try again.');
+                    } else {
+                        const savedUsername = localStorage.getItem('community_username') || '';
+                        const userName = prompt('Enter your name for the Community Hub:', savedUsername);
+
+                        if (!userName || !userName.trim()) {
+                            alert('A name is required to publish to the Community Hub.');
+                        } else {
+                            localStorage.setItem('community_username', userName.trim());
+                            try {
+                                const result = await CommunitySubmissions.submit(newItem.data, userName.trim());
+                                if (result.success) {
+                                    alert(result.message || '✅ Published to the Community Hub!');
+                                } else {
+                                    alert(`Publish failed: ${result.message || 'Unknown error.'}`);
+                                }
+                            } catch (err) {
+                                console.error('Community publish error:', err);
+                                alert('Error publishing to the Community Hub: ' + err.message);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Auto-upload to server so it saves to the library/ folder
+                safeFetch('api/library/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([newItem])
+                }).then(() => {
+                    console.log('Saved to server library folder.');
+                }).catch(err => {
+                    console.log('Server sync skipped (server offline):', err.message);
+                });
+            }
 
             const originalIcon = saveBtn.innerHTML;
             saveBtn.innerHTML = '<span class="material-symbols-rounded">check</span>';
@@ -2623,7 +2652,7 @@ function setupKnowledgeBase() {
                 const itemsToSubmit = library.filter(item => selectedItems.has(item.id));
                 const itemWord = itemsToSubmit.length === 1 ? 'infographic' : 'infographics';
 
-                if (!confirm(`Submit ${itemsToSubmit.length} ${itemWord} to the Community Pool for admin review?`)) return;
+                if (!confirm(`Publish ${itemsToSubmit.length} ${itemWord} to the Community Hub now? They will be available to everyone.`)) return;
 
                 // Prompt for username
                 const savedUsername = localStorage.getItem('community_username') || '';
@@ -2643,8 +2672,8 @@ function setupKnowledgeBase() {
                     const result = await CommunitySubmissions.submitMultiple(itemsToSubmit, userName.trim());
 
                     if (result.success) {
-                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} submitted successfully!`;
-                        alert(msg + '\n\nThe admin will review your submissions.');
+                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} published successfully!`;
+                        alert(msg + '\n\nThey are now live in the Community Hub.');
                         selectionMode = false;
                         selectedItems.clear();
                         renderLibraryList();
@@ -2654,7 +2683,7 @@ function setupKnowledgeBase() {
                     }
                 } catch (err) {
                     console.error('Community submission error:', err);
-                    alert('Error submitting to community pool: ' + err.message);
+                    alert('Error submitting to the Community Hub: ' + err.message);
                 } finally {
                     // Reset button
                     submitCommunityBtn.innerHTML = originalContent;
@@ -3067,7 +3096,7 @@ function setupSyncStatus() {
                 html += `
                     <div class="diff-section">
                         <h4><span class="material-symbols-rounded" style="color: #22c55e;">add_circle</span> Only on Your Device (${localOnly.length})</h4>
-                        <p class="diff-hint">These items are not on the server/admin library</p>
+                        <p class="diff-hint">These items are not on the community library</p>
                         <div class="diff-list">
                             ${localOnly.map(item => `
                                 <div class="diff-item local-only">
@@ -3102,7 +3131,7 @@ function setupSyncStatus() {
             if (deletedByAdmin.length > 0) {
                 html += `
                     <div class="diff-section">
-                        <h4><span class="material-symbols-rounded" style="color: #ef4444;">delete</span> Deleted by Admin (${deletedByAdmin.length})</h4>
+                        <h4><span class="material-symbols-rounded" style="color: #ef4444;">delete</span> Removed from Community Hub (${deletedByAdmin.length})</h4>
                         <p class="diff-hint">These will be removed on next sync</p>
                         <div class="diff-list">
                             ${deletedByAdmin.map(item => `
@@ -3143,7 +3172,7 @@ function setupSyncStatus() {
         refreshBtn.addEventListener('click', comparLibraries);
     }
 
-    // Export local-only to admin (via Community Pool)
+    // Publish local-only to the Community Hub
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
             if (currentDifferences.localOnly.length === 0) {
@@ -3152,7 +3181,7 @@ function setupSyncStatus() {
             }
 
             const count = currentDifferences.localOnly.length;
-            if (!confirm(`Export ${count} local-only item${count > 1 ? 's' : ''} to the admin for review?`)) return;
+            if (!confirm(`Publish ${count} local-only item${count > 1 ? 's' : ''} to the Community Hub so everyone can access them?`)) return;
 
             const savedUsername = localStorage.getItem('community_username') || '';
             const userName = prompt('Enter your name for the submissions:', savedUsername);
@@ -3184,10 +3213,10 @@ function setupSyncStatus() {
             }
 
             exportBtn.disabled = false;
-            exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Export Local-Only to Admin';
+            exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
 
             if (successCount > 0) {
-                alert(`✅ ${successCount} item${successCount > 1 ? 's' : ''} submitted for admin review!${failCount > 0 ? `\n❌ ${failCount} failed.` : ''}`);
+                alert(`✅ ${successCount} item${successCount > 1 ? 's' : ''} published to the Community Hub!${failCount > 0 ? `\n❌ ${failCount} failed.` : ''}`);
             } else {
                 alert('Failed to export items. Please try again.');
             }
@@ -5836,7 +5865,7 @@ function setupCommunityHub() {
 
         // Show loading state
         const originalText = confirmSubmitBtn.innerHTML;
-        confirmSubmitBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Submitting...';
+        confirmSubmitBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Publishing...';
         confirmSubmitBtn.disabled = true;
 
         try {
@@ -6079,14 +6108,6 @@ function setupCommunityHub() {
     if (previewDownloadBtn) {
         previewDownloadBtn.addEventListener('click', () => {
             if (currentPreviewId) {
-                // Only admin can add community submissions to library
-                const password = prompt('Enter admin password to add this infographic to library:');
-                if (password !== '309030') {
-                    if (password !== null) {
-                        alert('Only administrators can add community submissions to the library.');
-                    }
-                    return;
-                }
                 handleDownloadSubmission(currentPreviewId);
                 previewModal.classList.remove('active');
             }

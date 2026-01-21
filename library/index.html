@@ -629,12 +629,12 @@
                 <div class="community-tabs">
                     <button class="community-tab active" data-tab="pending">
                         <span class="material-symbols-rounded">pending</span>
-                        Pending Review
+                        New Uploads
                         <span class="tab-count" id="pending-count">0</span>
                     </button>
                     <button class="community-tab" data-tab="approved">
                         <span class="material-symbols-rounded">verified</span>
-                        Approved Gallery
+                        Community Gallery
                         <span class="tab-count" id="approved-count">0</span>
                     </button>
                 </div>
@@ -643,15 +643,15 @@
                 <div class="community-content" id="pending-content">
                     <div class="community-info-banner">
                         <span class="material-symbols-rounded">info</span>
-                        <p>These infographics are submitted by community members and pending administrator review. You
-                            can preview, like, and add them to your local library.</p>
+                        <p>Fresh uploads from community members. They are published instantly so you can preview, like,
+                            and add them to your local library.</p>
                     </div>
                     <div id="pending-submissions-list" class="community-grid">
                         <!-- Submissions will be injected here -->
                     </div>
                     <div id="pending-empty" class="community-empty" style="display: none;">
                         <span class="material-symbols-rounded">inbox</span>
-                        <p>No pending submissions at the moment.</p>
+                        <p>No new uploads at the moment.</p>
                     </div>
                 </div>
 
@@ -659,15 +659,14 @@
                 <div class="community-content" id="approved-content" style="display: none;">
                     <div class="community-info-banner success">
                         <span class="material-symbols-rounded">verified</span>
-                        <p>These infographics have been reviewed and approved by the administrator. They are available
-                            for everyone to use!</p>
+                        <p>These infographics are published by the community and available for everyone to use.</p>
                     </div>
                     <div id="approved-submissions-list" class="community-grid">
                         <!-- Approved items will be injected here -->
                     </div>
                     <div id="approved-empty" class="community-empty" style="display: none;">
                         <span class="material-symbols-rounded">folder_off</span>
-                        <p>No approved infographics yet.</p>
+                        <p>No community infographics yet.</p>
                     </div>
                 </div>
             </div>
@@ -681,7 +680,7 @@
                 <h2>
                     <span class="material-symbols-rounded"
                         style="vertical-align: middle; margin-right: 8px;">cloud_upload</span>
-                    Submit to Community
+                    Publish to Community Hub
                 </h2>
                 <button id="close-submit-modal-btn" class="icon-btn-ghost">
                     <span class="material-symbols-rounded">close</span>
@@ -703,14 +702,12 @@
                     <div class="submit-info">
                         <h4>What happens next?</h4>
                         <ul>
-                            <li><span class="material-symbols-rounded">upload</span> Your infographic will be uploaded
-                                to the community pool</li>
+                            <li><span class="material-symbols-rounded">upload</span> Your infographic will be published
+                                to the Community Hub</li>
                             <li><span class="material-symbols-rounded">visibility</span> Other users can view, like, and
-                                download it</li>
-                            <li><span class="material-symbols-rounded">admin_panel_settings</span> An administrator will
-                                review and approve it</li>
-                            <li><span class="material-symbols-rounded">verified</span> Once approved, it becomes part of
-                                the permanent gallery</li>
+                                add it to their library</li>
+                            <li><span class="material-symbols-rounded">public</span> It appears instantly for everyone
+                                visiting this site</li>
                         </ul>
                     </div>
 
@@ -725,7 +722,7 @@
                     <button id="cancel-submit-btn" class="btn-secondary">Cancel</button>
                     <button id="confirm-submit-btn" class="btn-primary">
                         <span class="material-symbols-rounded">send</span>
-                        Submit for Review
+                        Publish Now
                     </button>
                 </div>
             </div>
