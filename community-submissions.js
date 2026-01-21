@@ -761,17 +761,18 @@ async function submitToCommunity(infographicData, userName) {
         // Get user IP
         const userIP = await getUserIP();
 
-        // Create submission object
+        // Create submission object - AUTO APPROVED
         const submission = {
             id: generateSubmissionId(),
             userName: sanitizeInput(userName),
             title: infographicData.title || 'Untitled Infographic',
             summary: infographicData.summary || '',
             submittedAt: new Date().toISOString(),
+            approvedAt: new Date().toISOString(), // Auto-approved timestamp
             userIP: userIP,
             likes: 0,
             likedBy: [],
-            status: 'pending',
+            status: 'approved', // Auto-approve
             data: minimizeInfographicData(infographicData)
         };
 
@@ -785,30 +786,74 @@ async function submitToCommunity(infographicData, userName) {
         }
 
         // Use JSONBin with size management
-        console.log('[Submit] Using JSONBin storage');
+        console.log('[Submit] Using JSONBin storage (Auto-Approved)');
 
         // Fetch current submissions
         const currentData = await fetchSubmissions();
 
-        // Add new submission
-        currentData.submissions = currentData.submissions || [];
-        currentData.submissions.unshift(submission);
+        // Add to APPROVED list immediately
+        currentData.approved = currentData.approved || [];
+        currentData.approved.unshift(submission);
 
         // Cleanup old/excess submissions to prevent 100kb limit
         const { data: cleanedData, estimatedSize } = cleanupDataForSizeLimit(currentData);
 
         // Update storage
-        const result = await updateSubmissions(cleanedData);
+        // CHECK FOR MULTI-BIN MODE
+        const useMultiBin = JSONBIN_CONFIG.BINS.APPROVED &&
+            getBinId('APPROVED') !== getBinId('PENDING');
 
-        if (result.success) {
-            return {
-                success: true,
-                message: 'Your infographic has been submitted for review!',
-                submissionId: submission.id
-            };
+        if (useMultiBin) {
+            console.log('[Submit] Using multi-bin mode - saving to Approved bin');
+            // Save APPROVED bin
+            const approvedResult = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('APPROVED')}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                },
+                body: JSON.stringify({ approved: cleanedData.approved })
+            });
+
+            // We also need to save PENDING bin if cleanup modified it (e.g. pruned pending items)
+            // But main action is Approved. Let's try to update Pending too just to be safe and consistent
+            const pendingResult = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('PENDING')}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                },
+                body: JSON.stringify({
+                    submissions: cleanedData.submissions,
+                    deleted: cleanedData.deleted || []
+                })
+            });
+
+            if (approvedResult.ok) {
+                localStorage.removeItem(COMMUNITY_CACHE_KEY);
+                return {
+                    success: true,
+                    message: 'Your infographic has been published to the Community!',
+                    submissionId: submission.id
+                };
+            } else {
+                return { success: false, message: 'Failed to publish to approved bin.' };
+            }
+
         } else {
-            return { success: false, message: result.message || 'Failed to submit. Please try again.' };
+            // Legacy Single Bin
+            const result = await updateSubmissions(cleanedData);
+            if (result.success) {
+                return {
+                    success: true,
+                    message: 'Your infographic has been published to the Community!',
+                    submissionId: submission.id
+                };
+            } else {
+                return { success: false, message: result.message || 'Failed to submit. Please try again.' };
+            }
         }
+
     } catch (err) {
         console.error('Submission error:', err);
         return { success: false, message: 'An error occurred. Please try again.' };
@@ -831,11 +876,11 @@ async function submitMultiple(infographicsList, userName) {
     try {
         const userIP = await getUserIP();
         const currentData = await fetchSubmissions();
-        currentData.submissions = currentData.submissions || [];
+        currentData.approved = currentData.approved || []; // Target APPROVED
 
         const newSubmissions = [];
 
-        // Prepare all submissions
+        // Prepare all submissions - AUTO APPROVED
         for (const item of infographicsList) {
             const submission = {
                 id: generateSubmissionId() + Math.random().toString(36).substr(2, 5), // Ensure unique ID
@@ -843,30 +888,64 @@ async function submitMultiple(infographicsList, userName) {
                 title: (item.title || item.data?.title) || 'Untitled Infographic',
                 summary: (item.summary || item.data?.summary) || '',
                 submittedAt: new Date().toISOString(),
+                approvedAt: new Date().toISOString(),
                 userIP: userIP,
                 likes: 0,
                 likedBy: [],
-                status: 'pending',
+                status: 'approved', // Auto-approve
                 data: item.data || item
             };
             newSubmissions.push(submission);
         }
 
-        // Batch prepend (newest first)
-        currentData.submissions.unshift(...newSubmissions);
+        // Batch prepend to APPROVED (newest first)
+        currentData.approved.unshift(...newSubmissions);
 
-        // Single update
-        const result = await updateSubmissions(currentData);
+        // Cleanup size
+        const { data: cleanedData, estimatedSize } = cleanupDataForSizeLimit(currentData);
 
-        if (result.success) {
-            return {
-                success: true,
-                count: newSubmissions.length,
-                message: `Successfully submitted ${newSubmissions.length} infographics!`
-            };
+        // Check Multi-Bin
+        const useMultiBin = JSONBIN_CONFIG.BINS.APPROVED &&
+            getBinId('APPROVED') !== getBinId('PENDING');
+
+        if (useMultiBin) {
+            console.log('[Batch Submit] Using multi-bin mode - saving to Approved bin');
+            const approvedResult = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('APPROVED')}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY },
+                body: JSON.stringify({ approved: cleanedData.approved })
+            });
+            // Update Pending too just in case cleanup pruned something
+            await fetch(`${JSONBIN_CONFIG.BASE_URL}/${getBinId('PENDING')}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY },
+                body: JSON.stringify({ submissions: cleanedData.submissions, deleted: cleanedData.deleted || [] })
+            });
+
+            if (approvedResult.ok) {
+                localStorage.removeItem(COMMUNITY_CACHE_KEY);
+                return {
+                    success: true,
+                    count: newSubmissions.length,
+                    message: `Successfully published ${newSubmissions.length} infographics!`
+                };
+            } else {
+                return { success: false, message: 'Failed to batch publish.' };
+            }
         } else {
-            return { success: false, message: result.message || 'Batch submission failed. Please try again.' };
+            // Single Bin Legacy
+            const result = await updateSubmissions(cleanedData);
+            if (result.success) {
+                return {
+                    success: true,
+                    count: newSubmissions.length,
+                    message: `Successfully published ${newSubmissions.length} infographics!`
+                };
+            } else {
+                return { success: false, message: result.message || 'Batch submission failed. Please try again.' };
+            }
         }
+
     } catch (err) {
         console.error('Batch submission error:', err);
         return { success: false, message: 'An error occurred during batch submission.' };
