@@ -31,6 +31,18 @@ const JSONBIN_CONFIG = {
     BASE_URL: 'https://api.jsonbin.io/v3/b'
 };
 
+// Pantry.cloud Configuration - 10MB Free Limit (Recommended)
+// To set up:
+// 1. Go to https://getpantry.cloud/
+// 2. Click "Create your Pantry"
+// 3. Copy your Pantry ID
+const PANTRY_CONFIG = {
+    // PASTE YOUR PANTRY ID HERE
+    PANTRY_ID: '',
+    BASKET_NAME: 'ophthalmic-community',
+    BASE_URL: 'https://getpantry.cloud/apiv1/pantry'
+};
+
 // Admin PIN for approval operations (simple security)
 // In production, use a more secure method
 const ADMIN_PIN = '309030'; // Change this to your preferred PIN
@@ -171,91 +183,116 @@ function sanitizeInput(input) {
 /**
  * Check if JSONBin is configured
  */
+/**
+ * Check if a storage backend is configured
+ */
 function isJSONBinConfigured() {
-    return JSONBIN_CONFIG.BIN_ID &&
-        JSONBIN_CONFIG.BIN_ID !== 'YOUR_BIN_ID_HERE' &&
-        JSONBIN_CONFIG.MASTER_KEY !== '$2a$10$YOUR_MASTER_KEY_HERE';
+    // Check Pantry first (Preferred)
+    if (PANTRY_CONFIG.PANTRY_ID && PANTRY_CONFIG.PANTRY_ID.length > 5) return true;
+    // Check JSONBin second (Legacy)
+    if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.MASTER_KEY && !JSONBIN_CONFIG.BIN_ID.includes('your-bin-id')) return true;
+    return false;
 }
 
 /**
- * Fetch all submissions from JSONBin
+ * Fetch all submissions from configured storage
  */
 async function fetchSubmissions() {
     if (!isJSONBinConfigured()) {
-        console.warn('JSONBin not configured. Using demo mode with localStorage.');
+        console.warn('No storage backend configured. Using local demo mode.');
         return getLocalDemoSubmissions();
-    }
-
-    // Check cache first
-    const cached = localStorage.getItem(COMMUNITY_CACHE_KEY);
-    if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < COMMUNITY_CACHE_EXPIRY) {
-            console.log('Using cached community submissions');
-            return data;
-        }
     }
 
     try {
+        // Try Pantry First
+        if (PANTRY_CONFIG.PANTRY_ID) {
+            const url = `${PANTRY_CONFIG.BASE_URL}/${PANTRY_CONFIG.PANTRY_ID}/basket/${PANTRY_CONFIG.BASKET_NAME}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                // If 404, valid but empty basket might not exist yet
+                if (response.status === 404) {
+                    return { submissions: [], approved: [], deleted: [] };
+                }
+                throw new Error(`Pantry error (${response.status})`);
+            }
+            return await response.json();
+        }
+
+        // Fallback to JSONBin (Legacy)
         const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
             headers: {
-                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
+                'X-Bin-Meta': 'false'
             }
         });
 
-        if (!response.ok) {
-            throw new Error(`JSONBin fetch failed: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`JSONBin error (${response.status})`);
         const result = await response.json();
-        const data = result.record || { submissions: [], approved: [] };
+        return result.record || result;
 
-        // Cache the result
-        localStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({
-            data,
-            timestamp: Date.now()
-        }));
-
-        return data;
     } catch (err) {
         console.error('Error fetching submissions:', err);
-        return getLocalDemoSubmissions();
+        // Fallback to cache if available
+        const cached = localStorage.getItem(COMMUNITY_CACHE_KEY);
+        if (cached) {
+            console.log('Using cached community data');
+            return JSON.parse(cached);
+        }
+        return { submissions: [], approved: [], deleted: [] };
     }
 }
 
 /**
- * Update submissions in JSONBin
+ * Update the storage (Add/Modify submissions)
  */
-/**
- * Update submissions in JSONBin
- * Returns object with success status and error message
- */
+
 async function updateSubmissions(data) {
     if (!isJSONBinConfigured()) {
-        console.warn('JSONBin not configured. Saving to localStorage demo mode.');
+        console.warn('Storage not configured. Saving to localStorage demo mode.');
         saveLocalDemoSubmissions(data);
         return { success: true };
     }
 
     try {
-        // PRUNING: Prevent payload from getting too large (limits to ~50-100 pending items)
-        if (data.submissions && data.submissions.length > 50) {
-            console.log(`Pruning pending submissions from ${data.submissions.length} to 50`);
-            data.submissions = data.submissions.slice(0, 50);
+        // PRUNING: Only prune if using JSONBin (100kb limit)
+        // Pantry has 10MB limit, so 50 items is too conservative, setting to 200 safely
+        const limit = PANTRY_CONFIG.PANTRY_ID ? 200 : 50;
+
+        if (data.submissions && data.submissions.length > limit) {
+            console.log(`Pruning pending submissions from ${data.submissions.length} to ${limit}`);
+            data.submissions = data.submissions.slice(0, limit);
         }
 
-        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-            },
-            body: JSON.stringify(data)
-        });
+        // Try Pantry First
+        if (PANTRY_CONFIG.PANTRY_ID) {
+            const url = `${PANTRY_CONFIG.BASE_URL}/${PANTRY_CONFIG.PANTRY_ID}/basket/${PANTRY_CONFIG.BASKET_NAME}`;
+            const response = await fetch(url, {
+                method: 'POST', // Pantry uses POST to update/replace basket content
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
 
-        if (!response.ok) {
-            const errText = await response.text().catch(() => response.statusText);
-            throw new Error(`JSONBin update failed (${response.status}): ${errText}`);
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Pantry update failed (${response.status}): ${errText}`);
+            }
+        }
+        // Fallback to JSONBin
+        else {
+            const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errText = await response.text().catch(() => response.statusText);
+                throw new Error(`JSONBin update failed (${response.status}): ${errText}`);
+            }
         }
 
         // Clear cache to force refresh
