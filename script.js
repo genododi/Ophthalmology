@@ -2131,7 +2131,8 @@ function setupKnowledgeBase() {
             msg += `\nDelete all ${duplicates.length} duplicate(s)? (Keeps the older/original version)`;
 
             if (confirm(msg)) {
-                // Admin password required for bulk delete
+                // Admin password removed
+                /*
                 const password = prompt('Enter admin password to delete duplicates:');
                 if (password !== '309030') {
                     if (password !== null) {
@@ -2139,6 +2140,7 @@ function setupKnowledgeBase() {
                     }
                     return;
                 }
+                */
 
                 // Get IDs to delete (the newer duplicates)
                 const idsToDelete = new Set(duplicates.map(d => d.duplicateId));
@@ -2179,7 +2181,8 @@ function setupKnowledgeBase() {
     const autoChapterBtn = document.getElementById('auto-chapter-btn');
     if (autoChapterBtn) {
         autoChapterBtn.addEventListener('click', () => {
-            // Admin password required
+            // Admin password removed
+            /*
             const password = prompt('Enter admin password to auto-chapterize:');
             if (password !== '309030') {
                 if (password !== null) {
@@ -2187,6 +2190,7 @@ function setupKnowledgeBase() {
                 }
                 return;
             }
+            */
 
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
 
@@ -2627,11 +2631,14 @@ function setupKnowledgeBase() {
         const deleteSelectedBtn = toolbar.querySelector('#delete-selected-btn');
         if (deleteSelectedBtn) {
             deleteSelectedBtn.addEventListener('click', async () => {
+                // Admin password removed
+                /*
                 const password = prompt('Enter admin password to delete selected items:');
                 if (password !== '309030') {
                     if (password !== null) alert('Incorrect password.');
                     return;
                 }
+                */
 
                 if (!confirm(`Are you sure you want to PERMANENTLY delete ${selectedItems.size} items?`)) return;
 
@@ -2832,12 +2839,14 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
 
                     if (targetItem) {
-                        // Admin password required for rename
+                        // Admin password removed
+                        /*
                         const password = prompt('Enter admin password to rename this item:');
                         if (password !== '309030') {
                             if (password !== null) alert('Incorrect password.');
                             return;
                         }
+                        */
 
                         const newTitle = prompt('Enter new title:', targetItem.title);
                         if (newTitle && newTitle.trim()) {
@@ -2876,12 +2885,14 @@ function setupKnowledgeBase() {
                     const id = parseInt(button.dataset.id);
                     const itemToDelete = library.find(i => i.id === id);
 
-                    // Admin password required for delete
+                    // Admin password removed
+                    /*
                     const password = prompt('Enter admin password to delete this item:');
                     if (password !== '309030') {
                         if (password !== null) alert('Incorrect password.');
                         return;
                     }
+                    */
 
                     if (confirm('Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery')) {
                         const newLibrary = library.filter(i => i.id !== id);
@@ -5832,7 +5843,7 @@ function setupCommunityHub() {
         }
 
         emptyElement.style.display = 'none';
-        container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, false)).join('');
+        container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, true)).join('');
     }
 
     // Tab switching
