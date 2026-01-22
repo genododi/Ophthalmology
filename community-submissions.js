@@ -170,18 +170,15 @@ function sanitizeInput(input) {
  * Check if a storage backend is configured
  */
 function isConfigured() {
-    // Check localStorage first (User configured)
-    const localId = localStorage.getItem('gist_id');
-    const localToken = localStorage.getItem('gist_token');
-    if (localId && localToken) {
-        // Update config in memory
-        GITHUB_CONFIG.GIST_ID = localId;
-        GITHUB_CONFIG.GIST_TOKEN = localToken;
+    // Check localStorage first
+    if (localStorage.getItem('gist_id')) {
+        GITHUB_CONFIG.GIST_ID = localStorage.getItem('gist_id');
         return true;
     }
 
-    // Check hardcoded config
+    // Check memory (auto-discovered)
     if (GITHUB_CONFIG.GIST_ID && GITHUB_CONFIG.GIST_ID !== 'YOUR_GIST_ID_HERE') return true;
+
     return false;
 }
 
@@ -189,11 +186,15 @@ function isConfigured() {
  * Configure Gist Credentials (for UI)
  */
 function configureGist(id, token) {
-    if (id && token) {
-        localStorage.setItem('gist_id', id);
+    if (token) {
         localStorage.setItem('gist_token', token);
-        GITHUB_CONFIG.GIST_ID = id;
-        GITHUB_CONFIG.GIST_TOKEN = token;
+        if (id) {
+            localStorage.setItem('gist_id', id);
+            GITHUB_CONFIG.GIST_ID = id;
+        }
+        // If ID missing, clear it so auto-discovery can run?
+        // Actually, trigger auto-discovery logic if ID missing could be complex.
+        // For now, reload window is best.
         return true;
     }
     return false;
@@ -203,8 +204,8 @@ function configureGist(id, token) {
  * Fetch all submissions from configured storage
  */
 async function fetchSubmissions() {
-    // Ensure config is loaded
-    isConfigured();
+    // Wait a moment for auto-init if not configured? 
+    // Synchronous check is safer.
 
     if (!isConfigured()) {
         console.warn('No storage backend configured. Using local demo mode.');
@@ -212,13 +213,14 @@ async function fetchSubmissions() {
     }
 
     try {
+        const token = getGistToken();
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `token ${token}`;
+        }
+
         const response = await fetch(`${GITHUB_CONFIG.API_URL}/${GITHUB_CONFIG.GIST_ID}`, {
-            headers: {
-                // If token is present, use it to get higher rate limits (optional for public gists)
-                ...(GITHUB_CONFIG.GIST_TOKEN && GITHUB_CONFIG.GIST_TOKEN !== 'YOUR_GITHUB_TOKEN_HERE'
-                    ? { 'Authorization': `token ${GITHUB_CONFIG.GIST_TOKEN}` }
-                    : {})
-            }
+            headers: headers
         });
 
         if (!response.ok) throw new Error(`GitHub Gist error (${response.status})`);
@@ -289,7 +291,7 @@ async function updateSubmissions(data) {
         const response = await fetch(`${GITHUB_CONFIG.API_URL}/${GITHUB_CONFIG.GIST_ID}`, {
             method: 'PATCH',
             headers: {
-                'Authorization': `token ${GITHUB_CONFIG.GIST_TOKEN}`,
+                'Authorization': `token ${getGistToken()}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(payload)
