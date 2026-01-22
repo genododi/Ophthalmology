@@ -766,7 +766,7 @@ function normalizeTitle(t) {
  * @param {string} title - The title of the item (will be normalized)
  */
 async function removeFromAllPools(title) {
-    if (!isJSONBinConfigured()) {
+    if (!isConfigured()) {
         console.log('JSONBin not configured, cannot remove from community pools.');
         return { success: false, removed: { pending: 0, approved: 0 } };
     }
@@ -840,7 +840,7 @@ async function removeFromAllPools(title) {
  * @param {string} normalizedTitle - Normalized title of the deleted item
  */
 async function trackDeletion(normalizedTitle) {
-    if (!isJSONBinConfigured()) {
+    if (!isConfigured()) {
         console.log('JSONBin not configured, cannot track deletion for remote sync.');
         return { success: false };
     }
@@ -878,7 +878,7 @@ async function trackDeletion(normalizedTitle) {
  * Get list of deleted item titles for sync
  */
 async function getDeletedItems() {
-    if (!isJSONBinConfigured()) {
+    if (!isConfigured()) {
         return [];
     }
 
@@ -898,7 +898,7 @@ async function getDeletedItems() {
 // Export functions for use in other scripts
 window.CommunitySubmissions = {
     // Configuration
-    isConfigured: isJSONBinConfigured,
+    isConfigured: isConfigured,
 
     // Submission functions
     submit: submitToCommunity,
@@ -928,4 +928,4 @@ window.CommunitySubmissions = {
 };
 
 console.log('Community Submissions module loaded.');
-console.log('JSONBin configured:', isJSONBinConfigured());
+console.log('Storage configured:', isConfigured());
