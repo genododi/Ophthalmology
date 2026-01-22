@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Moderation Panel - Ophthalmic Infographic Creator</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,12 +23,12 @@
             overflow: auto;
             background: var(--bg-color);
         }
-        
+
         .moderation-page {
             min-height: 100vh;
             padding: 2rem;
         }
-        
+
         .back-link {
             display: inline-flex;
             align-items: center;
@@ -38,12 +39,12 @@
             margin-bottom: 1.5rem;
             transition: all 0.2s;
         }
-        
+
         .back-link:hover {
             color: var(--primary-dark);
             transform: translateX(-4px);
         }
-        
+
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -56,7 +57,7 @@
             justify-content: center;
             z-index: 1000;
         }
-        
+
         .approve-all-btn {
             display: flex;
             align-items: center;
@@ -72,18 +73,18 @@
             transition: all 0.2s ease;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
-        
+
         .approve-all-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
         }
-        
+
         .approve-all-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .approve-all-btn .material-symbols-rounded {
             font-size: 1.2rem;
         }
@@ -96,7 +97,7 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        
+
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -114,24 +115,24 @@
             transition: all 0.3s ease;
             z-index: 2000;
         }
-        
+
         .toast.show {
             transform: translateY(0);
             opacity: 1;
         }
-        
+
         .toast.success {
             background: linear-gradient(135deg, #10b981, #059669);
         }
-        
+
         .toast.error {
             background: linear-gradient(135deg, #ef4444, #dc2626);
         }
-        
+
         .toast.info {
             background: linear-gradient(135deg, #3b82f6, #2563eb);
         }
-        
+
         .empty-moderation {
             text-align: center;
             padding: 4rem 2rem;
@@ -139,14 +140,14 @@
             border-radius: 16px;
             border: 1px solid var(--border-color);
         }
-        
+
         .empty-moderation .material-symbols-rounded {
             font-size: 4rem;
             color: var(--text-tertiary);
             opacity: 0.5;
             margin-bottom: 1rem;
         }
-        
+
         .empty-moderation p {
             color: var(--text-secondary);
             font-size: 1.1rem;
@@ -160,16 +161,17 @@
             <span class="material-symbols-rounded">arrow_back</span>
             Back to Infographic Creator
         </a>
-        
+
         <div class="moderation-container">
-            <div id="config-warning" class="community-info-banner" style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 0.75rem;">
+            <div id="config-warning" class="community-info-banner"
+                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 0.75rem;">
                 <span class="material-symbols-rounded" style="color: #f97316;">warning</span>
                 <div>
                     <strong style="display: block; margin-bottom: 0.25rem;">Remote Storage Not Configured</strong>
                     <p style="font-size: 0.9rem; line-height: 1.4; margin: 0;">
-                        The system is currently running in <strong>Demo Mode (LocalStorage)</strong>. 
-                        Submissions are only visible on your own device. To see submissions from remote users, you must 
-                        configure JSONBin.io in <code>community-submissions.js</code>.
+                        The system is currently running in <strong>Demo Mode (LocalStorage)</strong>.
+                        Submissions are only visible on your own device. To see submissions from remote users, you must
+                        configure a valid <strong>GitHub Gist ID</strong> in <code>community-submissions.js</code>.
                     </p>
                 </div>
             </div>
@@ -178,7 +180,8 @@
                 <h1>
                     <span class="material-symbols-rounded">admin_panel_settings</span>
                     Moderation Panel
-                    <button id="refresh-btn" onclick="refreshSubmissions()" style="margin-left: 1rem; padding: 0.5rem; border: none; background: transparent; cursor: pointer; vertical-align: middle;">
+                    <button id="refresh-btn" onclick="refreshSubmissions()"
+                        style="margin-left: 1rem; padding: 0.5rem; border: none; background: transparent; cursor: pointer; vertical-align: middle;">
                         <span class="material-symbols-rounded" style="color: var(--primary-color);">refresh</span>
                     </button>
                 </h1>
@@ -194,7 +197,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Stats Section -->
             <div class="moderation-stats">
                 <div class="stat-card pending">
@@ -225,15 +228,17 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Pending Submissions Section -->
             <div class="moderation-section">
-                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div class="section-header"
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2 style="margin: 0;">
                         <span class="material-symbols-rounded">pending_actions</span>
                         Pending Submissions
                     </h2>
-                    <button id="approve-all-btn" class="approve-all-btn" style="display: none;" onclick="handleApproveAll()">
+                    <button id="approve-all-btn" class="approve-all-btn" style="display: none;"
+                        onclick="handleApproveAll()">
                         <span class="material-symbols-rounded">done_all</span>
                         Approve All
                     </button>
@@ -246,7 +251,7 @@
                     <p>No pending submissions to review.</p>
                 </div>
             </div>
-            
+
             <!-- Approved Submissions Section -->
             <div class="moderation-section">
                 <h2>
@@ -263,12 +268,12 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay" style="display: none;">
         <div class="loading-spinner"></div>
     </div>
-    
+
     <!-- Toast Notification -->
     <div id="toast" class="toast">
         <span class="material-symbols-rounded" id="toast-icon">check_circle</span>
@@ -293,26 +298,26 @@
         const toast = document.getElementById('toast');
         const toastIcon = document.getElementById('toast-icon');
         const toastMessage = document.getElementById('toast-message');
-        
+
         let isAdminVerified = false;
         let adminPIN = ''; // Store the verified PIN
         let currentSubmissions = { submissions: [], approved: [] };
-        
+
         // Show loading overlay
         function showLoading() {
             loadingOverlay.style.display = 'flex';
         }
-        
+
         // Hide loading overlay
         function hideLoading() {
             loadingOverlay.style.display = 'none';
         }
-        
+
         // Show toast notification
         function showToast(message, type = 'success') {
             toastMessage.textContent = message;
             toast.className = `toast ${type}`;
-            
+
             if (type === 'success') {
                 toastIcon.textContent = 'check_circle';
             } else if (type === 'error') {
@@ -320,13 +325,13 @@
             } else {
                 toastIcon.textContent = 'info';
             }
-            
+
             toast.classList.add('show');
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
         }
-        
+
         // Format date
         function formatDate(isoString) {
             const date = new Date(isoString);
@@ -338,7 +343,7 @@
                 minute: '2-digit'
             });
         }
-        
+
         // Verify admin PIN
         verifyBtn.addEventListener('click', () => {
             const pin = adminPinInput.value;
@@ -356,19 +361,19 @@
                 adminPinInput.value = '';
             }
         });
-        
+
         // Handle enter key on PIN input
         adminPinInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 verifyBtn.click();
             }
         });
-        
+
         // Render submission card
         function renderSubmissionCard(submission, isApprovedSection = false) {
             const dateStr = formatDate(submission.submittedAt);
             const approvedStr = submission.approvedAt ? formatDate(submission.approvedAt) : '';
-            
+
             return `
                 <div class="admin-card" data-id="${submission.id}">
                     <div class="admin-card-content">
@@ -416,28 +421,28 @@
                 </div>
             `;
         }
-        
+
         // Render all submissions
         async function renderSubmissions() {
             showLoading();
-            
+
             try {
                 currentSubmissions = await CommunitySubmissions.getAll();
-                
+
                 const pending = currentSubmissions.submissions || [];
                 const approved = currentSubmissions.approved || [];
-                
+
                 // Update stats
                 pendingStat.textContent = pending.length;
                 approvedStat.textContent = approved.length;
                 totalStat.textContent = pending.length + approved.length;
-                
+
                 // Show/hide Approve All button
                 const approveAllBtn = document.getElementById('approve-all-btn');
                 if (approveAllBtn) {
                     approveAllBtn.style.display = (isAdminVerified && pending.length > 1) ? 'flex' : 'none';
                 }
-                
+
                 // Render pending
                 if (pending.length > 0) {
                     pendingList.innerHTML = pending.map(s => renderSubmissionCard(s, false)).join('');
@@ -446,7 +451,7 @@
                     pendingList.innerHTML = '';
                     pendingEmpty.style.display = 'block';
                 }
-                
+
                 // Render approved
                 if (approved.length > 0) {
                     approvedList.innerHTML = approved.map(s => renderSubmissionCard(s, true)).join('');
@@ -462,79 +467,79 @@
                 hideLoading();
             }
         }
-        
+
         // Handle approve
-        window.handleApprove = async function(submissionId) {
+        window.handleApprove = async function (submissionId) {
             if (!isAdminVerified) {
                 showToast('Please verify admin access first.', 'error');
                 return;
             }
-            
+
             if (!confirm('Approve this submission? It will become publicly visible in the gallery.')) {
                 return;
             }
-            
+
             showLoading();
-            
+
             const result = await CommunitySubmissions.approve(submissionId, adminPIN);
-            
+
             if (result.success) {
                 showToast('Submission approved successfully!', 'success');
                 await renderSubmissions();
             } else {
                 showToast(result.message || 'Failed to approve.', 'error');
             }
-            
+
             hideLoading();
         };
-        
+
         // Handle reject
-        window.handleReject = async function(submissionId) {
+        window.handleReject = async function (submissionId) {
             if (!isAdminVerified) {
                 showToast('Please verify admin access first.', 'error');
                 return;
             }
-            
+
             if (!confirm('Reject and remove this submission? This action cannot be undone.')) {
                 return;
             }
-            
+
             showLoading();
-            
+
             const result = await CommunitySubmissions.reject(submissionId, adminPIN);
-            
+
             if (result.success) {
                 showToast('Submission rejected and removed.', 'success');
                 await renderSubmissions();
             } else {
                 showToast(result.message || 'Failed to reject.', 'error');
             }
-            
+
             hideLoading();
         };
-        
+
         // Handle approve all pending submissions
-        window.handleApproveAll = async function() {
+        window.handleApproveAll = async function () {
             if (!isAdminVerified) {
                 showToast('Please verify admin access first.', 'error');
                 return;
             }
-            
+
             const pending = currentSubmissions.submissions || [];
             if (pending.length === 0) {
                 showToast('No pending submissions to approve.', 'info');
                 return;
             }
-            
+
             if (!confirm(`Approve all ${pending.length} pending submissions? They will become publicly visible.`)) {
                 return;
             }
-            
+
             showLoading();
-            
+
             let successCount = 0;
             let failCount = 0;
-            
+
             // Approve each submission
             for (const submission of pending) {
                 try {
@@ -550,36 +555,36 @@
                     console.error('Error approving:', submission.id, err);
                 }
             }
-            
+
             hideLoading();
-            
+
             if (successCount > 0) {
-                const msg = failCount > 0 
+                const msg = failCount > 0
                     ? `✅ ${successCount} approved, ❌ ${failCount} failed.`
                     : `✅ All ${successCount} submissions approved successfully!`;
                 showToast(msg, successCount > 0 ? 'success' : 'error');
             } else {
                 showToast('Failed to approve submissions.', 'error');
             }
-            
+
             await renderSubmissions();
         };
-        
+
         // Handle preview - renders full graphical infographic
-        window.handlePreview = function(submissionId) {
+        window.handlePreview = function (submissionId) {
             // Find the submission
             let submission = (currentSubmissions.submissions || []).find(s => s.id === submissionId);
             if (!submission) {
                 submission = (currentSubmissions.approved || []).find(s => s.id === submissionId);
             }
-            
+
             if (!submission || !submission.data) {
                 showToast('Could not load preview data.', 'error');
                 return;
             }
-            
+
             const data = submission.data;
-            
+
             // Build full graphical preview
             const previewWindow = window.open('', '_blank');
             previewWindow.document.write(`
@@ -838,25 +843,66 @@
             `);
             previewWindow.document.close();
         };
-        
+
         // Refresh function - clears cache and reloads
-        window.refreshSubmissions = async function() {
+        window.refreshSubmissions = async function () {
             // Clear cache to force fresh data
             localStorage.removeItem('ophthalmic_community_cache');
             showToast('Refreshing submissions...', 'info');
             await renderSubmissions();
         };
-        
+
         // Initial load - clear cache to ensure fresh data
         localStorage.removeItem('ophthalmic_community_cache');
-        
+
         // Check configuration status
+        const configPanel = document.getElementById('config-panel');
+        const tokenInput = document.getElementById('gist-token-input');
+        const idInput = document.getElementById('gist-id-input');
+
+        // Pre-fill if exists
+        if (localStorage.getItem('gist_token')) tokenInput.value = localStorage.getItem('gist_token');
+        if (localStorage.getItem('gist_id')) idInput.value = localStorage.getItem('gist_id');
+
         if (!CommunitySubmissions.isConfigured()) {
-            configWarning.style.display = 'flex';
+            configPanel.style.display = 'block';
         } else {
-            configWarning.style.display = 'none';
+            // Show a small "Configured" indicator or hide panel
+            configPanel.style.display = 'none';
+            // Maybe add a "Reconfigure" button somewhere, but for now just hide it if working
         }
-        
+
+        window.saveGistConfig = async function () {
+            const token = tokenInput.value.trim();
+            const id = idInput.value.trim();
+
+            if (!token) {
+                showToast('Token is required.', 'error');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                // If ID is missing, try to create one?
+                // For now, simple save.
+                if (window.CommunitySubmissions.configure) {
+                    window.CommunitySubmissions.configure(id || 'YOUR_GIST_ID_HERE', token);
+                } else {
+                    // Manual fallback
+                    localStorage.setItem('gist_token', token);
+                    if (id) localStorage.setItem('gist_id', id);
+                }
+
+                showToast('Configuration saved! Reloading...', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch (err) {
+                showToast('Error saving config.', 'error');
+            } finally {
+                hideLoading();
+            }
+        };
+
         renderSubmissions();
     </script>
 </body>

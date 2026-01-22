@@ -22,13 +22,10 @@
 // 5. Generate a Personal Access Token (PAT) with "gist" scope at https://github.com/settings/tokens
 
 const GITHUB_CONFIG = {
-    // Your Gist ID
+    // Your Gist ID - Please Create a Gist at gist.github.com
     GIST_ID: 'YOUR_GIST_ID_HERE',
-    // Your GitHub Personal Access Token (PAT)
-    // WARNING: Exposing this in client-side code is risky.
-    // Recommended: Use a secure proxy or valid only for a restricted bot account.
-    // For this implementation, we allow the user to input it or hardcode it.
-    GIST_TOKEN: 'YOUR_GITHUB_TOKEN_HERE',
+    // Your GitHub Personal Access Token (PAT) will be read from localStorage
+    GIST_TOKEN: '',
     FILENAME: 'community_data.json',
     API_URL: 'https://api.github.com/gists'
 };
@@ -173,8 +170,32 @@ function sanitizeInput(input) {
  * Check if a storage backend is configured
  */
 function isConfigured() {
-    // Check GitHub Gist (Preferred)
+    // Check localStorage first (User configured)
+    const localId = localStorage.getItem('gist_id');
+    const localToken = localStorage.getItem('gist_token');
+    if (localId && localToken) {
+        // Update config in memory
+        GITHUB_CONFIG.GIST_ID = localId;
+        GITHUB_CONFIG.GIST_TOKEN = localToken;
+        return true;
+    }
+
+    // Check hardcoded config
     if (GITHUB_CONFIG.GIST_ID && GITHUB_CONFIG.GIST_ID !== 'YOUR_GIST_ID_HERE') return true;
+    return false;
+}
+
+/**
+ * Configure Gist Credentials (for UI)
+ */
+function configureGist(id, token) {
+    if (id && token) {
+        localStorage.setItem('gist_id', id);
+        localStorage.setItem('gist_token', token);
+        GITHUB_CONFIG.GIST_ID = id;
+        GITHUB_CONFIG.GIST_TOKEN = token;
+        return true;
+    }
     return false;
 }
 
@@ -182,6 +203,9 @@ function isConfigured() {
  * Fetch all submissions from configured storage
  */
 async function fetchSubmissions() {
+    // Ensure config is loaded
+    isConfigured();
+
     if (!isConfigured()) {
         console.warn('No storage backend configured. Using local demo mode.');
         return getLocalDemoSubmissions();
@@ -899,6 +923,7 @@ async function getDeletedItems() {
 window.CommunitySubmissions = {
     // Configuration
     isConfigured: isConfigured,
+    configure: configureGist,
 
     // Submission functions
     submit: submitToCommunity,
