@@ -163,16 +163,37 @@
         </a>
 
         <div class="moderation-container">
-            <div id="config-warning" class="community-info-banner"
-                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; color: #9a3412; margin-bottom: 1.5rem; padding: 1rem; border-radius: 12px; display: flex; align-items: flex-start; gap: 0.75rem;">
-                <span class="material-symbols-rounded" style="color: #f97316;">warning</span>
-                <div>
-                    <strong style="display: block; margin-bottom: 0.25rem;">Remote Storage Not Configured</strong>
-                    <p style="font-size: 0.9rem; line-height: 1.4; margin: 0;">
-                        The system is currently running in <strong>Demo Mode (LocalStorage)</strong>.
-                        Submissions are only visible on your own device. To see submissions from remote users, you must
-                        configure a valid <strong>GitHub Gist ID</strong> in <code>community-submissions.js</code>.
-                    </p>
+            <div id="config-panel" class="community-info-banner"
+                style="display: none; background: #fff7ed; border: 1px solid #ffedd5; margin-bottom: 1.5rem; padding: 1.5rem; border-radius: 12px;">
+                <div style="display: flex; gap: 1rem; align-items: start; margin-bottom: 1rem;">
+                    <span class="material-symbols-rounded"
+                        style="color: #f97316; font-size: 2rem;">settings_remote</span>
+                    <div>
+                        <h3 style="margin: 0 0 0.5rem 0; color: #9a3412;">Setup Remote Storage (GitHub Gist)</h3>
+                        <p style="margin: 0; color: #7c2d12;">To synchronise submissions across devices, you need to
+                            connect a GitHub Gist.</p>
+                    </div>
+                </div>
+
+                <div style="display: grid; gap: 1rem; max-width: 600px;">
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #7c2d12;">GitHub
+                            Personal Access Token (PAT):</label>
+                        <input type="password" id="gist-token-input" placeholder="github_pat_..."
+                            style="width: 100%; padding: 0.75rem; border: 1px solid #fed7aa; border-radius: 8px;">
+                        <small style="display: block; margin-top: 0.25rem; color: #9a3412;">Required permissions:
+                            <code>gist</code> scope.</small>
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #7c2d12;">Gist ID
+                            (Optional - will create new if empty):</label>
+                        <input type="text" id="gist-id-input" placeholder="e.g. 8f7d..."
+                            style="width: 100%; padding: 0.75rem; border: 1px solid #fed7aa; border-radius: 8px;">
+                    </div>
+                    <button id="save-config-btn" onclick="saveGistConfig()"
+                        style="background: #ea580c; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; justify-self: start;">
+                        Save Configuration
+                    </button>
                 </div>
             </div>
 
