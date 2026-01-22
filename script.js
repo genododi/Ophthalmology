@@ -1544,12 +1544,16 @@ function setupKnowledgeBase() {
 
                     if (!userName || !userName.trim()) {
                         alert('A name is required for community submissions.');
+                        exportBtn.innerHTML = originalIcon;
                         return;
                     }
 
                     localStorage.setItem('community_username', userName.trim());
 
                     // Submit multiple items at once
+                    if (typeof CommunitySubmissions === 'undefined') {
+                        throw new Error('Community module not loaded');
+                    }
                     const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
 
                     if (result.success) {
@@ -1630,6 +1634,30 @@ function setupKnowledgeBase() {
                         if (communityApproved.length > 0) {
                             console.log(`Found ${communityApproved.length} approved community infographics.`);
                         }
+
+                        // SYNC DELETION LOGIC (Remote Users)
+                        if (CommunitySubmissions.getDeletedItems) {
+                            const deletedItems = await CommunitySubmissions.getDeletedItems();
+                            if (deletedItems && deletedItems.length > 0) {
+                                let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                                const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+                                const originalLength = localLibrary.length;
+
+                                localLibrary = localLibrary.filter(item => {
+                                    const normTitle = normalizeTitle(item.title);
+                                    if (deletedItems.includes(normTitle)) {
+                                        console.log(`[Sync] Removing deleted item: ${item.title}`);
+                                        return false;
+                                    }
+                                    return true;
+                                });
+
+                                if (localLibrary.length < originalLength) {
+                                    localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+                                    if (!silent) alert('Some items were deleted by the admin and have been removed from your library.');
+                                }
+                            }
+                        }
                     }
                 } catch (communityErr) {
                     console.log("Could not fetch community submissions:", communityErr.message);
@@ -1659,7 +1687,9 @@ function setupKnowledgeBase() {
                             chapterId: submission.chapterId || 'uncategorized',
                             communitySource: true, // Mark as from community
                             citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
-                            author: submission.userName
+                            citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
+                            author: submission.userName,
+                            serverId: submission.id
                         };
 
                         // Auto-categorize if needed

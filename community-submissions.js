@@ -14,38 +14,27 @@
 // CONFIGURATION
 // ============================================
 
-// JSONBin.io Configuration - Replace with your own bin
-// To set up: 
-// 1. Go to https://jsonbin.io and create a free account
-// 2. Create a new bin with initial content: {"submissions": [], "approved": []}
-// 3. Get your bin ID and API key
-// 4. Update these values
+// GitHub Gist Configuration - Replaces JSONBin
+// 1. Create a new Gist at https://gist.github.com/
+// 2. Name the file "community_data.json"
+// 3. Add initial content: {"submissions": [], "approved": [], "deleted": []}
+// 4. Get the Gist ID from the URL (after username/)
+// 5. Generate a Personal Access Token (PAT) with "gist" scope at https://github.com/settings/tokens
 
-const JSONBIN_CONFIG = {
-    // Public bin ID for submissions
-    BIN_ID: '69679ff543b1c97be9303398',
-    // Master key for read/write operations
-    MASTER_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
-    // Access key for public read (using same as master key)
-    ACCESS_KEY: '$2a$10$jrX.sdAp9v5.opYyQMLuvONbp9SWT3VF7i7eiQbaSpJHiKztRhS9W',
-    BASE_URL: 'https://api.jsonbin.io/v3/b'
-};
-
-// Pantry.cloud Configuration - 10MB Free Limit (Recommended)
-// To set up:
-// 1. Go to https://getpantry.cloud/
-// 2. Click "Create your Pantry"
-// 3. Copy your Pantry ID
-const PANTRY_CONFIG = {
-    // PASTE YOUR PANTRY ID HERE
-    PANTRY_ID: '',
-    BASKET_NAME: 'ophthalmic-community',
-    BASE_URL: 'https://getpantry.cloud/apiv1/pantry'
+const GITHUB_CONFIG = {
+    // Your Gist ID
+    GIST_ID: 'YOUR_GIST_ID_HERE',
+    // Your GitHub Personal Access Token (PAT)
+    // WARNING: Exposing this in client-side code is risky.
+    // Recommended: Use a secure proxy or valid only for a restricted bot account.
+    // For this implementation, we allow the user to input it or hardcode it.
+    GIST_TOKEN: 'YOUR_GITHUB_TOKEN_HERE',
+    FILENAME: 'community_data.json',
+    API_URL: 'https://api.github.com/gists'
 };
 
 // Admin PIN for approval operations (simple security)
-// In production, use a more secure method
-const ADMIN_PIN = '309030'; // Change this to your preferred PIN
+const ADMIN_PIN = '309030';
 
 // IP lookup service (free, no API key needed)
 const IP_SERVICE_URL = 'https://api.ipify.org?format=json';
@@ -177,20 +166,15 @@ function sanitizeInput(input) {
 }
 
 // ============================================
-// JSONBin.io API Functions
+// GitHub Gist API Functions
 // ============================================
 
 /**
- * Check if JSONBin is configured
- */
-/**
  * Check if a storage backend is configured
  */
-function isJSONBinConfigured() {
-    // Check Pantry first (Preferred)
-    if (PANTRY_CONFIG.PANTRY_ID && PANTRY_CONFIG.PANTRY_ID.length > 5) return true;
-    // Check JSONBin second (Legacy)
-    if (JSONBIN_CONFIG.BIN_ID && JSONBIN_CONFIG.MASTER_KEY && !JSONBIN_CONFIG.BIN_ID.includes('your-bin-id')) return true;
+function isConfigured() {
+    // Check GitHub Gist (Preferred)
+    if (GITHUB_CONFIG.GIST_ID && GITHUB_CONFIG.GIST_ID !== 'YOUR_GIST_ID_HERE') return true;
     return false;
 }
 
@@ -198,38 +182,37 @@ function isJSONBinConfigured() {
  * Fetch all submissions from configured storage
  */
 async function fetchSubmissions() {
-    if (!isJSONBinConfigured()) {
+    if (!isConfigured()) {
         console.warn('No storage backend configured. Using local demo mode.');
         return getLocalDemoSubmissions();
     }
 
     try {
-        // Try Pantry First
-        if (PANTRY_CONFIG.PANTRY_ID) {
-            const url = `${PANTRY_CONFIG.BASE_URL}/${PANTRY_CONFIG.PANTRY_ID}/basket/${PANTRY_CONFIG.BASKET_NAME}`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                // If 404, valid but empty basket might not exist yet
-                if (response.status === 404) {
-                    return { submissions: [], approved: [], deleted: [] };
-                }
-                throw new Error(`Pantry error (${response.status})`);
-            }
-            return await response.json();
-        }
-
-        // Fallback to JSONBin (Legacy)
-        const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+        const response = await fetch(`${GITHUB_CONFIG.API_URL}/${GITHUB_CONFIG.GIST_ID}`, {
             headers: {
-                'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY,
-                'X-Bin-Meta': 'false'
+                // If token is present, use it to get higher rate limits (optional for public gists)
+                ...(GITHUB_CONFIG.GIST_TOKEN && GITHUB_CONFIG.GIST_TOKEN !== 'YOUR_GITHUB_TOKEN_HERE'
+                    ? { 'Authorization': `token ${GITHUB_CONFIG.GIST_TOKEN}` }
+                    : {})
             }
         });
 
-        if (!response.ok) throw new Error(`JSONBin error (${response.status})`);
-        const result = await response.json();
-        return result.record || result;
+        if (!response.ok) throw new Error(`GitHub Gist error (${response.status})`);
+
+        const gist = await response.json();
+        const file = gist.files[GITHUB_CONFIG.FILENAME];
+
+        if (!file) throw new Error(`File ${GITHUB_CONFIG.FILENAME} not found in Gist`);
+
+        // Parse content
+        let data = JSON.parse(file.content);
+
+        // Format check
+        if (!data.submissions) data.submissions = [];
+        if (!data.approved) data.approved = [];
+        if (!data.deleted) data.deleted = [];
+
+        return data;
 
     } catch (err) {
         console.error('Error fetching submissions:', err);
@@ -246,53 +229,51 @@ async function fetchSubmissions() {
 /**
  * Update the storage (Add/Modify submissions)
  */
-
 async function updateSubmissions(data) {
-    if (!isJSONBinConfigured()) {
+    if (!isConfigured()) {
         console.warn('Storage not configured. Saving to localStorage demo mode.');
         saveLocalDemoSubmissions(data);
         return { success: true };
     }
 
+    if (!GITHUB_CONFIG.GIST_TOKEN || GITHUB_CONFIG.GIST_TOKEN === 'YOUR_GITHUB_TOKEN_HERE') {
+        // If we want to allow public submissions without embedding a token, we must use a proxy or Issues.
+        // BUT for this task, we assume the user might provide a token OR acts as admin.
+        // If "Remote User" tries to submit without a token, this will fail.
+
+        // AUTO-FIX: Check if there's a user-provided token in localStorage
+        const userToken = localStorage.getItem('github_personal_token');
+        if (userToken) {
+            GITHUB_CONFIG.GIST_TOKEN = userToken;
+        } else {
+            return {
+                success: false,
+                message: 'Write access required. Please providing a GitHub Token in settings or ask Admin.'
+            };
+        }
+    }
+
     try {
-        // PRUNING: Only prune if using JSONBin (100kb limit)
-        // Pantry has 10MB limit, so 50 items is too conservative, setting to 200 safely
-        const limit = PANTRY_CONFIG.PANTRY_ID ? 200 : 50;
-
-        if (data.submissions && data.submissions.length > limit) {
-            console.log(`Pruning pending submissions from ${data.submissions.length} to ${limit}`);
-            data.submissions = data.submissions.slice(0, limit);
-        }
-
-        // Try Pantry First
-        if (PANTRY_CONFIG.PANTRY_ID) {
-            const url = `${PANTRY_CONFIG.BASE_URL}/${PANTRY_CONFIG.PANTRY_ID}/basket/${PANTRY_CONFIG.BASKET_NAME}`;
-            const response = await fetch(url, {
-                method: 'POST', // Pantry uses POST to update/replace basket content
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Pantry update failed (${response.status}): ${errText}`);
+        const payload = {
+            files: {
+                [GITHUB_CONFIG.FILENAME]: {
+                    content: JSON.stringify(data, null, 2)
+                }
             }
-        }
-        // Fallback to JSONBin
-        else {
-            const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_CONFIG.MASTER_KEY
-                },
-                body: JSON.stringify(data)
-            });
+        };
 
-            if (!response.ok) {
-                const errText = await response.text().catch(() => response.statusText);
-                throw new Error(`JSONBin update failed (${response.status}): ${errText}`);
-            }
+        const response = await fetch(`${GITHUB_CONFIG.API_URL}/${GITHUB_CONFIG.GIST_ID}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.GIST_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`GitHub Gist update failed (${response.status}): ${errText}`);
         }
 
         // Clear cache to force refresh
@@ -302,6 +283,14 @@ async function updateSubmissions(data) {
         console.error('Error updating submissions:', err);
         return { success: false, message: err.message || 'Unknown network error' };
     }
+}
+
+/**
+ * Get deleted items (for sync)
+ */
+async function getDeletedItems() {
+    const data = await fetchSubmissions();
+    return data.deleted || [];
 }
 
 // ============================================
