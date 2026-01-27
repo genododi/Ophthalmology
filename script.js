@@ -1550,28 +1550,69 @@ function setupKnowledgeBase() {
 
                     localStorage.setItem('community_username', userName.trim());
 
-                    // Submit multiple items at once
-                    if (typeof CommunitySubmissions === 'undefined') {
-                        throw new Error('Community module not loaded');
-                    }
-                    const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
+                    // PROGRESS BAR OVERLAY
+                    const progressOverlay = document.createElement('div');
+                    progressOverlay.className = 'progress-overlay';
+                    progressOverlay.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; flex-direction: column; color: white; backdrop-filter: blur(5px);';
+                    progressOverlay.innerHTML = `
+                        <div style="width: 320px; padding: 25px; background: #2c3e50; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                            <div class="spinner" style="margin: 0 auto 15px; width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #2ecc71; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            <h3 style="margin: 0 0 10px 0; font-size: 1.2rem;">Publishing to Community...</h3>
+                            <p style="margin: 0 0 15px 0; font-size: 0.9rem; opacity: 0.8;">Uploading ${itemsToExport.length} infographic${itemsToExport.length === 1 ? '' : 's'}</p>
+                            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                                <div class="progress-bar-fill" style="width: 5%; height: 100%; background: #2ecc71; transition: width 0.3s ease; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                    `;
+                    document.body.appendChild(progressOverlay);
 
-                    if (result.success) {
-                        const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} published successfully!`;
-                        alert(msg + '\n\nThey are now live in the Community Hub.');
-                        selectionMode = false;
-                        selectedItems.clear();
-                        renderLibraryList();
-                    } else {
-                        alert(`Submission failed: ${result.message}`);
+                    // Simulate progress for user feedback (since it's an atomic batch upload)
+                    let progress = 5;
+                    const fill = progressOverlay.querySelector('.progress-bar-fill');
+                    const progressInterval = setInterval(() => {
+                        if (progress < 90) {
+                            progress += Math.random() * 5; // Increment
+                            if (progress > 90) progress = 90;
+                            fill.style.width = `${progress}%`;
+                        }
+                    }, 100);
+
+                    try {
+                        // Submit multiple items at once
+                        if (typeof CommunitySubmissions === 'undefined') {
+                            throw new Error('Community module not loaded');
+                        }
+                        const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
+
+                        clearInterval(progressInterval);
+                        fill.style.width = '100%';
+
+                        // Small delay to let user see 100%
+                        await new Promise(r => setTimeout(r, 400));
+
+                        if (result.success) {
+                            const msg = `✅ ${result.count} infographic${result.count === 1 ? '' : 's'} published successfully!`;
+                            alert(msg + '\n\nThey are now live in the Community Hub.');
+                            selectionMode = false;
+                            selectedItems.clear();
+                            renderLibraryList();
+                        } else {
+                            alert(`Submission failed: ${result.message}`);
+                        }
+                    } catch (err) {
+                        console.error('Community submission error:', err);
+                        alert('Error submitting to the Community Hub: ' + err.message);
+                    } finally {
+                        if (document.body.contains(progressOverlay)) {
+                            document.body.removeChild(progressOverlay);
+                        }
+                        exportBtn.innerHTML = originalIcon;
                     }
-                } catch (err) {
-                    console.error('Community submission error:', err);
-                    alert('Error submitting to the Community Hub: ' + err.message);
-                } finally {
-                    exportBtn.innerHTML = originalIcon;
+                    return;
+                } catch (e) {
+                    console.error('Submission wrapper error:', e);
                 }
-                return;
             }
 
             // LOCAL SERVER: Original behavior
@@ -2933,20 +2974,10 @@ function setupKnowledgeBase() {
                     const id = parseInt(button.dataset.id);
                     const itemToDelete = library.find(i => i.id === id);
 
-                    // Admin password required for delete only if running locally (server mode)
-                    // Remote users can delete freely from their local view
-                    if (!isGitHubPages()) {
-                        const password = prompt('Enter admin password to delete this item:');
-                        if (password !== '309030') {
-                            if (password !== null) alert('Incorrect password.');
-                            return;
-                        }
-                    }
-
-                    // Adjust confirmation message based on user type
-                    const confirmMsg = isGitHubPages()
-                        ? 'Remove this item from your library?'
-                        : 'Are you sure you want to delete this item?\n\nThis will also remove it from:\n• All remote users\' libraries\n• Community pending submissions\n• Community approved gallery';
+                    // Delete handlers
+                    // Allow any user to delete from their own library (Local Only)
+                    // No admin password required, and DOES NOT delete from Community Hub
+                    const confirmMsg = 'Remove this item from your library?';
 
                     if (confirm(confirmMsg)) {
                         const newLibrary = library.filter(i => i.id !== id);
@@ -2970,39 +3001,11 @@ function setupKnowledgeBase() {
                             }
                         }
 
-                        // COMPREHENSIVE DELETION (For Admin/Server Mode only)
-                        if (!isGitHubPages() && itemToDelete && itemToDelete.title) {
-                            if (typeof CommunitySubmissions !== 'undefined' && CommunitySubmissions.removeFromAllPools) {
-                                try {
-                                    const result = await CommunitySubmissions.removeFromAllPools(itemToDelete.title);
-                                    console.log(`[Delete] Complete removal for: "${itemToDelete.title}"`, result);
-
-                                    // Show detailed feedback
-                                    let message = `Item deleted from local library.`;
-                                    if (result.removed && (result.removed.pending > 0 || result.removed.approved > 0)) {
-                                        message += `\n\nAlso removed from community:`;
-                                        if (result.removed.pending > 0) message += `\n• ${result.removed.pending} pending submission(s)`;
-                                        if (result.removed.approved > 0) message += `\n• ${result.removed.approved} approved item(s)`;
-                                    }
-                                    message += `\n\nRemote users will have this item removed on their next sync.`;
-
-                                    // Auto-Sync
-                                    syncLibraryToServer();
-
-                                    renderLibraryList();
-                                    alert(message);
-                                    return; // Already handled alert, skip the default one
-                                } catch (err) {
-                                    console.log('Could not complete removal from pools:', err.message);
-                                }
-                            }
-                        }
-
-                        // Auto-Sync
+                        // Auto-Sync (Updates user's backup on server, but not Community Pool)
                         syncLibraryToServer();
 
                         renderLibraryList();
-                        alert('Item deleted. Remote users will have this item removed on their next sync.');
+                        // alert('Item removed from library.'); // Optional, or just let UI update
                     }
                 });
             });
