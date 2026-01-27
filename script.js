@@ -1678,21 +1678,24 @@ function setupKnowledgeBase() {
                 console.log(`[Sync] processing ${communityApproved.length} community items`);
                 communityApproved.forEach(submission => {
                     if (submission.data) {
+                        // PRIORITY: Use submission.chapterId (set by original user), fallback to nested data
+                        // This ensures categorization syncs to all users
+                        const syncedChapterId = submission.chapterId || submission.data.chapterId || 'uncategorized';
+
                         const libraryItem = {
                             id: submission.id || Date.now(),
                             title: submission.title || submission.data.title || 'Community Infographic',
                             summary: submission.summary || submission.data.summary || '',
                             date: submission.approvedAt || submission.submittedAt || new Date().toISOString(),
                             data: submission.data,
-                            chapterId: submission.chapterId || 'uncategorized',
+                            chapterId: syncedChapterId, // Use synced category from original user
                             communitySource: true, // Mark as from community
-                            citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
-                            citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
                             author: submission.userName,
+                            citation: submission.userName ? `Author: ${submission.userName}` : 'Community Contributor',
                             serverId: submission.id
                         };
 
-                        // Auto-categorize if needed
+                        // Only auto-categorize if still uncategorized after checking both sources
                         if (libraryItem.chapterId === 'uncategorized') {
                             libraryItem.chapterId = autoDetectChapter(libraryItem.title);
                         }
@@ -3742,6 +3745,55 @@ function escapeHtml(text) {
 function renderInfographic(data) {
     outputContainer.innerHTML = '';
     outputContainer.classList.remove('empty-state');
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ERROR HANDLING FOR OLD/MALFORMED INFOGRAPHICS
+    // This ensures old infographics load properly without restrictions
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Handle null/undefined data
+    if (!data) {
+        console.error('renderInfographic: No data provided');
+        outputContainer.innerHTML = `
+            <div class="error-message" style="padding: 2rem; text-align: center; color: #e74c3c;">
+                <span class="material-symbols-rounded" style="font-size: 3rem;">error</span>
+                <p>Unable to load this infographic - no data found.</p>
+                <p style="font-size: 0.9rem; color: #888;">This may be an old format that's no longer supported.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Normalize data - handle various old formats
+    // Some old infographics might have data nested differently
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch (e) {
+            console.error('renderInfographic: Failed to parse data string', e);
+            outputContainer.innerHTML = `
+                <div class="error-message" style="padding: 2rem; text-align: center; color: #e74c3c;">
+                    <span class="material-symbols-rounded" style="font-size: 3rem;">error</span>
+                    <p>Unable to parse infographic data.</p>
+                </div>
+            `;
+            return;
+        }
+    }
+
+    // Provide fallbacks for missing required fields
+    data.title = data.title || 'Untitled Infographic';
+    data.summary = data.summary || '';
+    data.sections = data.sections || [];
+
+    // Ensure sections is an array
+    if (!Array.isArray(data.sections)) {
+        console.warn('renderInfographic: sections is not an array, converting...');
+        data.sections = Object.values(data.sections || {});
+    }
+
+    // Log successful load for debugging
+    console.log(`[Render] Loading infographic: "${data.title}" with ${data.sections.length} sections`);
 
     // Create the main Poster Sheet container
     const posterSheet = document.createElement('div');

@@ -352,11 +352,13 @@ async function submitToCommunity(infographicData, userName) {
         const userIP = await getUserIP();
 
         // Create submission object
+        // IMPORTANT: Include chapterId at top level for sync to other users
         const submission = {
             id: generateSubmissionId(),
             userName: sanitizeInput(userName),
             title: infographicData.title || 'Untitled Infographic',
             summary: infographicData.summary || '',
+            chapterId: infographicData.chapterId || 'uncategorized', // Preserve user categorization
             submittedAt: new Date().toISOString(),
             userIP: userIP,
             likes: 0,
@@ -411,12 +413,17 @@ async function submitMultiple(infographicsList, userName) {
         const newSubmissions = [];
 
         // Prepare all submissions
+        // IMPORTANT: Include chapterId at top level for sync to other users
         for (const item of infographicsList) {
+            // Get chapterId from item or nested data
+            const itemChapterId = item.chapterId || item.data?.chapterId || 'uncategorized';
+
             const submission = {
                 id: generateSubmissionId() + Math.random().toString(36).substr(2, 5), // Ensure unique ID
                 userName: sanitizeInput(userName),
                 title: (item.title || item.data?.title) || 'Untitled Infographic',
                 summary: (item.summary || item.data?.summary) || '',
+                chapterId: itemChapterId, // Preserve user categorization for sync
                 submittedAt: new Date().toISOString(),
                 userIP: userIP,
                 likes: 0,
