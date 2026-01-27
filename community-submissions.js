@@ -768,6 +768,10 @@ function generateSubmissionCardHTML(submission, isAdmin = false) {
                     <span class="material-symbols-rounded">visibility</span>
                     Preview
                 </button>
+                <button class="community-btn load-btn" onclick="handleLoadCommunitySubmission('${submission.id}')" style="background-color: #3b82f6; color: white; border: none;">
+                    <span class="material-symbols-rounded">open_in_new</span>
+                    Load
+                </button>
                 <button class="community-btn download-btn" onclick="handleDownloadSubmission('${submission.id}')">
                     <span class="material-symbols-rounded">download</span>
                     Add to Library

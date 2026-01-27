@@ -2205,16 +2205,7 @@ function setupKnowledgeBase() {
             msg += `\nDelete all ${duplicates.length} duplicate(s)? (Keeps the older/original version)`;
 
             if (confirm(msg)) {
-                // Admin password removed
-                /*
-                const password = prompt('Enter admin password to delete duplicates:');
-                if (password !== '309030') {
-                    if (password !== null) {
-                        alert('Incorrect password. Deletion requires admin access.');
-                    }
-                    return;
-                }
-                */
+
 
                 // Get IDs to delete (the newer duplicates)
                 const idsToDelete = new Set(duplicates.map(d => d.duplicateId));
@@ -2255,16 +2246,7 @@ function setupKnowledgeBase() {
     const autoChapterBtn = document.getElementById('auto-chapter-btn');
     if (autoChapterBtn) {
         autoChapterBtn.addEventListener('click', () => {
-            // Admin password removed
-            /*
-            const password = prompt('Enter admin password to auto-chapterize:');
-            if (password !== '309030') {
-                if (password !== null) {
-                    alert('Incorrect password. Auto-chapterization requires admin access.');
-                }
-                return;
-            }
-            */
+
 
             const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
 
@@ -2719,14 +2701,7 @@ function setupKnowledgeBase() {
         const deleteSelectedBtn = toolbar.querySelector('#delete-selected-btn');
         if (deleteSelectedBtn) {
             deleteSelectedBtn.addEventListener('click', async () => {
-                // Admin password removed
-                /*
-                const password = prompt('Enter admin password to delete selected items:');
-                if (password !== '309030') {
-                    if (password !== null) alert('Incorrect password.');
-                    return;
-                }
-                */
+
 
                 if (!confirm(`Are you sure you want to PERMANENTLY delete ${selectedItems.size} items?`)) return;
 
@@ -2967,7 +2942,7 @@ function setupKnowledgeBase() {
 
                     // Delete handlers
                     // Allow any user to delete from their own library (Local Only)
-                    // No admin password required, and DOES NOT delete from Community Hub
+
                     const confirmMsg = 'Remove this item from your library?';
 
                     if (confirm(confirmMsg)) {
@@ -6084,6 +6059,27 @@ function setupCommunityHub() {
         }
 
         previewModal.classList.add('active');
+    };
+
+    // Load submission directly
+    window.handleLoadCommunitySubmission = async function (submissionId) {
+        // Find in cached submissions
+        let submission = (cachedSubmissions.submissions || []).find(s => s.id === submissionId);
+        if (!submission) {
+            submission = (cachedSubmissions.approved || []).find(s => s.id === submissionId);
+        }
+
+        if (submission && submission.data) {
+            if (confirm(`Load "${submission.title}"? This will replace your current workspace content.`)) {
+                currentInfographicData = submission.data;
+                renderInfographic(submission.data);
+                communityModal.classList.remove('active');
+                // Optional: Scroll to top
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        } else {
+            alert('Could not load submission data.');
+        }
     };
 
     // Like submission
