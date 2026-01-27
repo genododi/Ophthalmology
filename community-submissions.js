@@ -69,51 +69,51 @@ function autoDetectChapterFromTitle(title) {
     // Clinical ophthalmology auto-categorization rules
     const rules = [
         // Neuro-ophthalmology
-        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'horner', 'anisocoria', 'gaze palsy', 'diplopia cranial', 'aion', 'naion'], chapter: 'neuro' },
+        { keywords: ['neuro', 'optic nerve', 'optic neuritis', 'papill', 'visual field', 'pupil', 'nystagmus', 'cranial nerve', 'chiasm', 'intracranial', 'iih', 'horner', 'anisocoria', 'gaze palsy', 'diplopia cranial', 'aion', 'naion', 'pion', 'lhon', 'myasthenia', 'giant cell', 'gca', 'temporal arteritis'], chapter: 'neuro' },
         // Glaucoma
-        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs', 'tube shunt', 'filtering', 'rnfl', 'optic disc cupping', 'visual field glaucoma', 'pigmentary glaucoma', 'pseudoexfoliation'], chapter: 'glaucoma' },
+        { keywords: ['glaucoma', 'iop', 'intraocular pressure', 'trabeculectomy', 'angle closure', 'poag', 'pacg', 'migs', 'tube shunt', 'filtering', 'rnfl', 'optic disc cupping', 'visual field glaucoma', 'pigmentary glaucoma', 'pseudoexfoliation', 'pxf', 'pex', 'ocular hypertension', 'oht', 'narrow angle'], chapter: 'glaucoma' },
         // Vitreoretinal
-        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd', 'epiretinal membrane', 'erm', 'scleral buckle', 'rhegmatogenous', 'tractional', 'pvr', 'silicone oil', 'floaters'], chapter: 'vitreoretinal' },
+        { keywords: ['vitreous', 'retinal detachment', 'vitrectomy', 'macular hole', 'pvd', 'epiretinal membrane', 'erm', 'scleral buckle', 'rhegmatogenous', 'tractional', 'pvr', 'silicone oil', 'floaters', 'vitreous hemorrhage', 'retinoschisis'], chapter: 'vitreoretinal' },
         // Medical Retina
-        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'brvo', 'crvo', 'drusen', 'cnv', 'anti-vegf', 'intravitreal', 'wet amd', 'dry amd', 'geographic atrophy'], chapter: 'medical_retina' },
+        { keywords: ['diabetic retinopathy', 'macular degeneration', 'amd', 'csr', 'cscr', 'retinal vein', 'retinal artery', 'macular edema', 'dme', 'cme', 'brvo', 'crvo', 'drusen', 'cnv', 'anti-vegf', 'intravitreal', 'wet amd', 'dry amd', 'geographic atrophy', 'central serous', 'rvo', 'crao', 'brao', 'retinitis pigmentosa', 'dystrophy retina'], chapter: 'medical_retina' },
         // Cornea
-        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'dsaek', 'dmek', 'pterygium', 'dry eye', 'fuchs', 'corneal dystrophy', 'corneal ulcer', 'herpetic', 'acanthamoeba', 'cross-linking', 'graft rejection'], chapter: 'cornea' },
+        { keywords: ['cornea', 'keratitis', 'keratoconus', 'corneal transplant', 'dsaek', 'dmek', 'pterygium', 'dry eye', 'fuchs', 'corneal dystrophy', 'corneal ulcer', 'herpetic', 'acanthamoeba', 'cross-linking', 'graft rejection', 'keratoplasty', 'pemhigoid', 'sjs', 'stevens-johnson', 'ocular surface'], chapter: 'cornea' },
         // Lens / Cataract
-        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'pco', 'yag capsulotomy', 'femtosecond', 'ectopia lentis', 'aphakia', 'pseudophakia'], chapter: 'lens' },
+        { keywords: ['cataract', 'lens', 'phaco', 'iol', 'posterior capsule', 'pco', 'yag capsulotomy', 'femtosecond', 'ectopia lentis', 'aphakia', 'pseudophakia', 'intraocular lens', 'biometry'], chapter: 'lens' },
         // Uveitis
-        { keywords: ['uveitis', 'iritis', 'iridocyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'vkh', 'birdshot', 'hypopyon', 'synechia', 'toxoplasm', 'cmv retinitis'], chapter: 'uveitis' },
+        { keywords: ['uveitis', 'iritis', 'iridocyclitis', 'choroiditis', 'panuveitis', 'hla-b27', 'behcet', 'sarcoid', 'vkh', 'birdshot', 'hypopyon', 'synechia', 'toxoplasm', 'cmv retinitis', 'pars planitis', 'scleritis', 'white dot'], chapter: 'uveitis' },
         // Strabismus
-        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'duane', 'brown syndrome'], chapter: 'strabismus' },
+        { keywords: ['strabismus', 'squint', 'esotropia', 'exotropia', 'hypertropia', 'diplopia', 'motility', 'extraocular', 'eom', 'binocular', 'amblyopia', 'cover test', 'duane', 'brown syndrome', 'lazy eye', 'hess chart', 'convergence'], chapter: 'strabismus' },
         // Paediatric
-        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'leukocoria', 'retinoblastoma child', 'infantile', 'neonatal'], chapter: 'paediatric' },
+        { keywords: ['paediatric', 'pediatric', 'child', 'congenital', 'rop', 'retinopathy of prematurity', 'leukocoria', 'retinoblastoma child', 'infantile', 'neonatal', 'buphthalmos', 'nldo', 'nasolacrimal'], chapter: 'paediatric' },
         // Orbit
-        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital cellulitis', 'blow out', 'orbital fracture', 'orbital tumor', 'decompression'], chapter: 'orbit' },
+        { keywords: ['orbit', 'proptosis', 'exophthalmos', 'thyroid eye', 'graves', 'orbital cellulitis', 'blow out', 'orbital fracture', 'orbital tumor', 'decompression', 'ted', 'lid retraction'], chapter: 'orbit' },
         // Lids
-        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'hordeolum', 'trichiasis', 'lagophthalmos', 'lid tumor', 'bcc eyelid', 'levator', 'blepharoplasty'], chapter: 'lids' },
+        { keywords: ['lid', 'eyelid', 'ptosis', 'ectropion', 'entropion', 'blephar', 'chalazion', 'hordeolum', 'trichiasis', 'lagophthalmos', 'lid tumor', 'bcc eyelid', 'levator', 'blepharoplasty', 'xanthelasma'], chapter: 'lids' },
         // Lacrimal
-        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dcr', 'punctum', 'canalicul', 'watery eye'], chapter: 'lacrimal' },
+        { keywords: ['lacrimal', 'tear duct', 'dacryocyst', 'nasolacrimal', 'epiphora', 'dcr', 'punctum', 'canalicul', 'watery eye', 'tearing'], chapter: 'lacrimal' },
         // Conjunctiva
-        { keywords: ['conjunctiv', 'pinguecula', 'allergic eye', 'vernal', 'trachoma', 'subconjunctival', 'chemosis', 'pemphigoid ocular', 'stevens-johnson'], chapter: 'conjunctiva' },
+        { keywords: ['conjunctiv', 'pinguecula', 'allergic eye', 'vernal', 'trachoma', 'subconjunctival', 'chemosis', 'pemphigoid ocular', 'sjs', 'ossn'], chapter: 'conjunctiva' },
         // Sclera
-        { keywords: ['scleritis', 'episcleritis', 'sclera', 'necrotizing scleritis'], chapter: 'sclera' },
+        { keywords: ['scleritis', 'episcleritis', 'sclera', 'necrotizing scleritis', 'staphyloma'], chapter: 'sclera' },
         // Refractive
-        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'icl', 'phakic iol', 'biometry', 'iol calculation'], chapter: 'refractive' },
+        { keywords: ['refractive', 'refraction', 'myopia', 'hyperopia', 'astigmatism', 'lasik', 'prk', 'smile', 'presbyopia', 'icl', 'phakic iol', 'biometry', 'iol calculation', 'contact lens', 'spectacle'], chapter: 'refractive' },
         // Trauma
-        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema', 'open globe', 'chemical burn', 'penetrating', 'iofb', 'commotio'], chapter: 'trauma' },
+        { keywords: ['trauma', 'injury', 'foreign body', 'hyphema', 'open globe', 'chemical burn', 'penetrating', 'iofb', 'commotio', 'laceration', 'rupture'], chapter: 'trauma' },
         // Tumours
-        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'choroidal nevus', 'enucleation', 'plaque'], chapter: 'tumours' },
+        { keywords: ['tumour', 'tumor', 'melanoma', 'retinoblastoma', 'lymphoma', 'metasta', 'choroidal nevus', 'enucleation', 'plaque', 'oncology'], chapter: 'tumours' },
         // Surgery
-        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'perioperative', 'complication', 'post-op', 'intraoperative'], chapter: 'surgery_care' },
+        { keywords: ['surgery', 'surgical', 'anaesthe', 'anesthe', 'perioperative', 'complication', 'post-op', 'intraoperative', 'consent', 'theatre', 'sterilization'], chapter: 'surgery_care' },
         // Lasers
-        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'prp', 'panretinal', 'micropulse', 'pdt'], chapter: 'lasers' },
+        { keywords: ['laser', 'yag', 'argon', 'photocoagulation', 'slt', 'prp', 'panretinal', 'micropulse', 'pdt', 'capsulotomy', 'iridotomy'], chapter: 'lasers' },
         // Therapeutics
-        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid eye', 'anti-vegf', 'pharmacology', 'intravitreal injection', 'eylea', 'lucentis', 'avastin'], chapter: 'therapeutics' },
+        { keywords: ['drug', 'medication', 'drops', 'antibiotic', 'steroid eye', 'anti-vegf', 'pharmacology', 'intravitreal injection', 'eylea', 'lucentis', 'avastin', 'pharmacy', 'prescribing'], chapter: 'therapeutics' },
         // Clinical Skills
-        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry', 'gonioscopy', 'visual acuity', 'ophthalmoscopy', 'clinical assessment'], chapter: 'clinical_skills' },
+        { keywords: ['examination', 'slit lamp', 'fundoscopy', 'tonometry', 'gonioscopy', 'visual acuity', 'ophthalmoscopy', 'clinical assessment', 'history taking', 'osc', 'station'], chapter: 'clinical_skills' },
         // Investigations
-        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa', 'icg', 'visual field test', 'perimetry', 'ultrasound eye', 'b-scan', 'topography', 'electrophysiology'], chapter: 'investigations' },
+        { keywords: ['investigation', 'imaging', 'angiography', 'oct', 'ffa', 'icg', 'visual field test', 'perimetry', 'ultrasound eye', 'b-scan', 'topography', 'electrophysiology', 'erg', 'vep'], chapter: 'investigations' },
         // Evidence
-        { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr'], chapter: 'evidence' },
+        { keywords: ['trial', 'study', 'evidence', 'guideline', 'areds', 'drcr', 'rct', 'meta-analysis', 'review'], chapter: 'evidence' },
     ];
 
     for (const rule of rules) {
@@ -610,8 +610,9 @@ async function rejectSubmission(submissionId, pin) {
 /**
  * Download a community submission to local library
  * @param {string} submissionId - The submission to download
+ * @param {boolean} overwrite - Whether to overwrite if exists
  */
-async function downloadToLocalLibrary(submissionId) {
+async function downloadToLocalLibrary(submissionId, overwrite = false) {
     try {
         const data = await fetchSubmissions();
 
@@ -638,23 +639,25 @@ async function downloadToLocalLibrary(submissionId) {
         const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
         const submissionTitleNorm = normalizeTitle(submission.title);
 
-        // Check if already exists by communityId, exact match, OR normalized title
-        const existsExact = library.some(item =>
+        // Check if already exists
+        const existingIndex = library.findIndex(item =>
             item.communityId === submissionId ||
-            (item.title === submission.title && item.date === submission.submittedAt)
+            (item.title === submission.title && item.date === submission.submittedAt) ||
+            (normalizeTitle(item.title) === submissionTitleNorm && submissionTitleNorm.length > 0)
         );
 
-        const existsByTitle = library.some(item => {
-            const itemTitleNorm = normalizeTitle(item.title);
-            return itemTitleNorm === submissionTitleNorm && itemTitleNorm.length > 0;
-        });
+        if (existingIndex !== -1) {
+            if (!overwrite) {
+                // Return specific status for UI to prompt user
+                return {
+                    success: false,
+                    status: 'duplicate',
+                    message: `An infographic with a similar title "${submission.title}" already exists in your library.`
+                };
+            }
 
-        if (existsExact) {
-            return { success: false, message: 'This infographic is already in your library.' };
-        }
-
-        if (existsByTitle) {
-            return { success: false, message: `An infographic with a similar title "${submission.title}" already exists in your library.` };
+            // If overwriting, remove the old one first
+            library.splice(existingIndex, 1);
         }
 
         // Calculate next seqId (highest number for newest)
@@ -665,8 +668,13 @@ async function downloadToLocalLibrary(submissionId) {
             nextSeqId = maxSeqId + 1;
         }
 
-        // Auto-detect chapter from title
-        const autoChapter = autoDetectChapterFromTitle(submission.title);
+        // Preserve original category if valid, otherwise auto-detect
+        let chapterId = 'uncategorized';
+        if (submission.data.chapterId && submission.data.chapterId !== 'uncategorized') {
+            chapterId = submission.data.chapterId;
+        } else {
+            chapterId = autoDetectChapterFromTitle(submission.title);
+        }
 
         // Create local library item
         const newItem = {
@@ -676,7 +684,7 @@ async function downloadToLocalLibrary(submissionId) {
             summary: submission.summary,
             date: new Date().toISOString(),
             data: submission.data,
-            chapterId: autoChapter, // Auto-chapterize instead of uncategorized
+            chapterId: chapterId,
             _newlyImported: Date.now(), // Mark as newly imported for green highlight
             // Track community origin
             communityId: submissionId,
@@ -684,11 +692,18 @@ async function downloadToLocalLibrary(submissionId) {
             communityDate: submission.submittedAt
         };
 
+        // Ensure date consistency
+        // If data has chapterId, make sure it's updated with our decision
+        if (newItem.data) {
+            newItem.data.chapterId = chapterId;
+        }
+
         library.unshift(newItem);
         localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
         return {
             success: true,
+            status: 'added',
             message: `"${submission.title}" added to your library!`
         };
     } catch (err) {

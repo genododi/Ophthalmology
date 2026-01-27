@@ -2559,7 +2559,12 @@ function setupKnowledgeBase() {
                 <div class="search-wrapper" style="flex: 1; position: relative;">
                     <span class="material-symbols-rounded" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 1.2rem;">search</span>
                     <input type="text" id="library-search" placeholder="Search saved infographics..." value="${currentSearchTerm}" 
-                        style="width: 100%; padding: 8px 10px 8px 35px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem;">
+                        style="width: 100%; padding: 8px 30px 8px 35px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem;">
+                    ${currentSearchTerm ? `
+                        <button id="clear-search-btn" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #94a3b8; padding: 2px; display: flex;">
+                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">close</span>
+                        </button>
+                    ` : ''}
                 </div>
                 <div class="sort-wrapper">
                     <select id="sort-select" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; background-color: white; cursor: pointer;">
@@ -2610,12 +2615,21 @@ function setupKnowledgeBase() {
             searchInput.addEventListener('input', (e) => {
                 currentSearchTerm = e.target.value;
                 renderLibraryList();
-                // Restore focus after re-render (since re-render wipes DOM)
+                // Restore focus after re-render
                 const newInput = modal.querySelector('#library-search');
                 if (newInput) {
                     newInput.focus();
                     newInput.setSelectionRange(newInput.value.length, newInput.value.length);
                 }
+            });
+        }
+
+        // Clear Search Handler
+        const clearSearchBtn = toolbar.querySelector('#clear-search-btn');
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', () => {
+                currentSearchTerm = '';
+                renderLibraryList();
             });
         }
 
@@ -6051,10 +6065,22 @@ function setupCommunityHub() {
     // Download submission to local library
     window.handleDownloadSubmission = async function (submissionId) {
         try {
-            const result = await CommunitySubmissions.downloadToLibrary(submissionId);
+            // First attempt (no overwrite)
+            let result = await CommunitySubmissions.downloadToLibrary(submissionId, false);
 
             if (result.success) {
                 alert(result.message);
+            } else if (result.status === 'duplicate') {
+                // Handle duplicate with replace option
+                if (confirm(result.message + "\n\nDo you want to replace the existing infographic with this one?")) {
+                    // Second attempt (with overwrite)
+                    result = await CommunitySubmissions.downloadToLibrary(submissionId, true);
+                    if (result.success) {
+                        alert(result.message);
+                    } else {
+                        alert(result.message || 'Could not replace infographic.');
+                    }
+                }
             } else {
                 alert(result.message || 'Could not download.');
             }
@@ -6454,15 +6480,42 @@ function setupNarrator() {
         // Start reading
         utterance = new SpeechSynthesisUtterance(textToRead);
 
-        // Select a voice (prefer English)
+        // Select a voice (prefer English Female / Storyteller)
         const voices = window.speechSynthesis.getVoices();
-        const englishVoice = voices.find(v => v.lang.startsWith('en-GB')) || voices.find(v => v.lang.startsWith('en-US'));
-        if (englishVoice) {
-            utterance.voice = englishVoice;
+
+        // Priority: specific high-quality voices -> any female english -> any english
+        const preferredVoices = [
+            'Google UK English Female',
+            'Google US English',
+            'Samantha',
+            'Microsoft Zira',
+            'Daniel' // Good fallback for GB
+        ];
+
+        let selectedVoice = null;
+
+        // 1. Try preferred list
+        for (const name of preferredVoices) {
+            selectedVoice = voices.find(v => v.name.includes(name));
+            if (selectedVoice) break;
         }
 
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
+        // 2. Try any English Female
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => v.lang.startsWith('en') && (v.name.toLowerCase().includes('female') || v.name.includes('Samantha')));
+        }
+
+        // 3. Try any English GB or US
+        if (!selectedVoice) {
+            selectedVoice = voices.find(v => v.lang.startsWith('en-GB')) || voices.find(v => v.lang.startsWith('en-US'));
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        utterance.rate = 0.85; // Slower rate regarding user request
+        utterance.pitch = 1.0; // Default pitch
 
         utterance.onend = () => {
             isReading = false;
