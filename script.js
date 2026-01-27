@@ -2919,7 +2919,7 @@ function setupKnowledgeBase() {
                 });
             });
 
-            // Rename handlers - requires admin password
+            // Rename handlers - unrestricted for all users
             listContainer.querySelectorAll('.btn-rename').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const button = e.target.closest('.btn-rename');
@@ -2927,16 +2927,7 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
 
                     if (targetItem) {
-                        // Admin password required for rename only if running locally (server mode)
-                        // Remote users (GitHub Pages) can rename freely for their local view
-                        if (!isGitHubPages()) {
-                            const password = prompt('Enter admin password to rename this item:');
-                            if (password !== '309030') {
-                                if (password !== null) alert('Incorrect password.');
-                                return;
-                            }
-                        }
-
+                        // No password required - any user can rename in their own library
                         const newTitle = prompt('Enter new title:', targetItem.title);
                         if (newTitle && newTitle.trim()) {
                             targetItem.title = newTitle.trim();
