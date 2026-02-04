@@ -179,6 +179,9 @@
                     <button class="icon-btn" id="community-btn" title="Community Hub">
                         <span class="material-symbols-rounded">groups</span>
                     </button>
+                    <a href="moderation.html" class="icon-btn" id="admin-btn" title="Admin Moderation Panel">
+                        <span class="material-symbols-rounded">admin_panel_settings</span>
+                    </a>
                     <a href="qa-generator.html" class="icon-btn" id="qa-btn" title="Q&A Generator (Viva & OSCE)">
                         <span class="material-symbols-rounded">quiz</span>
                     </a>
@@ -228,6 +231,13 @@
                     <button id="export-server-btn" class="icon-btn-ghost" title="Upload to Server / Submit to Community"
                         style="display: none;">
                         <span class="material-symbols-rounded">cloud_upload</span>
+                    </button>
+                    <button id="check-categorisation-btn" class="icon-btn-ghost" title="Check / Correct Categorisation">
+                        <span class="material-symbols-rounded">fact_check</span>
+                    </button>
+                    <button id="red-flags-btn" class="icon-btn-ghost" title="View Red Flags Section"
+                        style="color: #ef4444;">
+                        <span class="material-symbols-rounded">flag</span>
                     </button>
                     <button id="close-modal-btn" class="icon-btn-ghost">
                         <span class="material-symbols-rounded">close</span>
@@ -372,6 +382,7 @@
                             <option value="default">Professional</option>
                             <option value="friendly">Friendly</option>
                             <option value="formal">Formal</option>
+                            <option value="p2p_female">P2P Female Conversation</option>
                         </select>
                         <button class="btn-secondary" id="generate-audio-btn">
                             <span class="material-symbols-rounded">record_voice_over</span>

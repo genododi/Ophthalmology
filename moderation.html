@@ -258,11 +258,19 @@
                         <span class="material-symbols-rounded">pending_actions</span>
                         Pending Submissions
                     </h2>
-                    <button id="approve-all-btn" class="approve-all-btn" style="display: none;"
-                        onclick="handleApproveAll()">
-                        <span class="material-symbols-rounded">done_all</span>
-                        Approve All
-                    </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="add-all-to-library-btn" class="approve-all-btn"
+                            style="display: none; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);"
+                            onclick="handleAddAllToLibrary()">
+                            <span class="material-symbols-rounded">library_add</span>
+                            Add All to Library
+                        </button>
+                        <button id="approve-all-btn" class="approve-all-btn" style="display: none;"
+                            onclick="handleApproveAll()">
+                            <span class="material-symbols-rounded">done_all</span>
+                            Approve All
+                        </button>
+                    </div>
                 </div>
                 <div id="pending-list">
                     <!-- Pending submissions will be rendered here -->
@@ -464,6 +472,12 @@
                     approveAllBtn.style.display = (isAdminVerified && pending.length > 1) ? 'flex' : 'none';
                 }
 
+                // Show/hide Add All to Library button
+                const addAllToLibraryBtn = document.getElementById('add-all-to-library-btn');
+                if (addAllToLibraryBtn) {
+                    addAllToLibraryBtn.style.display = (pending.length > 0) ? 'flex' : 'none';
+                }
+
                 // Render pending
                 if (pending.length > 0) {
                     pendingList.innerHTML = pending.map(s => renderSubmissionCard(s, false)).join('');
@@ -514,14 +528,22 @@
             hideLoading();
         };
 
-        // Handle reject
+        // Handle reject - with enhanced protection for pending items
         window.handleReject = async function (submissionId) {
             if (!isAdminVerified) {
-                showToast('Please verify admin access first.', 'error');
+                showToast('⚠️ Admin verification required to delete pending items.', 'error');
                 return;
             }
 
-            if (!confirm('Reject and remove this submission? This action cannot be undone.')) {
+            // First confirmation
+            if (!confirm('⚠️ PROTECTED ITEM ⚠️\n\nThis is a pending review infographic that is protected from deletion.\n\nAre you SURE you want to permanently delete it?')) {
+                return;
+            }
+
+            // Second confirmation for extra protection
+            const confirmText = prompt('Type "DELETE" to confirm permanent removal:');
+            if (confirmText !== 'DELETE') {
+                showToast('Deletion cancelled. Item remains protected.', 'info');
                 return;
             }
 
@@ -530,10 +552,10 @@
             const result = await CommunitySubmissions.reject(submissionId, adminPIN);
 
             if (result.success) {
-                showToast('Submission rejected and removed.', 'success');
+                showToast('Pending submission permanently deleted.', 'success');
                 await renderSubmissions();
             } else {
-                showToast(result.message || 'Failed to reject.', 'error');
+                showToast(result.message || 'Failed to delete.', 'error');
             }
 
             hideLoading();
@@ -589,6 +611,51 @@
             }
 
             await renderSubmissions();
+        };
+
+        // Handle add all pending to local library
+        window.handleAddAllToLibrary = async function () {
+            const pending = currentSubmissions.submissions || [];
+            if (pending.length === 0) {
+                showToast('No pending submissions to add.', 'info');
+                return;
+            }
+
+            if (!confirm(`Add all ${pending.length} pending submissions to your local library?`)) {
+                return;
+            }
+
+            showLoading();
+
+            let successCount = 0;
+            let failCount = 0;
+
+            // Add each submission to local library
+            for (const submission of pending) {
+                try {
+                    const result = await CommunitySubmissions.downloadToLocal(submission.id, false);
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        console.error('Failed to add to library:', submission.id, result.message);
+                    }
+                } catch (err) {
+                    failCount++;
+                    console.error('Error adding to library:', submission.id, err);
+                }
+            }
+
+            hideLoading();
+
+            if (successCount > 0) {
+                const msg = failCount > 0
+                    ? `📚 ${successCount} added to library, ⚠️ ${failCount} skipped (may already exist).`
+                    : `📚 All ${successCount} submissions added to your library!`;
+                showToast(msg, 'success');
+            } else {
+                showToast('No new items added. They may already be in your library.', 'info');
+            }
         };
 
         // Handle preview - renders full graphical infographic

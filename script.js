@@ -2977,6 +2977,179 @@ function setupKnowledgeBase() {
             });
         }
     }
+
+    // CHECK / CORRECT CATEGORISATION HANDLER
+    const checkCategorisationBtn = document.getElementById('check-categorisation-btn');
+    if (checkCategorisationBtn) {
+        checkCategorisationBtn.addEventListener('click', () => {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+
+            if (library.length === 0) {
+                alert('Library is empty. Nothing to check.');
+                return;
+            }
+
+            // Find items where the current category doesn't match what auto-detect would suggest
+            const mismatches = [];
+            library.forEach(item => {
+                const currentChapter = item.chapterId || 'uncategorized';
+                const suggestedChapter = autoDetectChapter(item.title);
+
+                // Only flag if current is uncategorized OR different from suggested (if suggested isn't uncategorized)
+                if (currentChapter === 'uncategorized' && suggestedChapter !== 'uncategorized') {
+                    mismatches.push({
+                        id: item.id,
+                        title: item.title,
+                        current: currentChapter,
+                        suggested: suggestedChapter
+                    });
+                } else if (currentChapter !== 'uncategorized' && suggestedChapter !== 'uncategorized' && currentChapter !== suggestedChapter) {
+                    mismatches.push({
+                        id: item.id,
+                        title: item.title,
+                        current: currentChapter,
+                        suggested: suggestedChapter
+                    });
+                }
+            });
+
+            if (mismatches.length === 0) {
+                alert('✅ All items are correctly categorised! No suggestions found.');
+                return;
+            }
+
+            // Build a summary message
+            let msg = `Found ${mismatches.length} item(s) with categorisation suggestions:\n\n`;
+            mismatches.slice(0, 10).forEach((m, i) => {
+                const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
+                const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
+                msg += `${i + 1}. "${m.title.substring(0, 35)}..."\n   Current: ${currentName} → Suggested: ${suggestedName}\n\n`;
+            });
+            if (mismatches.length > 10) {
+                msg += `...and ${mismatches.length - 10} more\n\n`;
+            }
+            msg += 'Apply all suggested corrections?';
+
+            if (confirm(msg)) {
+                let changedCount = 0;
+                mismatches.forEach(m => {
+                    const item = library.find(i => i.id === m.id);
+                    if (item) {
+                        item.chapterId = m.suggested;
+                        changedCount++;
+                    }
+                });
+
+                localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                alert(`✅ Updated categorisation for ${changedCount} item(s)!`);
+                renderLibraryList();
+                syncLibraryToServer();
+            }
+        });
+    }
+
+    // RED FLAGS SECTION HANDLER
+    const redFlagsBtn = document.getElementById('red-flags-btn');
+    if (redFlagsBtn) {
+        redFlagsBtn.addEventListener('click', () => {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+
+            if (library.length === 0) {
+                alert('Library is empty. No red flags to display.');
+                return;
+            }
+
+            // Find infographics that contain red_flag type sections
+            const redFlagItems = [];
+            library.forEach(item => {
+                if (item.data && item.data.sections) {
+                    const hasRedFlag = item.data.sections.some(section => section.type === 'red_flag');
+                    if (hasRedFlag) {
+                        // Extract the red flag content
+                        const flags = item.data.sections
+                            .filter(s => s.type === 'red_flag')
+                            .map(s => Array.isArray(s.content) ? s.content : [s.content])
+                            .flat();
+                        redFlagItems.push({
+                            id: item.id,
+                            title: item.title,
+                            flags: flags
+                        });
+                    }
+                }
+            });
+
+            if (redFlagItems.length === 0) {
+                alert('🎉 No red flags found! All infographics are clear.');
+                return;
+            }
+
+            // Create a modal overlay for red flags
+            let redFlagModal = document.getElementById('red-flag-modal');
+            if (!redFlagModal) {
+                redFlagModal = document.createElement('div');
+                redFlagModal.id = 'red-flag-modal';
+                redFlagModal.className = 'modal-overlay';
+                redFlagModal.innerHTML = `
+                    <div class="modal-content modal-lg" style="border: 2px solid #ef4444;">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;">
+                            <h2 style="display: flex; align-items: center; gap: 8px;">
+                                <span class="material-symbols-rounded">flag</span>
+                                🚩 Red Flags Section
+                            </h2>
+                            <button id="close-red-flag-modal" class="icon-btn-ghost" style="color: white;">
+                                <span class="material-symbols-rounded">close</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" id="red-flag-body" style="max-height: 70vh; overflow-y: auto;">
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(redFlagModal);
+
+                // Close handler
+                redFlagModal.querySelector('#close-red-flag-modal').addEventListener('click', () => {
+                    redFlagModal.classList.remove('active');
+                });
+                redFlagModal.addEventListener('click', (e) => {
+                    if (e.target === redFlagModal) redFlagModal.classList.remove('active');
+                });
+            }
+
+            // Populate red flag content
+            const body = redFlagModal.querySelector('#red-flag-body');
+            body.innerHTML = `
+                <p style="margin-bottom: 1rem; color: #ef4444; font-weight: 500;">
+                    Found ${redFlagItems.length} infographic(s) with red flag warnings:
+                </p>
+                ${redFlagItems.map(item => `
+                    <div class="red-flag-card" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                        <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
+                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
+                            ${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}
+                        </h3>
+                        <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
+                            ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
+                        </ul>
+                        <button class="btn-small" style="margin-top: 0.75rem;" onclick="
+                            const lib = JSON.parse(localStorage.getItem('ophthalmic_library') || '[]');
+                            const found = lib.find(i => i.id === ${item.id});
+                            if (found && found.data) {
+                                renderInfographic(found.data);
+                                document.getElementById('red-flag-modal').classList.remove('active');
+                                document.getElementById('library-modal').classList.remove('active');
+                            }
+                        ">
+                            <span class="material-symbols-rounded">visibility</span>
+                            View Infographic
+                        </button>
+                    </div>
+                `).join('')}
+            `;
+
+            redFlagModal.classList.add('active');
+        });
+    }
 }
 
 /* Library Sync Status - Compare local vs server/admin knowledge base */
@@ -3163,61 +3336,112 @@ function setupSyncStatus() {
                 </div>
             `;
         } else {
-            // Local Only
+            // Local Only - with checkboxes for individual selection
             if (localOnly.length > 0) {
                 html += `
-                    <div class="diff-section">
-                        <h4><span class="material-symbols-rounded" style="color: #22c55e;">add_circle</span> Only on Your Device (${localOnly.length})</h4>
-                        <p class="diff-hint">These items are not on the community library</p>
-                        <div class="diff-list">
-                            ${localOnly.map(item => `
-                                <div class="diff-item local-only">
+                <div class="diff-section">
+                    <h4><span class="material-symbols-rounded" style="color: #22c55e;">add_circle</span> Only on Your Device (${localOnly.length})</h4>
+                    <p class="diff-hint">Select items to publish to the community library</p>
+                    <div style="margin-bottom: 0.5rem; display: flex; gap: 8px;">
+                        <button class="btn-small" id="select-all-local-only">
+                            <span class="material-symbols-rounded">select_all</span> Select All
+                        </button>
+                        <button class="btn-small" id="deselect-all-local-only">
+                            <span class="material-symbols-rounded">deselect</span> Deselect All
+                        </button>
+                        <span id="selected-count-display" style="margin-left: auto; color: #64748b; font-size: 0.9rem;">0 selected</span>
+                    </div>
+                    <div class="diff-list" id="local-only-list">
+                        ${localOnly.map((item, index) => `
+                            <div class="diff-item local-only" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" class="local-only-checkbox" data-index="${index}" id="local-check-${index}">
+                                <label for="local-check-${index}" style="flex: 1; cursor: pointer; display: flex; justify-content: space-between;">
                                     <span class="diff-title">${item.title}</span>
                                     <span class="diff-date">${new Date(item.date).toLocaleDateString()}</span>
-                                </div>
-                            `).join('')}
-                        </div>
+                                </label>
+                            </div>
+                        `).join('')}
                     </div>
-                `;
+                </div>
+            `;
             }
 
             // Server Only
             if (serverOnly.length > 0) {
                 html += `
-                    <div class="diff-section">
-                        <h4><span class="material-symbols-rounded" style="color: #3b82f6;">cloud_download</span> Only on Server (${serverOnly.length})</h4>
-                        <p class="diff-hint">Click "Sync with Server" to download these</p>
-                        <div class="diff-list">
-                            ${serverOnly.map(item => `
-                                <div class="diff-item server-only">
-                                    <span class="diff-title">${item.title}</span>
-                                    <span class="diff-date">${new Date(item.date).toLocaleDateString()}</span>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="diff-section">
+                    <h4><span class="material-symbols-rounded" style="color: #3b82f6;">cloud_download</span> Only on Server (${serverOnly.length})</h4>
+                    <p class="diff-hint">Click "Sync with Server" to download these</p>
+                    <div class="diff-list">
+                        ${serverOnly.map(item => `
+                            <div class="diff-item server-only">
+                                <span class="diff-title">${item.title}</span>
+                                <span class="diff-date">${new Date(item.date).toLocaleDateString()}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                `;
+                </div>
+            `;
             }
 
             // Deleted by Admin
             if (deletedByAdmin.length > 0) {
                 html += `
-                    <div class="diff-section">
-                        <h4><span class="material-symbols-rounded" style="color: #ef4444;">delete</span> Removed from Community Hub (${deletedByAdmin.length})</h4>
-                        <p class="diff-hint">These will be removed on next sync</p>
-                        <div class="diff-list">
-                            ${deletedByAdmin.map(item => `
-                                <div class="diff-item deleted">
-                                    <span class="diff-title">${item.title}</span>
-                                </div>
-                            `).join('')}
-                        </div>
+                <div class="diff-section">
+                    <h4><span class="material-symbols-rounded" style="color: #ef4444;">delete</span> Removed from Community Hub (${deletedByAdmin.length})</h4>
+                    <p class="diff-hint">These will be removed on next sync</p>
+                    <div class="diff-list">
+                        ${deletedByAdmin.map(item => `
+                            <div class="diff-item deleted">
+                                <span class="diff-title">${item.title}</span>
+                            </div>
+                        `).join('')}
                     </div>
-                `;
+                </div>
+            `;
             }
         }
 
         contentEl.innerHTML = html;
+
+        // Attach checkbox event handlers
+        const checkboxes = contentEl.querySelectorAll('.local-only-checkbox');
+        const selectAllBtn = contentEl.querySelector('#select-all-local-only');
+        const deselectAllBtn = contentEl.querySelector('#deselect-all-local-only');
+        const countDisplay = contentEl.querySelector('#selected-count-display');
+
+        const updateSelectedCount = () => {
+            const checked = contentEl.querySelectorAll('.local-only-checkbox:checked');
+            if (countDisplay) {
+                countDisplay.textContent = `${checked.length} selected`;
+            }
+            // Update export button text
+            if (exportBtn) {
+                if (checked.length > 0 && checked.length < localOnly.length) {
+                    exportBtn.innerHTML = `<span class="material-symbols-rounded">cloud_upload</span> Publish Selected (${checked.length}) to Community Hub`;
+                } else {
+                    exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+                }
+            }
+        };
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = true);
+                updateSelectedCount();
+            });
+        }
+
+        if (deselectAllBtn) {
+            deselectAllBtn.addEventListener('click', () => {
+                checkboxes.forEach(cb => cb.checked = false);
+                updateSelectedCount();
+            });
+        }
     }
 
     // Open modal
@@ -3244,7 +3468,7 @@ function setupSyncStatus() {
         refreshBtn.addEventListener('click', comparLibraries);
     }
 
-    // Publish local-only to the Community Hub
+    // Publish local-only to the Community Hub (supports 500+ items with chunked processing)
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
             if (currentDifferences.localOnly.length === 0) {
@@ -3252,8 +3476,26 @@ function setupSyncStatus() {
                 return;
             }
 
-            const count = currentDifferences.localOnly.length;
-            if (!confirm(`Publish ${count} local-only item${count > 1 ? 's' : ''} to the Community Hub so everyone can access them?`)) return;
+            // Check if specific items are selected
+            const checkboxes = document.querySelectorAll('.local-only-checkbox:checked');
+            let itemsToExport;
+
+            if (checkboxes.length > 0) {
+                // Export only selected items
+                const selectedIndices = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+                itemsToExport = selectedIndices.map(idx => currentDifferences.localOnly[idx]);
+            } else {
+                // Export all local-only items
+                itemsToExport = currentDifferences.localOnly;
+            }
+
+            const count = itemsToExport.length;
+            if (count === 0) {
+                alert('No items selected to export.');
+                return;
+            }
+
+            if (!confirm(`Publish ${count} item${count > 1 ? 's' : ''} to the Community Hub so everyone can access them?${count > 50 ? '\n\n⚠️ Large batch - this may take a few minutes.' : ''}`)) return;
 
             const savedUsername = localStorage.getItem('community_username') || '';
             const userName = prompt('Enter your name for the submissions:', savedUsername);
@@ -3266,21 +3508,68 @@ function setupSyncStatus() {
             localStorage.setItem('community_username', userName.trim());
 
             exportBtn.disabled = true;
-            exportBtn.disabled = true;
-            exportBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Exporting...';
+
+            // Progress indicator for large batches
+            const CHUNK_SIZE = 50;
+            const totalChunks = Math.ceil(count / CHUNK_SIZE);
+            let processedCount = 0;
+            let successCount = 0;
+            let failCount = 0;
+
+            const updateProgress = () => {
+                const percent = Math.round((processedCount / count) * 100);
+                exportBtn.innerHTML = `<span class="material-symbols-rounded rotating">sync</span> Publishing ${processedCount}/${count} (${percent}%)`;
+            };
+
+            updateProgress();
 
             try {
-                // Use submitMultiple for robust batch processing
-                const itemsToSubmit = currentDifferences.localOnly.map(item => item.data || item);
-                const result = await CommunitySubmissions.submitMultiple(itemsToSubmit, userName.trim());
+                const itemDataList = itemsToExport.map(item => item.data || item);
 
-                exportBtn.disabled = false;
-                exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+                // For large batches, process in chunks to avoid timeouts
+                if (count > CHUNK_SIZE) {
+                    for (let i = 0; i < itemDataList.length; i += CHUNK_SIZE) {
+                        const chunk = itemDataList.slice(i, i + CHUNK_SIZE);
+                        try {
+                            const result = await CommunitySubmissions.submitMultiple(chunk, userName.trim());
+                            if (result.success) {
+                                successCount += result.count || chunk.length;
+                            } else {
+                                failCount += chunk.length;
+                            }
+                        } catch (chunkErr) {
+                            console.error('Chunk error:', chunkErr);
+                            failCount += chunk.length;
+                        }
+                        processedCount += chunk.length;
+                        updateProgress();
 
-                if (result.success) {
-                    alert(`✅ ${result.count} item${result.count > 1 ? 's' : ''} published to the Community Hub!`);
+                        // Small delay between chunks to avoid rate limiting
+                        if (i + CHUNK_SIZE < itemDataList.length) {
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+                    }
+
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+
+                    if (successCount > 0) {
+                        alert(`✅ Published ${successCount} of ${count} items to the Community Hub!${failCount > 0 ? `\n⚠️ ${failCount} items failed.` : ''}`);
+                    } else {
+                        alert(`Failed to export items. Please try again.`);
+                    }
                 } else {
-                    alert(`Failed to export items: ${result.message}`);
+                    // Small batch - use single call
+                    const result = await CommunitySubmissions.submitMultiple(itemDataList, userName.trim());
+
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Publish Local-Only to Community Hub';
+
+                    if (result.success) {
+                        alert(`✅ ${result.count} item${result.count > 1 ? 's' : ''} published to the Community Hub!`);
+                    } else {
+                        alert(`Failed to export items: ${result.message}`);
+                    }
                 }
             } catch (err) {
                 console.error('Export error:', err);
@@ -3782,9 +4071,38 @@ function renderInfographic(data) {
         `;
     }
 
+    // Category Color Badge - determine chapter from title or stored chapterId
+    let categoryBadgeHtml = '';
+    const title = data.title || '';
+    let chapterId = data.chapterId || autoDetectChapter(title);
+    if (chapterId && chapterId !== 'uncategorized') {
+        const chapter = DEFAULT_CHAPTERS.find(c => c.id === chapterId);
+        if (chapter) {
+            categoryBadgeHtml = `
+                <span class="category-badge" style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 4px 12px;
+                    border-radius: 20px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: white;
+                    background: ${chapter.color};
+                    margin-left: 12px;
+                    vertical-align: middle;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                ">
+                    <span class="material-symbols-rounded" style="font-size: 14px;">folder</span>
+                    ${chapter.name}
+                </span>
+            `;
+        }
+    }
+
     header.innerHTML = `
         <div class="header-decoration"></div>
-        <h1 class="poster-title">${escapeHtml(data.title)}</h1>
+        <h1 class="poster-title" style="display: flex; align-items: center; flex-wrap: wrap;">${escapeHtml(data.title)}${categoryBadgeHtml}</h1>
         <div class="header-content-wrapper" style="display: flex; gap: 2rem; align-items: start;">
             <p class="poster-summary" style="flex: 1;">${escapeHtml(data.summary)}</p>
             ${illustrationHtml}
@@ -4350,22 +4668,63 @@ function createWaveformAnimation() {
 function playAudio() {
     if (!audioTranscript) return;
 
-    const utterance = new SpeechSynthesisUtterance(audioTranscript);
     const voiceSelect = document.getElementById('voice-select');
     const voiceStyle = voiceSelect?.value || 'default';
+
+    // Handle P2P Female Conversation (Two-voice dialogue)
+    if (voiceStyle === 'p2p_female') {
+        playP2PConversation();
+        return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(audioTranscript);
+
+    // Select female voice for all styles (priority order)
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoices = [
+        'Google UK English Female',
+        'Google US English',
+        'Samantha',
+        'Microsoft Zira',
+        'Daniel'
+    ];
+
+    let selectedVoice = null;
+
+    // 1. Try preferred list
+    for (const name of preferredVoices) {
+        selectedVoice = voices.find(v => v.name.includes(name));
+        if (selectedVoice) break;
+    }
+
+    // 2. Try any English Female
+    if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.startsWith('en') &&
+            (v.name.toLowerCase().includes('female') || v.name.includes('Samantha')));
+    }
+
+    // 3. Try any English GB or US
+    if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang.startsWith('en-GB')) ||
+            voices.find(v => v.lang.startsWith('en-US'));
+    }
+
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+    }
 
     // Set voice properties based on style
     switch (voiceStyle) {
         case 'friendly':
-            utterance.rate = 1.1;
+            utterance.rate = 0.95;
             utterance.pitch = 1.1;
             break;
         case 'formal':
-            utterance.rate = 0.9;
-            utterance.pitch = 0.9;
+            utterance.rate = 0.85;
+            utterance.pitch = 0.95;
             break;
         default:
-            utterance.rate = 1;
+            utterance.rate = 0.9;
             utterance.pitch = 1;
     }
 
@@ -4382,6 +4741,90 @@ function playAudio() {
     };
 
     speechSynthesis.speak(utterance);
+}
+
+// P2P Female Conversation - Two voices discussing the content
+function playP2PConversation() {
+    if (!audioTranscript) return;
+
+    const voices = window.speechSynthesis.getVoices();
+
+    // Find two distinct female voices
+    const femaleVoiceNames = [
+        ['Samantha', 'Google UK English Female', 'Microsoft Zira'],  // Voice 1 priority
+        ['Victoria', 'Google US English', 'Daniel', 'Karen']          // Voice 2 priority
+    ];
+
+    let voice1 = null;
+    let voice2 = null;
+
+    // Find Voice 1
+    for (const name of femaleVoiceNames[0]) {
+        voice1 = voices.find(v => v.name.includes(name));
+        if (voice1) break;
+    }
+    if (!voice1) {
+        voice1 = voices.find(v => v.lang.startsWith('en'));
+    }
+
+    // Find Voice 2 (different from Voice 1)
+    for (const name of femaleVoiceNames[1]) {
+        const found = voices.find(v => v.name.includes(name));
+        if (found && found !== voice1) {
+            voice2 = found;
+            break;
+        }
+    }
+    if (!voice2) {
+        voice2 = voices.find(v => v.lang.startsWith('en') && v !== voice1) || voice1;
+    }
+
+    // Split transcript into dialogue segments (by sentences or paragraphs)
+    const segments = audioTranscript
+        .split(/(?<=[.!?])\s+/)
+        .filter(s => s.trim().length > 0);
+
+    let currentIndex = 0;
+
+    const speakNext = () => {
+        if (currentIndex >= segments.length) {
+            isPlaying = false;
+            updatePlayButton();
+            resetProgress();
+            return;
+        }
+
+        const segment = segments[currentIndex];
+        const utterance = new SpeechSynthesisUtterance(segment);
+
+        // Alternate between voices
+        utterance.voice = (currentIndex % 2 === 0) ? voice1 : voice2;
+        utterance.rate = 0.85; // Slower for clarity
+        utterance.pitch = (currentIndex % 2 === 0) ? 1.0 : 1.1; // Slight variation
+
+        utterance.onstart = () => {
+            if (currentIndex === 0) {
+                isPlaying = true;
+                updatePlayButton();
+                animateProgress();
+            }
+        };
+
+        utterance.onend = () => {
+            currentIndex++;
+            // Small pause between speakers
+            setTimeout(speakNext, 150);
+        };
+
+        utterance.onerror = () => {
+            currentIndex++;
+            speakNext();
+        };
+
+        speechSynthesis.speak(utterance);
+    };
+
+    speakNext();
 }
 
 function stopAudio() {
