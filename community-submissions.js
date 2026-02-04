@@ -187,6 +187,80 @@ function isConfigured() {
 }
 
 /**
+ * Attempt to repair malformed JSON
+ * Handles common issues like missing brackets, trailing commas, unterminated strings
+ */
+function repairJSON(jsonString) {
+    if (!jsonString || typeof jsonString !== 'string') {
+        return '{"submissions":[],"approved":[],"deleted":[]}';
+    }
+
+    let repaired = jsonString.trim();
+
+    // Remove any BOM or invisible characters at start
+    repaired = repaired.replace(/^\uFEFF/, '');
+
+    // Try parsing as-is first
+    try {
+        JSON.parse(repaired);
+        return repaired;
+    } catch (e) {
+        console.warn('JSON needs repair, attempting fixes...');
+    }
+
+    // Fix 1: Remove trailing commas before ] or }
+    repaired = repaired.replace(/,\s*([}\]])/g, '$1');
+
+    // Fix 2: Balance brackets - count opening vs closing
+    const openBrackets = (repaired.match(/\[/g) || []).length;
+    const closeBrackets = (repaired.match(/\]/g) || []).length;
+    const openBraces = (repaired.match(/\{/g) || []).length;
+    const closeBraces = (repaired.match(/\}/g) || []).length;
+
+    // Add missing closing brackets
+    for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        repaired += ']';
+    }
+    for (let i = 0; i < openBraces - closeBraces; i++) {
+        repaired += '}';
+    }
+
+    // Fix 3: Try to fix unterminated strings by finding unbalanced quotes
+    // Count quotes (ignoring escaped quotes)
+    const quoteMatches = repaired.match(/(?<!\\)"/g) || [];
+    if (quoteMatches.length % 2 !== 0) {
+        // Odd number of quotes - try to find where the problem is
+        // Look for common patterns like truncated strings at end
+        if (repaired.endsWith('"')) {
+            // String ended without closing properly, add a placeholder end
+            repaired += '"}';
+        } else if (!repaired.endsWith('}') && !repaired.endsWith(']')) {
+            // Content was truncated mid-string
+            repaired += '"}]}';
+        }
+    }
+
+    // Fix 4: Ensure proper structure
+    if (!repaired.startsWith('{')) {
+        repaired = '{' + repaired;
+    }
+    if (!repaired.endsWith('}')) {
+        repaired += '}';
+    }
+
+    // Validate the repair worked
+    try {
+        JSON.parse(repaired);
+        console.log('JSON repair successful');
+        return repaired;
+    } catch (e2) {
+        console.error('JSON repair failed, returning empty structure');
+        // Return safe empty structure as last resort
+        return '{"submissions":[],"approved":[],"deleted":[]}';
+    }
+}
+
+/**
  * Configure Gist Credentials (for UI)
  */
 function configureGist(id, token) {
@@ -247,7 +321,7 @@ async function fetchSubmissions() {
             content = file.content;
         }
 
-        // Parse content
+        // Parse content with repair fallback
         let data;
         try {
             data = JSON.parse(content);
@@ -256,7 +330,17 @@ async function fetchSubmissions() {
             console.error('Content length:', content?.length);
             console.error('Content sample (first 500 chars):', content?.substring(0, 500));
             console.error('Content sample (last 500 chars):', content?.substring(content.length - 500));
-            throw parseErr;
+
+            // Attempt to repair the JSON
+            console.log('Attempting JSON repair...');
+            const repairedContent = repairJSON(content);
+            try {
+                data = JSON.parse(repairedContent);
+                console.log('JSON repair succeeded, data recovered');
+            } catch (repairParseErr) {
+                console.error('Repair failed, using empty fallback');
+                data = { submissions: [], approved: [], deleted: [] };
+            }
         }
 
         // Format check
