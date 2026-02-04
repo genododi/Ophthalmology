@@ -216,9 +216,10 @@
     ],
     "chapterId": "medical_retina"
   },
-  "chapterId": "medical_retina",
+  "chapterId": "neuro",
   "_newlyImported": 1769683087151,
   "communityId": "sub_1769674938211_ebveu53zy",
   "communityAuthor": "Dodiii",
-  "communityDate": "2026-01-29T08:22:18.211Z"
+  "communityDate": "2026-01-29T08:22:18.211Z",
+  "_serverSynced": true
 }

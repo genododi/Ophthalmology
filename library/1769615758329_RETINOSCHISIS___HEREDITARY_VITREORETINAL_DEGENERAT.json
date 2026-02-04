@@ -1,6 +1,5 @@
 {
   "id": 1769615758329,
-  "seqId": 155,
   "title": "RETINOSCHISIS & HEREDITARY VITREORETINAL DEGENERATIONS",
   "summary": "A comprehensive clinical breakdown of retinoschisis types—ranging from common degenerative forms to rare hereditary vitreoretinal degenerations like Stickler syndrome and FEVR. This guide covers pathophysiology, genetic markers, clinical diagnostics, and management protocols.",
   "date": "2026-01-28T15:55:58.329Z",
@@ -245,9 +244,11 @@
     ],
     "chapterId": "vitreoretinal"
   },
-  "chapterId": "vitreoretinal",
+  "chapterId": "neuro",
   "_newlyImported": 1769615758329,
   "communityId": "sub_1769614749293_mcsttp3qrjl498",
   "communityAuthor": "hh",
-  "communityDate": "2026-01-28T15:39:09.293Z"
+  "communityDate": "2026-01-28T15:39:09.293Z",
+  "seqId": 155,
+  "_serverSynced": true
 }

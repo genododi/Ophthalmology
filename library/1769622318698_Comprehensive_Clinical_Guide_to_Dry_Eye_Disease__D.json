@@ -276,9 +276,10 @@
     ],
     "chapterId": "cornea"
   },
-  "chapterId": "cornea",
+  "chapterId": "medical_retina",
   "_newlyImported": 1769622318698,
   "communityId": "sub_1769618268159_h2xpztga7kfg4b",
   "communityAuthor": "Dodiii",
-  "communityDate": "2026-01-28T16:37:48.159Z"
+  "communityDate": "2026-01-28T16:37:48.159Z",
+  "_serverSynced": true
 }

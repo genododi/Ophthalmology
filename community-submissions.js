@@ -234,13 +234,42 @@ async function fetchSubmissions() {
 
         if (!file) throw new Error(`File ${GITHUB_CONFIG.FILENAME} not found in Gist`);
 
+        // Handle truncated content - GitHub truncates files over ~1MB
+        let content;
+        if (file.truncated && file.raw_url) {
+            console.log('Content truncated, fetching from raw_url...');
+            const rawResponse = await fetch(file.raw_url, {
+                headers: token ? { 'Authorization': `token ${token}` } : {}
+            });
+            if (!rawResponse.ok) throw new Error(`Failed to fetch raw content (${rawResponse.status})`);
+            content = await rawResponse.text();
+        } else {
+            content = file.content;
+        }
+
         // Parse content
-        let data = JSON.parse(file.content);
+        let data;
+        try {
+            data = JSON.parse(content);
+        } catch (parseErr) {
+            console.error('JSON Parse Error:', parseErr.message);
+            console.error('Content length:', content?.length);
+            console.error('Content sample (first 500 chars):', content?.substring(0, 500));
+            console.error('Content sample (last 500 chars):', content?.substring(content.length - 500));
+            throw parseErr;
+        }
 
         // Format check
         if (!data.submissions) data.submissions = [];
         if (!data.approved) data.approved = [];
         if (!data.deleted) data.deleted = [];
+
+        // Cache the data
+        try {
+            localStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify(data));
+        } catch (cacheErr) {
+            console.warn('Could not cache community data:', cacheErr.message);
+        }
 
         return data;
 

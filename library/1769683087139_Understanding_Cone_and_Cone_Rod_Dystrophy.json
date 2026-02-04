@@ -160,9 +160,10 @@
     ],
     "chapterId": "paediatric"
   },
-  "chapterId": "paediatric",
+  "chapterId": "medical_retina",
   "_newlyImported": 1769683087139,
   "communityId": "sub_1769682862949_javwr0zhf",
   "communityAuthor": "Dodiii",
-  "communityDate": "2026-01-29T10:34:22.949Z"
+  "communityDate": "2026-01-29T10:34:22.949Z",
+  "_serverSynced": true
 }

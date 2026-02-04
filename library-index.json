@@ -1,5 +1,1027 @@
 [
   {
+    "id": 1770233682915,
+    "seqId": 183,
+    "title": "PINPOINT PRECISION: Punctate Epithelial Erosions (PEE)",
+    "summary": "Punctate epithelial erosions (PEE) are a hallmark clinical sign of ocular surface distress, characterized by the focal loss of individual corneal epithelial cells. These tiny, depressed spots serve as a critical diagnostic indicator for a wide range of underlying ophthalmic conditions.",
+    "date": "2026-02-04T19:34:42.915Z",
+    "data": {
+      "title": "PINPOINT PRECISION: Punctate Epithelial Erosions (PEE)",
+      "summary": "Punctate epithelial erosions (PEE) are a hallmark clinical sign of ocular surface distress, characterized by the focal loss of individual corneal epithelial cells. These tiny, depressed spots serve as a critical diagnostic indicator for a wide range of underlying ophthalmic conditions.",
+      "summary_illustration": "<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><circle cx='100' cy='100' r='80' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='4'/><circle cx='100' cy='100' r='50' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='2'/><circle cx='80' cy='85' r='2' fill='#32CD32'/><circle cx='95' cy='75' r='1.5' fill='#32CD32'/><circle cx='110' cy='90' r='2' fill='#32CD32'/><circle cx='120' cy='110' r='1.5' fill='#32CD32'/><circle cx='100' cy='115' r='2' fill='#32CD32'/><circle cx='85' cy='110' r='1.5' fill='#32CD32'/><circle cx='70' cy='100' r='2' fill='#32CD32'/><circle cx='130' cy='95' r='2' fill='#32CD32'/><circle cx='105' cy='100' r='1.5' fill='#32CD32'/><path d='M40 100 Q100 20 160 100 Q100 180 40 100' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='2' opacity='0.5'/></svg>",
+      "sections": [
+        {
+          "title": "Defining the Condition",
+          "icon": "visibility",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "center": "Punctate Epithelial Erosions",
+            "branches": [
+              "Focal loss of epithelial cells",
+              "Pinpoint corneal defects",
+              "Non-specific clinical sign",
+              "Stains with Fluorescein",
+              "Slightly depressed areas"
+            ]
+          }
+        },
+        {
+          "title": "Patient Symptomatology",
+          "icon": "report_problem",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Foreign body sensation (grittiness)",
+            "Ocular pain or irritation",
+            "Photophobia (sensitivity to light)",
+            "Excessive tearing (epiphora)",
+            "Blurred or fluctuating vision",
+            "Redness of the conjunctiva"
+          ]
+        },
+        {
+          "title": "Diagnostic Clues: Location",
+          "icon": "location_on",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "headers": [
+              "Pattern Location",
+              "Likely Etiology"
+            ],
+            "rows": [
+              [
+                "Superior (Top)",
+                "SLK, Trachoma, Vernal Catarrh"
+              ],
+              [
+                "Interpalpebral (Middle)",
+                "Dry Eye (KCS), UV burn, Neurotrophic"
+              ],
+              [
+                "Inferior (Bottom)",
+                "Blepharitis, Toxicity, Lagophthalmos"
+              ],
+              [
+                "Diffuse (Scattered)",
+                "Viral Keratitis, Drug Toxicity, CL-related"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Vital Staining Characteristics",
+          "icon": "colorize",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Fluorescein (Stains cell gaps)",
+                "value": 100
+              },
+              {
+                "label": "Rose Bengal (Stains dead cells)",
+                "value": 85
+              },
+              {
+                "label": "Lissamine Green (Stains mucus/dead cells)",
+                "value": 80
+              }
+            ]
+          }
+        },
+        {
+          "title": "The 'STAIN' Mnemonic",
+          "icon": "psychology",
+          "type": "remember",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "STAIN",
+            "explanation": "S: Superior (SLK); T: Toxic (Medicamentosa); A: Aqueous Deficiency (Dry Eye); I: Inferior (Blepharitis); N: Neurotrophic Keratopathy."
+          }
+        },
+        {
+          "title": "Management Strategy",
+          "icon": "healing",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "Step 1: Identify and treat the primary underlying cause.",
+            "Step 2: Initiate intensive lubrication with preservative-free artificial tears.",
+            "Step 3: Apply nocturnal lubricating ointments for exposure-related cases.",
+            "Step 4: Discontinue any offending toxic topical medications.",
+            "Step 5: Consider a bandage contact lens for severe epithelial compromise.",
+            "Step 6: Monitor for secondary bacterial infection and provide prophylactic coverage if needed."
+          ]
+        },
+        {
+          "title": "URGENT RED FLAGS",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Sudden, significant drop in Visual Acuity",
+            "Presence of a Hypopyon (white blood cells in anterior chamber)",
+            "Rapid corneal thinning or ulceration",
+            "Intense pain that is non-responsive to lubricants",
+            "Associated purulent discharge"
+          ]
+        },
+        {
+          "title": "Clinical Summary Verbatim",
+          "icon": "description",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": "Punctate epithelial erosions are not a disease in themselves but a manifestation of ocular surface disease. They represent areas where the corneal epithelium has been shed. When viewed under a slit lamp with a cobalt blue filter after fluorescein instillation, they appear as bright green dots because the dye pools in the spaces where cells are missing. Management focuses on restoring the tear film and protecting the corneal surface to allow for re-epithelialization."
+        }
+      ],
+      "chapterId": "uncategorized"
+    },
+    "chapterId": "uncategorized",
+    "_newlyImported": 1770233682915,
+    "communityId": "sub_1769972561627_q3bf8lc5k9z0qc",
+    "communityAuthor": "Oiii",
+    "communityDate": "2026-02-01T19:02:41.627Z"
+  },
+  {
+    "id": 1770233676936,
+    "seqId": 182,
+    "title": "AGE-RELATED MACULAR DEGENERATION: THE COMPLETE CLINICAL GUIDE",
+    "summary": "An exhaustive clinical overview of Age-Related Macular Degeneration (AMD), covering its classification, epidemiology, multi-factorial risk factors, and the distinct characteristics of dry and wet forms. This guide details the critical role of drusen, current imaging standards like OCT and FA, and evidence-based management including AREDS2 supplementation and emerging therapies.",
+    "date": "2026-02-04T19:34:36.936Z",
+    "data": {
+      "title": "AGE-RELATED MACULAR DEGENERATION: THE COMPLETE CLINICAL GUIDE",
+      "summary": "An exhaustive clinical overview of Age-Related Macular Degeneration (AMD), covering its classification, epidemiology, multi-factorial risk factors, and the distinct characteristics of dry and wet forms. This guide details the critical role of drusen, current imaging standards like OCT and FA, and evidence-based management including AREDS2 supplementation and emerging therapies.",
+      "summary_illustration": "<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"48\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"2\"/><circle cx=\"50\" cy=\"50\" r=\"15\" fill=\"hsl(215, 90%, 45%)\" fill-opacity=\"0.2\"/><circle cx=\"50\" cy=\"50\" r=\"8\" fill=\"hsl(215, 90%, 45%)\" fill-opacity=\"0.4\"/><circle cx=\"45\" cy=\"45\" r=\"2\" fill=\"#FFD700\"/><circle cx=\"55\" cy=\"52\" r=\"3\" fill=\"#FFD700\"/><circle cx=\"48\" cy=\"55\" r=\"1.5\" fill=\"#FFD700\"/><path d=\"M20 50 Q50 10 80 50 Q50 90 20 50\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"1\" opacity=\"0.5\"/></svg>",
+      "sections": [
+        {
+          "title": "Introduction to AMD",
+          "icon": "info",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "Age-related macular degeneration (AMD) is a degenerative disorder in which the structure and function of the macula deteriorates. It is characterized by the presence of specific clinical findings, including drusen and RPE changes, in the absence of another disorder. Later stages of the disease are associated with impairment of vision secondary to neovascularization or atrophy."
+        },
+        {
+          "title": "Clinical Classification of AMD (Table 14.2)",
+          "icon": "grid_view",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Category",
+              "Definition (Lesions within 2 disc diameters of fovea)"
+            ],
+            "rows": [
+              [
+                "No apparent ageing changes",
+                "No drusen; No AMD pigmentary abnormalities"
+              ],
+              [
+                "Normal ageing changes",
+                "Only drupelets (small drusen <63 μm); No AMD pigmentary abnormalities"
+              ],
+              [
+                "Early AMD",
+                "Medium drusen (>63 μm but <125 μm); No AMD pigmentary abnormalities"
+              ],
+              [
+                "Intermediate AMD",
+                "Large drusen (>125 μm); Any AMD pigmentary abnormalities"
+              ],
+              [
+                "Late AMD",
+                "Neovascular AMD and/or Any geographic atrophy"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Key Definitions & Terminology",
+          "icon": "dictionary",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Pigmentary abnormalities: definite hyper- or hypopigmentary abnormalities associated with medium/large drusen (not due to other disease).",
+            "Drupelets: Proposed term for small drusen (<63 μm).",
+            "Drusen sizing: Estimated by comparison with a retinal vein at the optic disc margin (~125 μm).",
+            "The consensus committee has standardized nomenclature for reporting neovascular AMD."
+          ]
+        },
+        {
+          "title": "The Two Main Types of AMD",
+          "icon": "account_tree",
+          "type": "mindmap",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": {
+            "center": "AMD Forms",
+            "branches": [
+              "Dry (Non-exudative/Non-neovascular): 90% of cases; Advanced stage is Geographic Atrophy (GA).",
+              "Wet (Exudative/Neovascular): Less common; Rapid progression; Includes MNV, PED, RAP, and PCV."
+            ]
+          }
+        },
+        {
+          "title": "Terminology Update",
+          "icon": "campaign",
+          "type": "remember",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "MNV over CNV",
+            "explanation": "TIP: The term ‘choroidal neovascularization’ (CNV) is no longer appropriate because neovascularization may start in the outer retina. Macular neovascularization (MNV) should be used instead."
+          }
+        },
+        {
+          "title": "Global & Regional Epidemiology",
+          "icon": "public",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Most common cause of irreversible visual loss in industrialized countries.",
+            "Symptoms are rare in patients under 50 years of age; prevalence increases with age.",
+            "UK: 4% of population over 75 and 14% of those over 90 have significant visual impairment (6/18 or worse).",
+            "UK: 1.6% of those over 75 have binocular acuity < 6/60.",
+            "Fellow Eye Risk: 50% chance of developing advanced AMD within 5 years if late AMD or moderate loss is present in the first eye."
+          ]
+        },
+        {
+          "title": "USA Visual Loss Statistics by Race",
+          "icon": "bar_chart",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Whites (Severe Loss)",
+                "value": 50
+              },
+              {
+                "label": "Hispanics (Severe Loss)",
+                "value": 15
+              },
+              {
+                "label": "Black people (Severe Loss)",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "Multi-factorial Risk Factors",
+          "icon": "warning",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Age: The major risk factor.",
+            "Race: Late AMD is more common in White individuals.",
+            "Heredity: 3x risk if a first-degree relative is affected. Variants in 50+ genes implicated.",
+            "Smoking: Roughly doubles the risk of AMD.",
+            "Hypertension: Associated with other cardiovascular risk factors.",
+            "Dietary: High fat intake and obesity promote AMD; high antioxidants are protective.",
+            "Aspirin: Weak statistically significant association, but benefits (stroke/heart attack prevention) outweigh the risk of exacerbating wet AMD.",
+            "Uncertain Factors: Cataract surgery, blue iris colour, high sunlight exposure, and female gender."
+          ]
+        },
+        {
+          "title": "The Genetics of AMD",
+          "icon": "dna",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": {
+            "headers": [
+              "Major Susceptibility Gene",
+              "Function/Location",
+              "Risk Impact (Homozygous)"
+            ],
+            "rows": [
+              [
+                "CFH (1q31)",
+                "Complement factor H; protects cells from complement-mediated damage",
+                "Increases risk 7 times"
+              ],
+              [
+                "ARMS2 (10q26)",
+                "Encodes protein in choroidal extracellular matrix",
+                "Increases risk 8 times"
+              ],
+              [
+                "Lipid Metabolism Genes",
+                "Thought to be important",
+                "N/A"
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Genetic Testing Note",
+          "icon": "biotech",
+          "type": "remember",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "WAIT",
+            "explanation": "There is no advantage in undertaking genetic testing until studies confirm its value for determining prognosis or treatment response."
+          }
+        },
+        {
+          "title": "Drusen: Histopathology & Distribution",
+          "icon": "microscopy",
+          "type": "plain_text",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": "Drusen are extracellular deposits at the interface between the RPE and Bruch membrane. They consist of constituents from immune-mediated and metabolic RPE processes. Rare before age 40, common by the 60s. Distribution: foveal, encircling the fovea, band-like around the macular periphery, or in mid-peripheral fundus."
+        },
+        {
+          "title": "Clinical Features of Drusen",
+          "icon": "visibility",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Small Drusen (Drupelets/Hard): ≤63 μm. Well-defined, white-yellow. Little risk unless with pigmentary changes.",
+            "Intermediate Drusen: 63–125 μm. Focal yellow-white deposits. Risk to late AMD >10% if bilateral pigmentary abnormalities exist.",
+            "Large Drusen (Soft): >125 μm. Less delineated. Can coalesce into 'drusenoid RPE detachment'. Risk to late AMD is 13% (rises to 50% with bilateral pigmentary changes).",
+            "Dystrophic calcification: May develop in all drusen types.",
+            "Pigmentary abnormalities: Hyper- and hypopigmentation significantly increase late AMD likelihood."
+          ]
+        },
+        {
+          "title": "Drusen & Risk Summary",
+          "icon": "priority_high",
+          "type": "remember",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": {
+            "mnemonic": "SIZE + PIGMENT",
+            "explanation": "TIP: There is a strong association between the risk of developing advanced AMD, drusen size, and macular pigmentary change."
+          }
+        },
+        {
+          "title": "Imaging Findings for Drusen",
+          "icon": "camera_enhance",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "OCT: Medium/large drusen appear as hyper-reflective irregular nodules beneath the RPE on/within Bruch membrane.",
+            "FA (Hyperfluorescence): Caused by window defects (RPE atrophy) or late staining.",
+            "FA (Hypofluorescence): Hydrophobic drusen with high lipid content mask background fluorescence and do not stain."
+          ]
+        },
+        {
+          "title": "Differential Diagnosis of Drusen-like Lesions",
+          "icon": "difference",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Doyne honeycomb retinal dystrophy: Autosomal dominant; appears in 2nd/3rd decades.",
+            "Cuticular drusen: Grouped early adult-onset (25–75 μm). 'Stars in the sky' appearance on FA. Linked to CFH gene variant.",
+            "Type 2 membranoproliferative glomerulonephritis: Chronic renal disease; bilateral drusen-like lesions; CFH gene implicated."
+          ]
+        },
+        {
+          "title": "Antioxidant Supplementation: AREDS Findings",
+          "icon": "pill",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": [
+            "High-dose antioxidants/minerals decrease risk of advanced AMD development.",
+            "AREDS1 Risk Reduction: 25–30% at 10 years for advanced signs at baseline.",
+            "No benefit seen in those with early or no AMD at baseline.",
+            "AREDS1 High-Risk Characteristics for Age >55: Extensive intermediate drusen, One+ large drusen, GA in one/both eyes, or late AMD in one eye."
+          ]
+        },
+        {
+          "title": "AREDS2 Study Breakthroughs",
+          "icon": "science",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "Lutein/Zeaxanthin: Safe and likely superior alternative to beta-carotene (18% additional risk reduction).",
+            "Beta-carotene Warning: Increases lung cancer in smokers/former smokers.",
+            "Zinc: 25 mg likely maximal absorbed; lower dose (25 mg) reduces GI/urinary side effects vs 80 mg.",
+            "Omega-3 fatty acids: Did not enhance outcomes.",
+            "Competition: Carotenoid absorption competition may affect results in some patients."
+          ]
+        },
+        {
+          "title": "Recommended Daily Supplementation (AREDS2)",
+          "icon": "medication",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": [
+            "Vitamin C: 500 mg",
+            "Vitamin E: 400 IU",
+            "Lutein: 10 mg",
+            "Zeaxanthin: 2 mg",
+            "Zinc: 25–80 mg",
+            "Copper: 2 mg (may not be required with lower zinc dose)"
+          ]
+        },
+        {
+          "title": "Lifestyle & Prevention Tips",
+          "icon": "eco",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": [
+            "Green leafy vegetables: Prudent choice for early AMD/family history.",
+            "Oily fish: Regular consumption supported by some authorities.",
+            "Smoking: Cessation is mandatory advice.",
+            "Sunlight: Protective measures against excessive exposure.",
+            "Home Monitoring: Provide Amsler grid for regular self-testing.",
+            "TIP: Risk of severe AMD in patients with high-risk dry characteristics can be reduced with regular supplementation."
+          ]
+        },
+        {
+          "title": "Non-exudative (Dry) AMD: Overview",
+          "icon": "visibility_off",
+          "type": "plain_text",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": "Common condition; GA threatens central vision in 5 million people worldwide. Involves loss of photoreceptors and RPE. Pathogenesis: Activation of complement factors C3 and C5 is vital. Lesion size measured via FAF is the primary trial outcome."
+        },
+        {
+          "title": "Dry AMD Diagnostic Signs",
+          "icon": "clinical_notes",
+          "type": "process",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Step 1: Gradual vision impairment (months/years); vision better in bright light.",
+            "Step 2: Numerous soft drusen (may become confluent).",
+            "Step 3: Focal RPE hyper- and/or hypopigmentation.",
+            "Step 4: Geographic Atrophy (GA) - sharply circumscribed areas of RPE atrophy; visible choroidal vessels.",
+            "Step 5: Severe impairment if fovea involved; rare MNV development in GA area."
+          ]
+        },
+        {
+          "title": "Advanced Imaging for Dry AMD",
+          "icon": "biotech",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "OCT - Outer Retinal Tubulations: Roundish hyporeflective spaces (degenerating photoreceptors) around GA margins.",
+            "OCT - Outer Retinal Corrugations: Undulating hyper-reflective layer (basal laminar deposit) between RPE and basement membrane.",
+            "Basal Linear Deposit: Membranous debris between RPE basement membrane and Bruch membrane inner layer.",
+            "Microperimetry: Accurate central vision testing method.",
+            "FAF: Shows hyperautofluorescence in junctional zones at high risk of GA progression.",
+            "FA: Window defects in atrophic areas; late staining of exposed sclera."
+          ]
+        },
+        {
+          "title": "Dry AMD Management & Social Support",
+          "icon": "support",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Prophylaxis: Address smoking, sun, cardiovascular, and dietary factors.",
+            "Amsler Grid: Urgent professional advice needed if vision changes.",
+            "Support: Low vision aids and visually impaired certification to access social/financial support."
+          ]
+        },
+        {
+          "title": "Potential New & Experimental Therapies",
+          "icon": "experiment",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Complement Inhibitors: Avacincaptad pegol (C5) or Pegcetacoplan (C3) intravitreal injections reduce GA growth.",
+            "Saffron: 20 mg/day may improve retinal function short-term.",
+            "Photocoagulation: Reduces drusen extent but not AMD progression risk.",
+            "Visual Cycle Modulation: Emixustat (vitamin A processing reduction) has not proved helpful.",
+            "Failed/Ineffective: Many of the 13 complement inhibitors studied were ineffective."
+          ]
+        },
+        {
+          "title": "Experimental Surgical Interventions",
+          "icon": "medical_services",
+          "type": "red_flag",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "Patients must be informed of high risks and slender likelihood of long-term vision improvement.",
+            "Miniature Intraocular Telescope: Benefit in selected cases.",
+            "RPE Stem Cells: Implanted behind macula; improved vision in some patients.",
+            "Macular Translocation Surgery: High complication rate; not successful in improving vision.",
+            "Visual Prostheses: Various types currently under investigation."
+          ]
+        }
+      ],
+      "chapterId": "medical_retina"
+    },
+    "chapterId": "medical_retina",
+    "_newlyImported": 1770233676936,
+    "communityId": "sub_1769972561627_zl7rjnpgtpalqg",
+    "communityAuthor": "Oiii",
+    "communityDate": "2026-02-01T19:02:41.627Z"
+  },
+  {
+    "id": 1770233672015,
+    "seqId": 181,
+    "title": "Inherited Macular and Pattern Dystrophies: A Clinical & Genetic Compendium",
+    "summary": "An exhaustive clinical guide detailing Pattern Dystrophies of the RPE, North Carolina Macular Dystrophy, Familial Dominant Drusen, and Sorsby Fundus Dystrophy. It covers the genetic mutations, multimodal imaging characteristics, and progressive clinical stages of these rare hereditary retinal conditions.",
+    "date": "2026-02-04T19:34:32.015Z",
+    "data": {
+      "title": "Inherited Macular and Pattern Dystrophies: A Clinical & Genetic Compendium",
+      "summary": "An exhaustive clinical guide detailing Pattern Dystrophies of the RPE, North Carolina Macular Dystrophy, Familial Dominant Drusen, and Sorsby Fundus Dystrophy. It covers the genetic mutations, multimodal imaging characteristics, and progressive clinical stages of these rare hereditary retinal conditions.",
+      "summary_illustration": "<svg viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"50\" cy=\"50\" r=\"45\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"2\"/><circle cx=\"50\" cy=\"50\" r=\"12\" fill=\"hsl(215, 90%, 45%)\" opacity=\"0.2\"/><path d=\"M35 50 Q50 35 65 50 Q50 65 35 50\" fill=\"none\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"1\"/><path d=\"M50 35 L50 25 M65 50 L75 50 M50 65 L50 75 M35 50 L25 50\" stroke=\"hsl(215, 90%, 45%)\" stroke-width=\"1.5\"/><circle cx=\"50\" cy=\"50\" r=\"3\" fill=\"hsl(215, 90%, 45%)\"/></svg>",
+      "sections": [
+        {
+          "title": "Overview of Pattern Dystrophy of the RPE",
+          "icon": "visibility",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "Pattern (patterned) dystrophy of the RPE encompasses several clinical appearances which are autosomal dominantly inherited. This group is associated with the accumulation of lipofuscin in the RPE and manifests with yellow, whitish, grey or pigmented deposits at the macula in a variety of appearances. The most common presenting symptom is reduced visual acuity or mild metamorphopsia in early adulthood or later, but many are asymptomatic. The different clinical appearances are believed in many cases to represent variable expression of a mutation in PRPH2, which encodes peripherin-2, a protein involved in compaction of outer segment discs of photoreceptors. Other genes and conditions can give rise to a similar appearance and notably, a pattern dystrophylike appearance can occur in response to a range of pathogenic stimuli. Pattern dystrophies may be associated with systemic diseases, e.g. pseudoxanthoma elasticum, myotonic dystrophy and MIDD. These dystrophies usually progress at a very slow rate and the prognosis is generally good. There is no treatment. Based on the pigment distribution the pattern dystrophies have been classified into five prominent patterns. Importantly, one pattern may change into another in the same patient."
+        },
+        {
+          "title": "Classification: The Five Prominent Patterns",
+          "icon": "category",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": [
+            "Butterfly-shaped pigment dystrophy: foveal yellow and melanin pigmentation, commonly in a spoke-like or butterfly wing-like conformation (Fig. 15.28A). FA shows central and radiating hypofluorescence with surrounding hyperfluorescence (Fig. 15.28B).",
+            "Reticular dystrophy (Sjögren): a network of pigmented lines at the posterior pole. This includes macroreticular (spider-shaped) where pigment granules are initially seen at the fovea, followed by reticular pigmentation that spreads to the periphery.",
+            "Multifocal pattern dystrophy simulating fundus flavimaculatus: multiple, widely scattered, irregular yellow lesions which may be similar to those seen in fundus flavimaculatus.",
+            "Adult-onset foveomacular vitelliform dystrophy – see above.",
+            "Fundus pulverulentus is extremely rare. Macular pigment mottling develops."
+          ]
+        },
+        {
+          "title": "Genetics & Molecular Mechanism",
+          "icon": "dna",
+          "type": "mindmap",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "center": "Pattern Dystrophy Genetics",
+            "branches": [
+              "Inheritance: Autosomal Dominant",
+              "Primary Gene: PRPH2 (peripherin-2)",
+              "Protein Function: Compaction of outer segment discs",
+              "Secondary Gene: EFEMP1 (chromosome 2p16)",
+              "Secondary Gene: TIMP3 (chromosome 22q)",
+              "Secondary Gene: PRDM13 (via MCDR1 locus 6q)"
+            ]
+          }
+        },
+        {
+          "title": "Imaging Analysis: Fig 15.27 & 15.28",
+          "icon": "camera_alt",
+          "type": "plain_text",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": "Fig. 15.27 (A) Adult-onset macular vitelliform dystrophy (monogenic); (B) FA showing corresponding hyperfluorescence; (C) FAF of a different patient showing hyperautofluorescence vitelliform lesion in the inferior macula (arrowhead) and RPE atrophy (arrow); (D) vertical OCT scan showing subretinal material (arrowhead) and an adjacent small central area with increased choroidal backscatter, indicating RPE atrophy (arrow). CHAPTER Inherited retinal degenerations 15 649. Fig. 15.28 Butterfly-shaped pattern dystrophy of the RPE. (A) Spokes of yellowish material and pigment radiating from the foveola; (B) FA of the eye in (A) showing central and spoke-like radiating hypofluorescence with surrounding hyperfluorescence."
+        },
+        {
+          "title": "North Carolina Macular Dystrophy (NCMD)",
+          "icon": "map",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": "North Carolina macular dystrophy is a rare non-progressive condition. It was first described in families living in the mountains of North Carolina and subsequently in many unrelated families in other parts of the world. Inheritance is AD with complete penetrance, but highly variable expressivity. Most affected individuals have a mutation of the MCDR1 locus of chromosome 6q, which results in dysregulation of the PRDM13 gene. Patients show a characteristic retinal phenotype and distribution of drusen that differs from the drusen found in patients with AMD. Despite the variability of macular phenotype, multimodal retinal imaging reveals consistent findings."
+        },
+        {
+          "title": "NCMD: Clinical Severity & Visual Prognosis",
+          "icon": "monitoring",
+          "type": "chart",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "type": "bar",
+            "data": [
+              {
+                "label": "Asymptomatic",
+                "value": 33
+              },
+              {
+                "label": "Mild visual loss",
+                "value": 33
+              },
+              {
+                "label": "Moderate visual loss",
+                "value": 33
+              },
+              {
+                "label": "Severe (MNV)",
+                "value": 5
+              }
+            ]
+          }
+        },
+        {
+          "title": "NCMD Grading System",
+          "icon": "grade",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "headers": [
+              "Grade",
+              "Clinical Characteristics"
+            ],
+            "rows": [
+              [
+                "Grade 1",
+                "Yellow–white, drusen-like peripheral and macular deposits; develop in first decade; often asymptomatic."
+              ],
+              [
+                "Grade 2",
+                "Deep, confluent macular deposits. Visual prognosis guarded; risk of neovascular maculopathy and subretinal scarring."
+              ],
+              [
+                "Grade 3",
+                "Atrophic macular lesions associated with variable impairment of visual acuity."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "NCMD Imaging & Fig 15.29",
+          "icon": "biotech",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "yellow",
+          "content": "FAF shows characteristic peripheral hyperautofluorescent streaks (Fig. 15.29C). The atrophic macula shows hyperautofluorescence in the early stages (Fig. 15.29D), followed by late hypoautofluorescence. OCT shows mild irregularity in the outer retina (Fig. 15.29E and F). Fig. 15.29 North Carolina macular dystrophy. (A) Peripheral flecks; (B) confluent macular flecks; (C) FAF of an asymptomatic individual, showing peripheral hyperautofluorescent flecks (arrows); (D) FAF of her symptomatic daughter showing hyperautofluorescence in the macular region (arrow); (E) OCT of (D) in the intermediate stage showing localized outer retinal disruption; (F) OCT 2 years later showing progressive outer retinal disruption. (Courtesy of P Charbel Issa.) 650 Macular Dystrophies. Inherited retinal degenerations 15 651."
+        },
+        {
+          "title": "Familial Dominant Drusen",
+          "icon": "hexagon",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": "Familial dominant drusen (Doyne honeycomb choroiditis, malattia leventinese) is thought to represent an early-onset variant of age-related macular degeneration. Inheritance is AD with variable expressivity. A mutation in the gene EFEMP1 (chromosome 2p16) is responsible, which results in increased lipid accumulation in drusen. Significant differences in severity and progression can occur in the two eyes of the same patient and between patients in the same family. Typically, asymptomatic yellow–white, elongated, radially orientated drusen centred on the macula develop in the second decade (Fig. 15.30A). The drusen may involve the disc margin nasal to the disc. With age the lesions become increasingly dense and acquire a honeycomb pattern (Fig. 15.30B). Initially the visual symptoms are insidious and nyctalopia is not usually experienced. Central visual loss with acuity less than 6/60 may occur in the seventh and eighth decades due to RPE degeneration, macular atrophy or occasionally MNV. Investigations include OCT and FAF. The ERG is normal, but the EOG is subnormal in those with advanced disease. Fig. 15.30 Familial dominant drusen. (A) Typical earlier radially orientated lesions extending nasal to the disc; (B) high-density drusen with RPE degeneration. (Courtesy of S Chen.)"
+        },
+        {
+          "title": "Sorsby Fundus Dystrophy (SFD)",
+          "icon": "warning",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": "Sorsby fundus dystrophy (SFD) is a rare disorder that results in bilateral visual loss, typically in late middle age. Inheritance is AD with full penetrance but variable expressivity; allelic variation in the gene TIMP3 (chromosome 22q) is responsible. The predominant pathological feature is confluent amorphous deposits found between the basement membrane of the RPE and the inner layer of Bruch membrane. Early presentation may be in the third decade with nyctalopia, when confluent yellow–white drusen-like deposits may be seen in the macula, along the arcades and nasal to the disc (Fig. 15.31A), or in the fifth decade with sudden visual loss due to exudative maculopathy secondary to MNV and subretinal scarring (Fig. 15.31B). When early-onset drusen are associated with MNV in young adulthood this diagnosis should be considered. Peripheral chorioretinal atrophy may occur by the seventh decade and result in loss of ambulatory vision. OCT shows reticular pseudodrusen. The ERG is initially normal but may be subnormal in later disease. Prolonged rod-mediated dark adaptation is a sensitive test in early disease. Patients with MNV may respond to anti-VEGF treatment. Fig. 15.31 Sorsby fundus dystrophy. (A) Confluent flecks nasal to the disc; (B) scarring in endstage disease."
+        },
+        {
+          "title": "Red Flags for Severe Vision Loss",
+          "icon": "error",
+          "type": "red_flag",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "MNV development in North Carolina Macular Dystrophy",
+            "Exudative maculopathy secondary to MNV in Sorsby Dystrophy",
+            "Subretinal scarring and central visual loss < 6/60 in Familial Dominant Drusen",
+            "Progressive macular atrophy in Dominant CMO"
+          ]
+        },
+        {
+          "title": "Choroidal Dystrophies & CMO",
+          "icon": "lens",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Concentric annular macular dystrophy: AD disorder; prognosis good for most; adult life presentation with mild central vision impairment; paracentral ring scotoma present.",
+            "Central areolar choroidal dystrophy: Genetically heterogeneous AD; presents 3rd/4th decade; RPE atrophy and loss of choriocapillaris (Fig. 15.32A); expands to geographic atrophy with prominence of large vessels (Fig. 15.32B); prognosis poor.",
+            "Dominant cystoid macular oedema: Bilateral CMO (AD); presents in adolescence; macular atrophy inevitably ensues; treatment is ineffective.",
+            "Fig. 15.32 Central areolar choroidal dystrophy. (A) Early; (B) end-stage."
+          ]
+        },
+        {
+          "title": "Sjögren–Larsson Syndrome",
+          "icon": "child_care",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": "Sjögren–Larsson syndrome (AR) is a neurocutaneous disorder which occurs secondary to defective enzyme activity (fatty aldehyde dehydrogenase; ALDH3A2 encoded on chromosome 17p with 11 distinct mutations). It is characterized by congenital ichthyosis, neurological problems and mild to moderate intellectual disability. Presentation is with photophobia and poor vision, and glistening yellow–white crystalline deposits develop at the macula (Fig. 15.33), appearing during the first 2 years of life. Pigmentary retinopathy (50%), cataract and colobomatous microphthalmos may also occur. Fig. 15.33 Macular crystals in Sjögren–Larsson syndrome. (Courtesy of D Taylor and C S Hoyt, from Pediatric Ophthalmology and Strabismus, Elsevier Saunders 2005.)"
+        },
+        {
+          "title": "Maternally Inherited Diabetes and Deafness (MIDD)",
+          "icon": "hearing",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "Maternally inherited diabetes and deafness (MIDD) constitutes around 1% of all cases of diabetes, with inheritance via mitochondrial DNA. Most patients develop progressive dystrophic macular changes (Fig. 15.34A), but vision is not usually affected. The abnormal fundal appearance can be difficult to see clinically, but FAF (Fig. 15.34B) and OCT (Fig. 15.34C) show typical abnormalities. 652 Generalized Choroidal Dystrophies."
+        }
+      ],
+      "chapterId": "paediatric"
+    },
+    "chapterId": "paediatric",
+    "_newlyImported": 1770233672015,
+    "communityId": "sub_1769972561627_x2a2mid32abbey",
+    "communityAuthor": "Oiii",
+    "communityDate": "2026-02-01T19:02:41.627Z"
+  },
+  {
+    "id": 1770233206967,
+    "seqId": 180,
+    "title": "Comprehensive Cardiopulmonary Resuscitation (CPR) & Advanced Life Support (ALS) for FRCS (GLASG)",
+    "summary": "An exhaustive clinical protocol for managing cardiorespiratory arrest, defining cardiac arrest rhythms, and detailing both Basic and Advanced Life Support sequences according to UK 2005 standards. This guide covers everything from initial diagnosis to post-resuscitation procedures and ethical considerations for the cessation of care.",
+    "date": "2026-02-04T19:26:46.967Z",
+    "data": {
+      "title": "Comprehensive Cardiopulmonary Resuscitation (CPR) & Advanced Life Support (ALS) for FRCS (GLASG)",
+      "summary": "An exhaustive clinical protocol for managing cardiorespiratory arrest, defining cardiac arrest rhythms, and detailing both Basic and Advanced Life Support sequences according to UK 2005 standards. This guide covers everything from initial diagnosis to post-resuscitation procedures and ethical considerations for the cessation of care.",
+      "summary_illustration": "<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><circle cx='50' cy='50' r='48' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='2'/><path d='M25 50 L40 50 L45 35 L55 65 L60 50 L75 50' fill='none' stroke='hsl(215, 90%, 45%)' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><path d='M40 70 Q50 85 60 70' fill='none' stroke='hsl(0, 80%, 50%)' stroke-width='3'/><path d='M50 20 L50 30 M80 50 L70 50 M50 80 L50 70 M20 50 L30 50' stroke='hsl(215, 90%, 45%)' stroke-width='2'/></svg>",
+      "sections": [
+        {
+          "title": "Sudden Cardiac Arrest: Understanding the Emergency",
+          "icon": "emergency",
+          "type": "mindmap",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": {
+            "center": "Sudden Cardiac Arrest (SCA)",
+            "branches": [
+              "Sudden, unexpected loss of heart function, breathing & consciousness",
+              "Medical Emergency: Fatal if not treated immediately (Sudden Cardiac Death)",
+              "Electrical Disturbance: Ventricular fibrillation, pulseless VT, Asystole, or PEA",
+              "Loss of Cardiac Output: Blood stops flowing to the rest of the body",
+              "Survival possible with fast, appropriate care (CPR/Chest Compressions)",
+              "Context: Almost always occurs with underlying heart problems, especially Coronary Artery Disease"
+            ]
+          }
+        },
+        {
+          "title": "Cardiac Arrest vs. Heart Attack",
+          "icon": "compare",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": {
+            "headers": [
+              "Condition",
+              "Mechanism"
+            ],
+            "rows": [
+              [
+                "Sudden Cardiac Arrest",
+                "Usually results from an electrical disturbance in the heart that disrupts pumping action."
+              ],
+              [
+                "Heart Attack",
+                "Occurs when blood flow to a portion of the heart is blocked, depriving heart muscle of oxygen."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Diagnosis of Cardiac Arrest Rhythms",
+          "icon": "monitor_heart",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "purple",
+          "content": {
+            "headers": [
+              "Rhythm Type",
+              "Clinical Characteristics",
+              "ECG Findings / Prognosis"
+            ],
+            "rows": [
+              [
+                "Ventricular Fibrillation (VF)",
+                "Most common and easily treatable; rapid ineffective uncoordinated movement of ventricles; NO pulse.",
+                "ECG: Rapid, bizarre & irregular ventricular complexes."
+              ],
+              [
+                "Pulseless Ventricular Tachycardia (VT)",
+                "Rapid rate prevents effective mechanical contraction/relaxation, especially with severe LT ventricular impairment.",
+                "May degenerate into VF."
+              ],
+              [
+                "Asystole",
+                "No electrical activity within ventricles; failure of conducting tissue or massive damage complicating MI.",
+                "Conducting tissue failure requires permanent pacemaker if survival occurs."
+              ],
+              [
+                "Pulseless Electrical Activity (PEA)",
+                "No effective cardiac output despite organised electrical activity (Electromechanical Dissociation/EMD).",
+                "Poor prognosis. Caused by reversible conditions (hypovolaemia, tamponade, tension pneumothorax) or catastrophic events (rupture, massive PE)."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Initial Response & Diagnosis",
+          "icon": "notification_important",
+          "type": "process",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": [
+            "1. Confirm diagnosis in a second: Unconscious, absent carotid pulse, apnoeic.",
+            "2. Shout for help: Ask someone to call the cardiac arrest team.",
+            "3. Request AED: Ask to bring the defibrillator.",
+            "4. Note the time.",
+            "5. Start BLS: Aim to maintain low level circulation until ALS is available."
+          ]
+        },
+        {
+          "title": "Basic Life Support (BLS) - The ABC Sequence",
+          "icon": "medical_services",
+          "type": "key_point",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "A: Establish a patent Airway (Protect cervical spine if injury possible; assess for obstruction).",
+            "A: Techniques: Head tilt (if no spinal injury suspected), Chin lift, Jaw thrust, Clear the mouth.",
+            "B: Breathing Assessment: Look, listen, and feel for 10 seconds max (chest movements, breath sounds, breath on cheek).",
+            "B: Compromised Breathing: Give high concentration O2; manage findings like tension pneumothorax.",
+            "B: Arrest (No effort): 2 breaths after 1st set of compressions (1s inflation; use Ambu bag/mask if 2 resuscitators present, else mouth-to-mouth).",
+            "C: Circulation: Check carotid pulse (10s); if no pulse, start CPR immediately. Check BP, capillary refill & evidence of haemorrhage (treat shock)."
+          ]
+        },
+        {
+          "title": "How to Perform High-Quality CPR",
+          "icon": "compress",
+          "type": "remember",
+          "layout": "half_width",
+          "color_theme": "green",
+          "content": {
+            "mnemonic": "CPR Mechanics",
+            "explanation": "Perform on a firm surface, centered over the lower 1/3 of the sternum. Ratio is 30 chest compressions to 2 breaths (30:2). Use heels of hands, one on top of the other, with straight elbows (vertical body weight). Aim for 4 cm depth at a rate of 100/min. Allow complete recoil. Interrupt infrequently (only for DC/intubation). Do 20 cycles (of 30:2) then recheck."
+          }
+        },
+        {
+          "title": "D & E: Disability & Exposure",
+          "icon": "accessibility_new",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "purple",
+          "content": [
+            "Disability: Assess level of consciousness using AVPU score or Glasgow Coma Scale if time allows.",
+            "Disability: Check pupils (size, equality, and reaction).",
+            "Exposure: Undress patient to facilitate assessment but cover to avoid hypothermia."
+          ]
+        },
+        {
+          "title": "History (H): Key Data to Gather",
+          "icon": "history",
+          "type": "key_point",
+          "layout": "half_width",
+          "color_theme": "blue",
+          "content": [
+            "Events surrounding onset of illness.",
+            "Evidence of overdose, suicide attempt, or trauma.",
+            "Past Medical History: DM, asthma, COPD, drug abuse, epilepsy, or recent head injury.",
+            "Current Medications and known Allergies."
+          ]
+        },
+        {
+          "title": "Advanced Life Support (ALS) Protocols",
+          "icon": "bolt",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "red",
+          "content": [
+            "1. ALS Aims: Restore normal rhythm via DC shock (tachyarrhythmia), correct reversible causes, administer IV drugs, and Endotracheal intubation.",
+            "2. Initial Step: Place defibrillator paddles (monophasic) on chest (apex and under Rt. clavicle) and set monitor to read through paddles.",
+            "3. Rhythm Assessment: Determine if VF/Pulseless VT or Asystole/PEA.",
+            "4. VF/VT Treatment: Immediate Defibrillation (360J monophasic or 150-360J biphasic). Resume CPR 30:2 for 2 mins immediately without pulse check. Repeat shocks every 2 mins.",
+            "5. Asystole/PEA Treatment: Immediately resume CPR 30:2 for 2 minutes. Continue until normal breathing. Transverse cardiac pacing may be tried.",
+            "6. Reversible Causes: Correct '4H, 4T' as per Algorithm."
+          ]
+        },
+        {
+          "title": "Medications During CPR/ALS",
+          "icon": "vaccines",
+          "type": "table",
+          "layout": "full_width",
+          "color_theme": "green",
+          "content": {
+            "headers": [
+              "Drug",
+              "Dosage & Administration",
+              "Indications / Notes"
+            ],
+            "rows": [
+              [
+                "Oxygen",
+                "100%",
+                "Maintain oxygenation."
+              ],
+              [
+                "Adrenaline",
+                "1mg/ml IV every 3 minutes",
+                "Routine circulatory support."
+              ],
+              [
+                "Amiodarone",
+                "300mg IV initial; 150mg further; then infusion (1mg/min for 6h, 0.5mg/min for 6h)",
+                "Used in resistant VF/VT."
+              ],
+              [
+                "Atropine",
+                "3mg IV (once)",
+                "Used in Asystole/PEA."
+              ],
+              [
+                "Sodium Bicarbonate",
+                "50ml of 8.4% solution IVI",
+                "Only in severe acidosis after prolonged resuscitation. May worsen intracellular acidosis & precipitate arrhythmias."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "Clinical Warnings & Critical Notes",
+          "icon": "warning",
+          "type": "red_flag",
+          "layout": "half_width",
+          "color_theme": "red",
+          "content": [
+            "Intracardiac injection is NOT recommended.",
+            "If IV access fails: Give drugs down tracheal tube (2-3 times IV dose, diluted in ≥ 10ml 0.9% saline, followed by 5 ventilations).",
+            "Management must include checking patient notes/usual doctor for cause clues.",
+            "Note: BLS/ALS Algorithm UK © 2005 / Waleed Badr, FRCS 2016."
+          ]
+        },
+        {
+          "title": "When to Stop or Withhold CPR",
+          "icon": "stop_circle",
+          "type": "table",
+          "layout": "half_width",
+          "color_theme": "yellow",
+          "content": {
+            "headers": [
+              "Stop Criteria",
+              "DNR / Do Not Resuscitate"
+            ],
+            "rows": [
+              [
+                "Normal rhythm occurs; Core temp > 33°C; pH and K+ are normal.",
+                "Resuscitation is unlikely to succeed."
+              ],
+              [
+                "Significant delay (BLS > 5min or ALS > 30min).",
+                "Mentally competent patient refusal (stated or recorded)."
+              ],
+              [
+                "After 20 mins of refractory Asystole/PEA.",
+                "Not in patient's interest / would lead to poor quality of life."
+              ],
+              [
+                "N/A",
+                "When in doubt: Resuscitate."
+              ]
+            ]
+          }
+        },
+        {
+          "title": "After Successful Resuscitation",
+          "icon": "health_and_safety",
+          "type": "process",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": [
+            "1. Transfer to CCU or ICU.",
+            "2. Monitor vital signs continuously.",
+            "3. Order investigations: ECG, CXR, Glucose, Blood Gases, FBC, CK/Troponin.",
+            "4. Seek expert advice from a cardiologist.",
+            "5. Explain the outcome and events to the patient’s relatives."
+          ]
+        },
+        {
+          "title": "Source Information",
+          "icon": "description",
+          "type": "plain_text",
+          "layout": "full_width",
+          "color_theme": "blue",
+          "content": "INTERNAL & EMERGENCY MEDICINE FOR FRCS (GLASG) EXAM 2016. Prepared by Waleed Badr, FRCS. Includes Adult BLS Algorithm (UK) © 2005 and semilateral position guidelines for management of cardiorespiratory arrest."
+        }
+      ]
+    },
+    "chapterId": "clinical_skills",
+    "_chapterUpdated": 1770233241138,
+    "_serverSynced": true
+  },
+  {
     "id": 1769683087188,
     "seqId": 179,
     "title": "Ophthalmic Side Effects of Systemic Medication: A Comprehensive Guide",
@@ -232,7 +1254,8 @@
     "_newlyImported": 1769683087188,
     "communityId": "sub_1769682852273_zaw1bao5x",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T10:34:12.275Z"
+    "communityDate": "2026-01-29T10:34:12.275Z",
+    "_serverSynced": true
   },
   {
     "id": 1769683087178,
@@ -457,11 +1480,12 @@
       ],
       "chapterId": "paediatric"
     },
-    "chapterId": "paediatric",
+    "chapterId": "medical_retina",
     "_newlyImported": 1769683087178,
     "communityId": "sub_1769673209663_o5nt642gw",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T07:53:29.663Z"
+    "communityDate": "2026-01-29T07:53:29.663Z",
+    "_serverSynced": true
   },
   {
     "id": 1769683087169,
@@ -650,11 +1674,13 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "uncategorized",
+    "chapterId": "vitreoretinal",
     "_newlyImported": 1769683087169,
     "communityId": "sub_1769672499124_v2cjvzyfo",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T07:41:39.125Z"
+    "communityDate": "2026-01-29T07:41:39.125Z",
+    "_chapterUpdated": 1769969368003,
+    "_serverSynced": true
   },
   {
     "id": 1769683087160,
@@ -1048,11 +2074,12 @@
       ],
       "chapterId": "strabismus"
     },
-    "chapterId": "strabismus",
+    "chapterId": "vitreoretinal",
     "_newlyImported": 1769683087160,
     "communityId": "sub_1769681397276_oee9bnsfq",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T10:09:57.278Z"
+    "communityDate": "2026-01-29T10:09:57.278Z",
+    "_serverSynced": true
   },
   {
     "id": 1769683087151,
@@ -1272,11 +2299,12 @@
       ],
       "chapterId": "medical_retina"
     },
-    "chapterId": "medical_retina",
+    "chapterId": "neuro",
     "_newlyImported": 1769683087151,
     "communityId": "sub_1769674938211_ebveu53zy",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T08:22:18.211Z"
+    "communityDate": "2026-01-29T08:22:18.211Z",
+    "_serverSynced": true
   },
   {
     "id": 1769683087139,
@@ -1440,11 +2468,12 @@
       ],
       "chapterId": "paediatric"
     },
-    "chapterId": "paediatric",
+    "chapterId": "medical_retina",
     "_newlyImported": 1769683087139,
     "communityId": "sub_1769682862949_javwr0zhf",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-29T10:34:22.949Z"
+    "communityDate": "2026-01-29T10:34:22.949Z",
+    "_serverSynced": true
   },
   {
     "id": 1769623448866,
@@ -1851,7 +2880,8 @@
     "_newlyImported": 1769623448866,
     "communityId": "sub_1769618268159_fjdwsmvrkpsbsh",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769623448853,
@@ -2090,7 +3120,8 @@
     "_newlyImported": 1769623448853,
     "communityId": "sub_1769618268160_nynyufx6ijldz1",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.160Z"
+    "communityDate": "2026-01-28T16:37:48.160Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622344995,
@@ -2322,7 +3353,8 @@
     "_newlyImported": 1769622344995,
     "communityId": "sub_1769618268159_jwo0ffqoloragy",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622344984,
@@ -2652,11 +3684,12 @@
       ],
       "chapterId": "neuro"
     },
-    "chapterId": "neuro",
+    "chapterId": "paediatric",
     "_newlyImported": 1769622344984,
     "communityId": "sub_1769618268159_j85dphq224a2m6",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622344969,
@@ -2982,11 +4015,12 @@
       ],
       "chapterId": "conjunctiva"
     },
-    "chapterId": "conjunctiva",
+    "chapterId": "orbit",
     "_newlyImported": 1769622344969,
     "communityId": "sub_1769618268159_wmn82zwmvi1z3t",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318752,
@@ -3376,11 +4410,12 @@
       ],
       "chapterId": "orbit"
     },
-    "chapterId": "orbit",
+    "chapterId": "vitreoretinal",
     "_newlyImported": 1769622318752,
     "communityId": "sub_1769618268159_2xxn2eoynv6crn",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318730,
@@ -3675,11 +4710,12 @@
       ],
       "chapterId": "tumours"
     },
-    "chapterId": "tumours",
+    "chapterId": "neuro",
     "_newlyImported": 1769622318730,
     "communityId": "sub_1769618268159_inro7f1625vhbg",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318722,
@@ -3960,7 +4996,8 @@
     "_newlyImported": 1769622318722,
     "communityId": "sub_1769618268159_8w6fds8cti1jr1",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318715,
@@ -4100,11 +5137,12 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "strabismus",
+    "chapterId": "medical_retina",
     "_newlyImported": 1769622318715,
     "communityId": "sub_1769618268159_769u8qawm5k0pi",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318708,
@@ -4341,7 +5379,8 @@
     "_newlyImported": 1769622318708,
     "communityId": "sub_1769618268159_yx3o1vq00xsvku",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318698,
@@ -4621,11 +5660,12 @@
       ],
       "chapterId": "cornea"
     },
-    "chapterId": "cornea",
+    "chapterId": "medical_retina",
     "_newlyImported": 1769622318698,
     "communityId": "sub_1769618268159_h2xpztga7kfg4b",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318687,
@@ -4884,11 +5924,12 @@
       ],
       "chapterId": "investigations"
     },
-    "chapterId": "investigations",
+    "chapterId": "vitreoretinal",
     "_newlyImported": 1769622318687,
     "communityId": "sub_1769618268159_0y4cip844nqagh",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318677,
@@ -5120,7 +6161,8 @@
     "_newlyImported": 1769622318677,
     "communityId": "sub_1769618268159_8e40hm89s46sgy",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318668,
@@ -5270,11 +6312,12 @@
       ],
       "chapterId": "conjunctiva"
     },
-    "chapterId": "conjunctiva",
+    "chapterId": "cornea",
     "_newlyImported": 1769622318668,
     "communityId": "sub_1769618268159_fdevsznhshli16",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318639,
@@ -5585,7 +6628,8 @@
     "_newlyImported": 1769622318639,
     "communityId": "sub_1769618268159_fo4joxevqvq4dw",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769622318613,
@@ -5834,7 +6878,8 @@
     "_newlyImported": 1769622318613,
     "communityId": "sub_1769618268159_cp1lluhfr5fblz",
     "communityAuthor": "Dodiii",
-    "communityDate": "2026-01-28T16:37:48.159Z"
+    "communityDate": "2026-01-28T16:37:48.159Z",
+    "_serverSynced": true
   },
   {
     "id": 1769615771046,
@@ -7244,7 +8289,6 @@
   },
   {
     "id": 1769615758346,
-    "seqId": 157,
     "title": "Mastering Anti-VEGF Therapy: From Mechanism to Practice",
     "summary": "Anti-vascular endothelial growth factor (VEGF) therapy is a cornerstone of medical retina, targeting VEGF-A to reduce vascular permeability and halt pathologic angiogenesis. This comprehensive guide outlines the pharmacological mechanisms, clinical trial evidence, NICE guidelines, and precise surgical protocols for intravitreal administration.",
     "date": "2026-01-28T15:55:58.346Z",
@@ -7556,11 +8600,12 @@
     "_newlyImported": 1769615758346,
     "communityId": "sub_1769614749293_k5acjeivm5o4d7",
     "communityAuthor": "hh",
-    "communityDate": "2026-01-28T15:39:09.293Z"
+    "communityDate": "2026-01-28T15:39:09.293Z",
+    "seqId": 157,
+    "_serverSynced": true
   },
   {
     "id": 1769615758338,
-    "seqId": 156,
     "title": "Orbital Tumours & Vascular Lesions: The Complete Clinical Compendium",
     "summary": "An exhaustive clinical guide detailing the epidemiology, clinical features, investigations, and management of orbital neoplasms and vascular anomalies including lacrimal, neural, lymphoproliferative, and metastatic conditions.",
     "date": "2026-01-28T15:55:58.338Z",
@@ -7877,11 +8922,12 @@
     "_newlyImported": 1769615758338,
     "communityId": "sub_1769614749293_xdb3wf052wgxh0",
     "communityAuthor": "hh",
-    "communityDate": "2026-01-28T15:39:09.293Z"
+    "communityDate": "2026-01-28T15:39:09.293Z",
+    "seqId": 156,
+    "_serverSynced": true
   },
   {
     "id": 1769615758329,
-    "seqId": 155,
     "title": "RETINOSCHISIS & HEREDITARY VITREORETINAL DEGENERATIONS",
     "summary": "A comprehensive clinical breakdown of retinoschisis types—ranging from common degenerative forms to rare hereditary vitreoretinal degenerations like Stickler syndrome and FEVR. This guide covers pathophysiology, genetic markers, clinical diagnostics, and management protocols.",
     "date": "2026-01-28T15:55:58.329Z",
@@ -8126,15 +9172,16 @@
       ],
       "chapterId": "vitreoretinal"
     },
-    "chapterId": "vitreoretinal",
+    "chapterId": "neuro",
     "_newlyImported": 1769615758329,
     "communityId": "sub_1769614749293_mcsttp3qrjl498",
     "communityAuthor": "hh",
-    "communityDate": "2026-01-28T15:39:09.293Z"
+    "communityDate": "2026-01-28T15:39:09.293Z",
+    "seqId": 155,
+    "_serverSynced": true
   },
   {
     "id": 1769615758317,
-    "seqId": 154,
     "title": "Clinical Pathology of Degenerative Myopia, Angioid Streaks & Choroidal Folds",
     "summary": "An exhaustive clinical guide covering the epidemiological impact, diagnostic features, systemic associations, and evidence-based treatments for pathological myopia, Bruch's membrane pathologies, and choroidal corrugations.",
     "date": "2026-01-28T15:55:58.317Z",
@@ -8416,11 +9463,12 @@
     "_newlyImported": 1769615758317,
     "communityId": "sub_1769614749293_kgutm4b4tdd7qz",
     "communityAuthor": "hh",
-    "communityDate": "2026-01-28T15:39:09.293Z"
+    "communityDate": "2026-01-28T15:39:09.293Z",
+    "seqId": 154,
+    "_serverSynced": true
   },
   {
     "id": 1769615758305,
-    "seqId": 153,
     "title": "The Watery Eye: Clinical Assessment & Management",
     "summary": "A comprehensive guide to managing epiphora, ranging from transient irritants to permanent disabling conditions. This poster outlines the rigorous diagnostic approach and surgical interventions required for elderly and symptomatic populations.",
     "date": "2026-01-28T15:55:58.305Z",
@@ -8641,7 +9689,9 @@
     "_newlyImported": 1769615758305,
     "communityId": "sub_1769614749293_m425ieihvacpfz",
     "communityAuthor": "hh",
-    "communityDate": "2026-01-28T15:39:09.293Z"
+    "communityDate": "2026-01-28T15:39:09.293Z",
+    "seqId": 153,
+    "_serverSynced": true
   },
   {
     "id": 1769615469071,
@@ -9372,7 +10422,7 @@
       ],
       "chapterId": "glaucoma"
     },
-    "chapterId": "vitreoretinal",
+    "chapterId": "neuro",
     "_newlyImported": 1769615469056,
     "communityId": "sub_1769614749293_u55isr3wzdwmlq",
     "communityAuthor": "hh",
@@ -9756,7 +10806,7 @@
       ],
       "chapterId": "evidence"
     },
-    "chapterId": "medical_retina",
+    "chapterId": "evidence",
     "_newlyImported": 1769615469038,
     "communityId": "sub_1769614749293_cf11k1sud1ejzs",
     "communityAuthor": "hh",
@@ -10880,7 +11930,7 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "medical_retina",
+    "chapterId": "neuro",
     "_newlyImported": 1769615469005,
     "communityId": "sub_1769614749293_7jitwvkvu0vw6f",
     "communityAuthor": "hh",
@@ -11100,7 +12150,7 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "orbit",
+    "chapterId": "vitreoretinal",
     "_newlyImported": 1769615468996,
     "communityId": "sub_1769614749293_ih8c54jfgmx4d2",
     "communityAuthor": "hh",
@@ -11698,7 +12748,7 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "vitreoretinal",
+    "chapterId": "investigations",
     "_newlyImported": 1769615468966,
     "communityId": "sub_1769614749293_q76894bu3lv1vr",
     "communityAuthor": "hh",
@@ -11850,7 +12900,7 @@
       ],
       "chapterId": "glaucoma"
     },
-    "chapterId": "vitreoretinal",
+    "chapterId": "neuro",
     "_newlyImported": 1769615468954,
     "communityId": "sub_1769614749293_3egjx8h3g0r7dn",
     "communityAuthor": "hh",
@@ -12383,7 +13433,7 @@
       ],
       "chapterId": "lacrimal"
     },
-    "chapterId": "lacrimal",
+    "chapterId": "neuro",
     "_newlyImported": 1769615071613,
     "communityId": "sub_1769614749293_8ojvpdmbx94k4a",
     "communityAuthor": "hh",
@@ -13400,7 +14450,7 @@
       ],
       "chapterId": "uncategorized"
     },
-    "chapterId": "medical_retina",
+    "chapterId": "evidence",
     "_newlyImported": 1769615071593,
     "communityId": "sub_1769614749293_5ft0fhokvvzs0o",
     "communityAuthor": "hh",
@@ -14866,7 +15916,7 @@
       ],
       "chapterId": "paediatric"
     },
-    "chapterId": "medical_retina",
+    "chapterId": "paediatric",
     "_newlyImported": 1769615071565,
     "communityId": "sub_1769614749293_o782a218bpeoiw",
     "communityAuthor": "hh",
@@ -15074,7 +16124,7 @@
       ],
       "chapterId": "lens"
     },
-    "chapterId": "lacrimal",
+    "chapterId": "lens",
     "_newlyImported": 1769615071559,
     "communityId": "sub_1769614749293_h1jcc2s94b6drb",
     "communityAuthor": "hh",
@@ -18037,7 +19087,7 @@
       ],
       "chapterId": "tumours"
     },
-    "chapterId": "tumours",
+    "chapterId": "neuro",
     "_newlyImported": 1769614688606,
     "communityId": "sub_1769581773585_4fhnk8m0m",
     "communityAuthor": "Dodi",
@@ -18751,7 +19801,7 @@
         }
       ]
     },
-    "chapterId": "vitreoretinal",
+    "chapterId": "medical_retina",
     "_newlyImported": 1768912681547,
     "communityId": "sub_1768905301567_1vb0jcb36rskbv",
     "communityAuthor": "Nina",
@@ -23189,7 +24239,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -23500,7 +24550,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -23679,7 +24729,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -24058,7 +25108,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "glaucoma",
     "_serverSynced": true
   },
   {
@@ -24414,7 +25464,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "glaucoma",
     "seqId": 94,
     "_serverSynced": true
   },
@@ -24855,7 +25905,7 @@
         }
       ]
     },
-    "chapterId": "lens",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -27251,7 +28301,7 @@
         }
       ]
     },
-    "chapterId": "cornea",
+    "chapterId": "paediatric",
     "_serverSynced": true
   },
   {
@@ -27433,7 +28483,7 @@
         }
       ]
     },
-    "chapterId": "cornea",
+    "chapterId": "lasers",
     "_serverSynced": true
   },
   {
@@ -27714,7 +28764,7 @@
         }
       ]
     },
-    "chapterId": "cornea",
+    "chapterId": "vitreoretinal",
     "_serverSynced": true
   },
   {
@@ -28099,7 +29149,7 @@
         }
       ]
     },
-    "chapterId": "cornea",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -29089,7 +30139,7 @@
         }
       ]
     },
-    "chapterId": "cornea",
+    "chapterId": "aids",
     "seqId": 77,
     "_serverSynced": true
   },
@@ -29305,7 +30355,7 @@
         }
       ]
     },
-    "chapterId": "trauma",
+    "chapterId": "lasers",
     "_serverSynced": true
   },
   {
@@ -29896,7 +30946,7 @@
         }
       ]
     },
-    "chapterId": "trauma",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -30485,7 +31535,7 @@
         }
       ]
     },
-    "chapterId": "trauma",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -30723,7 +31773,7 @@
         }
       ]
     },
-    "chapterId": "trauma",
+    "chapterId": "vitreoretinal",
     "_serverSynced": true
   },
   {
@@ -32287,7 +33337,7 @@
         }
       ]
     },
-    "chapterId": "clinical_skills",
+    "chapterId": "glaucoma",
     "seqId": 61,
     "_serverSynced": true
   },
@@ -32719,7 +33769,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -32967,7 +34017,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -33236,7 +34286,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "medical_retina",
     "_serverSynced": true
   },
   {
@@ -33456,7 +34506,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "glaucoma",
     "_serverSynced": true
   },
   {
@@ -34061,7 +35111,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "lens",
     "seqId": 54,
     "_serverSynced": true
   },
@@ -34499,7 +35549,7 @@
         }
       ]
     },
-    "chapterId": "oculoplastics",
+    "chapterId": "orbit",
     "seqId": 52,
     "_serverSynced": true
   },
@@ -34666,7 +35716,7 @@
         }
       ]
     },
-    "chapterId": "oculoplastics",
+    "chapterId": "orbit",
     "seqId": 51,
     "_serverSynced": true
   },
@@ -34910,7 +35960,7 @@
         }
       ]
     },
-    "chapterId": "refractive",
+    "chapterId": "medical_retina",
     "_serverSynced": true,
     "seqId": 50
   },
@@ -35224,7 +36274,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "paediatric",
     "seqId": 48,
     "_serverSynced": true
   },
@@ -35569,7 +36619,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "investigations",
     "seqId": 47,
     "_serverSynced": true
   },
@@ -36430,7 +37480,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "paediatric",
     "seqId": 45,
     "_serverSynced": true
   },
@@ -36704,7 +37754,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "neuro",
     "seqId": 44,
     "_serverSynced": true
   },
@@ -36930,7 +37980,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "glaucoma",
     "seqId": 43,
     "_serverSynced": true
   },
@@ -37113,7 +38163,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "medical_retina",
     "seqId": 42,
     "_serverSynced": true
   },
@@ -37438,7 +38488,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "medical_retina",
     "seqId": 41,
     "_serverSynced": true
   },
@@ -37674,7 +38724,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "orbit",
     "seqId": 40,
     "_serverSynced": true
   },
@@ -37853,7 +38903,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "conjunctiva",
     "seqId": 39,
     "_serverSynced": true
   },
@@ -38059,7 +39109,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "paediatric",
     "seqId": 38,
     "_serverSynced": true
   },
@@ -38487,7 +39537,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "paediatric",
     "seqId": 36,
     "_serverSynced": true
   },
@@ -38761,7 +39811,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "conjunctiva",
     "seqId": 35,
     "_serverSynced": true
   },
@@ -38993,7 +40043,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "conjunctiva",
     "seqId": 34,
     "_serverSynced": true
   },
@@ -39460,7 +40510,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "strabismus",
     "seqId": 32,
     "_serverSynced": true
   },
@@ -39820,7 +40870,7 @@
         }
       ]
     },
-    "chapterId": "pediatric",
+    "chapterId": "medical_retina",
     "seqId": 31,
     "_serverSynced": true
   },
@@ -40906,7 +41956,7 @@
         }
       ]
     },
-    "chapterId": "strabismus",
+    "chapterId": "medical_retina",
     "seqId": 28,
     "_serverSynced": true
   },
@@ -41076,7 +42126,7 @@
         }
       ]
     },
-    "chapterId": "strabismus",
+    "chapterId": "medical_retina",
     "seqId": 27,
     "_serverSynced": true
   },
@@ -42014,7 +43064,7 @@
         }
       ]
     },
-    "chapterId": "strabismus",
+    "chapterId": "neuro",
     "_newlyImported": 1768587752747,
     "seqId": 23,
     "_serverSynced": true
@@ -42422,7 +43472,7 @@
         }
       ]
     },
-    "chapterId": "strabismus",
+    "chapterId": "neuro",
     "seqId": 22,
     "_serverSynced": true
   },
@@ -43397,7 +44447,7 @@
         }
       ]
     },
-    "chapterId": "neuro",
+    "chapterId": "paediatric",
     "seqId": 18,
     "_serverSynced": true
   },
@@ -44033,7 +45083,7 @@
         }
       ]
     },
-    "chapterId": "neuro",
+    "chapterId": "paediatric",
     "seqId": 16,
     "_serverSynced": true
   },
@@ -44209,7 +45259,7 @@
         }
       ]
     },
-    "chapterId": "neuro",
+    "chapterId": "glaucoma",
     "seqId": 15,
     "_serverSynced": true
   },
@@ -48102,7 +49152,7 @@
         }
       ]
     },
-    "chapterId": "neuro",
+    "chapterId": "vitreoretinal",
     "seqId": 1,
     "_serverSynced": true
   }
