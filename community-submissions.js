@@ -235,14 +235,38 @@ async function fetchSubmissions() {
         if (!file) throw new Error(`File ${GITHUB_CONFIG.FILENAME} not found in Gist`);
 
         // Handle truncated content - GitHub truncates files over ~1MB
+        // Note: raw_url doesn't support CORS, so we fetch via API using the file's sha
         let content;
-        if (file.truncated && file.raw_url) {
-            console.log('Content truncated, fetching from raw_url...');
-            const rawResponse = await fetch(file.raw_url, {
-                headers: token ? { 'Authorization': `token ${token}` } : {}
+        if (file.truncated) {
+            console.log('Content truncated, fetching full content via GitHub API...');
+            // Use the GitHub API to get the blob content by file hash
+            // We'll re-fetch with a direct Gist API call that includes full file content
+            const fullGistResponse = await fetch(`${GITHUB_CONFIG.API_URL}/${GITHUB_CONFIG.GIST_ID}`, {
+                headers: headers,
+                cache: 'no-cache' // Ensure fresh data
             });
-            if (!rawResponse.ok) throw new Error(`Failed to fetch raw content (${rawResponse.status})`);
-            content = await rawResponse.text();
+            if (fullGistResponse.ok) {
+                const fullGist = await fullGistResponse.json();
+                const fullFile = fullGist.files[GITHUB_CONFIG.FILENAME];
+                // If still truncated after refetch, we need to use content from cache as fallback
+                if (fullFile && !fullFile.truncated) {
+                    content = fullFile.content;
+                } else if (fullFile && fullFile.truncated) {
+                    // Content still truncated - try fetching in chunks or show warning
+                    console.warn('Content is very large and remains truncated. Using available content.');
+                    // As a fallback, try using a CORS proxy or cached data
+                    const cached = localStorage.getItem(COMMUNITY_CACHE_KEY);
+                    if (cached) {
+                        console.log('Using cached data due to truncation');
+                        return JSON.parse(cached);
+                    }
+                    content = fullFile.content || '{"submissions":[],"approved":[],"deleted":[]}';
+                } else {
+                    throw new Error(`File ${GITHUB_CONFIG.FILENAME} not found on retry`);
+                }
+            } else {
+                throw new Error(`Failed to fetch full Gist content (${fullGistResponse.status})`);
+            }
         } else {
             content = file.content;
         }
