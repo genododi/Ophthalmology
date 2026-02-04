@@ -252,35 +252,11 @@ async function fetchSubmissions() {
         try {
             data = JSON.parse(content);
         } catch (parseErr) {
-            console.warn('Initial JSON parse failed. Error:', parseErr.message);
-
-            // Fallback: If we haven't already fetched raw content (i.e. not marked truncated) 
-            // but we have a raw_url, try fetching it now.
-            if (!file.truncated && file.raw_url) {
-                console.log('Attempting fallback to raw_url...');
-                try {
-                    const rawResponse = await fetch(file.raw_url, {
-                        headers: token ? { 'Authorization': `token ${token}` } : {}
-                    });
-
-                    if (rawResponse.ok) {
-                        const rawContent = await rawResponse.text();
-                        data = JSON.parse(rawContent);
-                        console.log('Fallback to raw_url successful.');
-                    } else {
-                        throw new Error(`Fallback fetch failed status: ${rawResponse.status}`);
-                    }
-                } catch (fallbackErr) {
-                    console.error('Fallback failed:', fallbackErr);
-                    throw parseErr; // Throw original error
-                }
-            } else {
-                // Already tried raw or no raw url
-                console.error('Content length:', content?.length);
-                console.error('Content sample (first 500 chars):', content?.substring(0, 500));
-                console.error('Content sample (last 500 chars):', content?.substring(content.length - 500));
-                throw parseErr;
-            }
+            console.error('JSON Parse Error:', parseErr.message);
+            console.error('Content length:', content?.length);
+            console.error('Content sample (first 500 chars):', content?.substring(0, 500));
+            console.error('Content sample (last 500 chars):', content?.substring(content.length - 500));
+            throw parseErr;
         }
 
         // Format check
