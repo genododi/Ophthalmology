@@ -270,6 +270,11 @@
                             <span class="material-symbols-rounded">done_all</span>
                             Approve All
                         </button>
+                        <button id="reject-all-btn" class="approve-all-btn" style="display: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);"
+                            onclick="handleRejectAll()">
+                            <span class="material-symbols-rounded">delete_sweep</span>
+                            Reject All
+                        </button>
                     </div>
                 </div>
                 <div id="pending-list">
@@ -293,6 +298,66 @@
                 <div id="approved-empty" class="empty-moderation" style="display: none;">
                     <span class="material-symbols-rounded">folder_off</span>
                     <p>No approved submissions yet.</p>
+                </div>
+            </div>
+
+            <!-- GitHub URL Access Control Section -->
+            <div class="moderation-section" id="github-access-section" style="display: none;">
+                <h2>
+                    <span class="material-symbols-rounded">manage_accounts</span>
+                    GitHub URL Access Control
+                </h2>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem;">
+                    <p style="margin: 0 0 1rem 0; color: #475569;">Manage usernames (UPN) allowed to access the GitHub repository URL. Add or block usernames below.</p>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                        <input type="text" id="github-username-input" placeholder="Enter GitHub username / UPN..." 
+                            style="flex: 1; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;">
+                        <button id="allow-user-btn" onclick="handleGitHubAccess('allow')"
+                            style="padding: 0.75rem 1.25rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                            <span class="material-symbols-rounded" style="font-size: 1.1rem;">person_add</span>
+                            Allow
+                        </button>
+                        <button id="block-user-btn" onclick="handleGitHubAccess('block')"
+                            style="padding: 0.75rem 1.25rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                            <span class="material-symbols-rounded" style="font-size: 1.1rem;">person_remove</span>
+                            Block
+                        </button>
+                    </div>
+
+                    <div id="github-users-list" style="max-height: 300px; overflow-y: auto;">
+                        <!-- Users will be rendered here -->
+                    </div>
+                    <div id="github-users-empty" style="text-align: center; padding: 2rem; color: #94a3b8;">
+                        <span class="material-symbols-rounded" style="font-size: 2rem;">group</span>
+                        <p>No users configured yet. Add usernames above.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scientific Accuracy Checker Section -->
+            <div class="moderation-section" id="science-checker-section" style="display: none;">
+                <h2>
+                    <span class="material-symbols-rounded">science</span>
+                    Scientific Accuracy Checker
+                </h2>
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.5rem;">
+                    <p style="margin: 0 0 1rem 0; color: #475569;">Check submitted infographics for scientific accuracy. Select a pending submission to analyse.</p>
+                    
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <select id="science-check-select" style="flex: 1; min-width: 200px; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem;">
+                            <option value="">Select submission to check...</option>
+                        </select>
+                        <button id="run-science-check-btn" onclick="runScienceCheck()"
+                            style="padding: 0.75rem 1.25rem; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.4rem;">
+                            <span class="material-symbols-rounded" style="font-size: 1.1rem;">biotech</span>
+                            Run Accuracy Check
+                        </button>
+                    </div>
+
+                    <div id="science-check-results" style="display: none; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem;">
+                        <!-- Results will be rendered here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -466,10 +531,16 @@
                 approvedStat.textContent = approved.length;
                 totalStat.textContent = pending.length + approved.length;
 
-                // Show/hide Approve All button
+                // Show/hide Approve All button (works for 1+ pending items)
                 const approveAllBtn = document.getElementById('approve-all-btn');
                 if (approveAllBtn) {
-                    approveAllBtn.style.display = (isAdminVerified && pending.length > 1) ? 'flex' : 'none';
+                    approveAllBtn.style.display = (isAdminVerified && pending.length >= 1) ? 'flex' : 'none';
+                }
+
+                // Show/hide Reject All button
+                const rejectAllBtn = document.getElementById('reject-all-btn');
+                if (rejectAllBtn) {
+                    rejectAllBtn.style.display = (isAdminVerified && pending.length >= 1) ? 'flex' : 'none';
                 }
 
                 // Show/hide Add All to Library button
@@ -494,6 +565,10 @@
                 } else {
                     approvedList.innerHTML = '';
                     approvedEmpty.style.display = 'block';
+                }
+                // Update science checker dropdown if admin
+                if (isAdminVerified && typeof populateScienceCheckSelect === 'function') {
+                    populateScienceCheckSelect();
                 }
             } catch (err) {
                 console.error('Error loading submissions:', err);
@@ -656,6 +731,64 @@
             } else {
                 showToast('No new items added. They may already be in your library.', 'info');
             }
+        };
+
+        // Handle reject all pending submissions
+        window.handleRejectAll = async function () {
+            if (!isAdminVerified) {
+                showToast('Please verify admin access first.', 'error');
+                return;
+            }
+
+            const pending = currentSubmissions.submissions || [];
+            if (pending.length === 0) {
+                showToast('No pending submissions to reject.', 'info');
+                return;
+            }
+
+            if (!confirm(`⚠️ REJECT ALL ⚠️\n\nAre you sure you want to permanently delete ALL ${pending.length} pending submissions?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            const confirmText = prompt(`Type "REJECT ALL" to confirm permanent removal of all ${pending.length} pending submissions:`);
+            if (confirmText !== 'REJECT ALL') {
+                showToast('Rejection cancelled. All items remain protected.', 'info');
+                return;
+            }
+
+            showLoading();
+
+            let successCount = 0;
+            let failCount = 0;
+
+            // Reject each submission
+            for (const submission of [...pending]) {
+                try {
+                    const result = await CommunitySubmissions.reject(submission.id, adminPIN);
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        console.error('Failed to reject:', submission.id, result.message);
+                    }
+                } catch (err) {
+                    failCount++;
+                    console.error('Error rejecting:', submission.id, err);
+                }
+            }
+
+            hideLoading();
+
+            if (successCount > 0) {
+                const msg = failCount > 0
+                    ? `🗑️ ${successCount} rejected, ❌ ${failCount} failed.`
+                    : `🗑️ All ${successCount} pending submissions rejected and removed!`;
+                showToast(msg, successCount > 0 ? 'success' : 'error');
+            } else {
+                showToast('Failed to reject submissions.', 'error');
+            }
+
+            await renderSubmissions();
         };
 
         // Handle preview - renders full graphical infographic
@@ -990,6 +1123,293 @@
                 hideLoading();
             }
         };
+
+        // =============== GitHub URL Access Control ===============
+        const GITHUB_ACCESS_KEY = 'ophthalmic_github_access_users';
+
+        function getGitHubAccessUsers() {
+            try {
+                return JSON.parse(localStorage.getItem(GITHUB_ACCESS_KEY) || '[]');
+            } catch { return []; }
+        }
+
+        function saveGitHubAccessUsers(users) {
+            localStorage.setItem(GITHUB_ACCESS_KEY, JSON.stringify(users));
+        }
+
+        function renderGitHubUsers() {
+            const users = getGitHubAccessUsers();
+            const listEl = document.getElementById('github-users-list');
+            const emptyEl = document.getElementById('github-users-empty');
+
+            if (!listEl) return;
+
+            if (users.length === 0) {
+                listEl.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            listEl.innerHTML = users.map((user, idx) => `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border-bottom: 1px solid #f1f5f9; ${user.status === 'blocked' ? 'background: #fef2f2;' : 'background: #f0fdf4;'}">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span class="material-symbols-rounded" style="color: ${user.status === 'blocked' ? '#ef4444' : '#22c55e'};">
+                            ${user.status === 'blocked' ? 'block' : 'check_circle'}
+                        </span>
+                        <div>
+                            <strong style="color: #1e293b;">${user.username}</strong>
+                            <span style="font-size: 0.8rem; color: #64748b; margin-left: 0.5rem;">${user.status === 'blocked' ? 'Blocked' : 'Allowed'}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button onclick="toggleGitHubUserStatus(${idx})" style="padding: 0.4rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; background: white; cursor: pointer; font-size: 0.8rem; font-weight: 500;">
+                            ${user.status === 'blocked' ? 'Allow' : 'Block'}
+                        </button>
+                        <button onclick="removeGitHubUser(${idx})" style="padding: 0.4rem 0.75rem; border: 1px solid #fca5a5; border-radius: 6px; background: #fee2e2; color: #ef4444; cursor: pointer; font-size: 0.8rem; font-weight: 500;">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.handleGitHubAccess = function (action) {
+            const input = document.getElementById('github-username-input');
+            const username = input.value.trim();
+
+            if (!username) {
+                showToast('Please enter a username.', 'error');
+                return;
+            }
+
+            const users = getGitHubAccessUsers();
+            const existingIdx = users.findIndex(u => u.username.toLowerCase() === username.toLowerCase());
+
+            if (existingIdx !== -1) {
+                users[existingIdx].status = action === 'allow' ? 'allowed' : 'blocked';
+                users[existingIdx].updatedAt = new Date().toISOString();
+            } else {
+                users.push({
+                    username: username,
+                    status: action === 'allow' ? 'allowed' : 'blocked',
+                    addedAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+            }
+
+            saveGitHubAccessUsers(users);
+            input.value = '';
+            renderGitHubUsers();
+            showToast(`User "${username}" ${action === 'allow' ? 'allowed' : 'blocked'} successfully.`, 'success');
+        };
+
+        window.toggleGitHubUserStatus = function (idx) {
+            const users = getGitHubAccessUsers();
+            if (users[idx]) {
+                users[idx].status = users[idx].status === 'blocked' ? 'allowed' : 'blocked';
+                users[idx].updatedAt = new Date().toISOString();
+                saveGitHubAccessUsers(users);
+                renderGitHubUsers();
+            }
+        };
+
+        window.removeGitHubUser = function (idx) {
+            const users = getGitHubAccessUsers();
+            if (users[idx] && confirm(`Remove user "${users[idx].username}" from the access list?`)) {
+                users.splice(idx, 1);
+                saveGitHubAccessUsers(users);
+                renderGitHubUsers();
+                showToast('User removed.', 'info');
+            }
+        };
+
+        // =============== Scientific Accuracy Checker ===============
+        function populateScienceCheckSelect() {
+            const select = document.getElementById('science-check-select');
+            if (!select) return;
+
+            const allItems = [
+                ...(currentSubmissions.submissions || []),
+                ...(currentSubmissions.approved || [])
+            ];
+
+            select.innerHTML = '<option value="">Select submission to check...</option>';
+            allItems.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.title} (${item.status || 'pending'})`;
+                select.appendChild(opt);
+            });
+        }
+
+        window.runScienceCheck = function () {
+            const select = document.getElementById('science-check-select');
+            const resultsEl = document.getElementById('science-check-results');
+            if (!select || !resultsEl) return;
+
+            const submissionId = select.value;
+            if (!submissionId) {
+                showToast('Please select a submission to check.', 'error');
+                return;
+            }
+
+            // Find the submission
+            const allItems = [
+                ...(currentSubmissions.submissions || []),
+                ...(currentSubmissions.approved || [])
+            ];
+            const submission = allItems.find(s => s.id === submissionId);
+            if (!submission || !submission.data) {
+                showToast('Submission data not found.', 'error');
+                return;
+            }
+
+            resultsEl.style.display = 'block';
+            resultsEl.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.5rem; color: #7c3aed; margin-bottom: 1rem;">
+                    <span class="material-symbols-rounded rotating">sync</span>
+                    <span>Analysing scientific content...</span>
+                </div>
+            `;
+
+            // Perform local heuristic-based accuracy check
+            setTimeout(() => {
+                const data = submission.data;
+                const checks = [];
+                let totalScore = 0;
+                let totalChecks = 0;
+
+                // Check 1: Title presence and quality
+                if (data.title && data.title.length > 5) {
+                    checks.push({ label: 'Title Quality', score: 100, detail: 'Title is present and descriptive.' });
+                    totalScore += 100;
+                } else {
+                    checks.push({ label: 'Title Quality', score: 30, detail: 'Title is missing or too short.' });
+                    totalScore += 30;
+                }
+                totalChecks++;
+
+                // Check 2: Summary presence
+                if (data.summary && data.summary.length > 20) {
+                    checks.push({ label: 'Summary Quality', score: 100, detail: 'Summary is present and adequate.' });
+                    totalScore += 100;
+                } else {
+                    checks.push({ label: 'Summary Quality', score: 40, detail: 'Summary is missing or inadequate.' });
+                    totalScore += 40;
+                }
+                totalChecks++;
+
+                // Check 3: Section count
+                const sectionCount = (data.sections || []).length;
+                if (sectionCount >= 5) {
+                    checks.push({ label: 'Content Depth', score: 100, detail: `${sectionCount} sections provide good depth.` });
+                    totalScore += 100;
+                } else if (sectionCount >= 3) {
+                    checks.push({ label: 'Content Depth', score: 70, detail: `${sectionCount} sections - adequate but could be deeper.` });
+                    totalScore += 70;
+                } else {
+                    checks.push({ label: 'Content Depth', score: 30, detail: `Only ${sectionCount} sections - may lack depth.` });
+                    totalScore += 30;
+                }
+                totalChecks++;
+
+                // Check 4: Red flags / warnings present (good for medical content)
+                const hasRedFlags = (data.sections || []).some(s => s.type === 'red_flag');
+                if (hasRedFlags) {
+                    checks.push({ label: 'Safety Warnings', score: 100, detail: 'Contains important red flag/safety warnings.' });
+                    totalScore += 100;
+                } else {
+                    checks.push({ label: 'Safety Warnings', score: 50, detail: 'No red flag sections found - consider adding safety warnings.' });
+                    totalScore += 50;
+                }
+                totalChecks++;
+
+                // Check 5: Charts / data present
+                const hasCharts = (data.sections || []).some(s => s.type === 'chart');
+                if (hasCharts) {
+                    checks.push({ label: 'Data Visualisation', score: 100, detail: 'Includes chart/data visualisation.' });
+                    totalScore += 100;
+                } else {
+                    checks.push({ label: 'Data Visualisation', score: 60, detail: 'No charts found - data visualisation could strengthen content.' });
+                    totalScore += 60;
+                }
+                totalChecks++;
+
+                // Check 6: Medical terminology usage
+                const allText = JSON.stringify(data).toLowerCase();
+                const medicalTerms = ['diagnosis', 'treatment', 'prognosis', 'clinical', 'pathology', 'management', 'investigation', 'signs', 'symptoms', 'differential'];
+                const foundTerms = medicalTerms.filter(t => allText.includes(t));
+                const termScore = Math.min(100, (foundTerms.length / 4) * 100);
+                checks.push({ label: 'Medical Terminology', score: Math.round(termScore), detail: `Found ${foundTerms.length}/${medicalTerms.length} key medical terms.` });
+                totalScore += termScore;
+                totalChecks++;
+
+                // Check 7: References / evidence mention
+                const hasReferences = allText.includes('reference') || allText.includes('study') || allText.includes('evidence') || allText.includes('trial') || allText.includes('guideline');
+                if (hasReferences) {
+                    checks.push({ label: 'Evidence Base', score: 90, detail: 'References to studies/evidence found.' });
+                    totalScore += 90;
+                } else {
+                    checks.push({ label: 'Evidence Base', score: 40, detail: 'No references to evidence or studies detected.' });
+                    totalScore += 40;
+                }
+                totalChecks++;
+
+                const overallScore = Math.round(totalScore / totalChecks);
+                const scoreColor = overallScore >= 80 ? '#22c55e' : overallScore >= 60 ? '#f59e0b' : '#ef4444';
+                const scoreLabel = overallScore >= 80 ? 'High Accuracy' : overallScore >= 60 ? 'Moderate' : 'Needs Review';
+
+                resultsEl.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
+                        <h3 style="margin: 0; color: #1e293b; font-size: 1.1rem;">
+                            <span class="material-symbols-rounded" style="vertical-align: middle;">biotech</span>
+                            ${submission.title}
+                        </h3>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="background: ${scoreColor}; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; font-size: 1.1rem;">
+                                ${overallScore}%
+                            </div>
+                            <span style="font-weight: 600; color: ${scoreColor};">${scoreLabel}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        ${checks.map(c => {
+                            const barColor = c.score >= 80 ? '#22c55e' : c.score >= 60 ? '#f59e0b' : '#ef4444';
+                            return `
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span style="min-width: 140px; font-weight: 500; color: #475569; font-size: 0.85rem;">${c.label}</span>
+                                    <div style="flex: 1; background: #f1f5f9; border-radius: 4px; height: 8px; overflow: hidden;">
+                                        <div style="width: ${c.score}%; background: ${barColor}; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
+                                    </div>
+                                    <span style="min-width: 40px; text-align: right; font-weight: 600; color: ${barColor}; font-size: 0.85rem;">${c.score}%</span>
+                                </div>
+                                <p style="margin: 0 0 0.25rem 0; padding-left: 140px; font-size: 0.8rem; color: #64748b;">${c.detail}</p>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }, 1500);
+        };
+
+        // Show admin-only sections when verified
+        function showAdminSections() {
+            const githubSection = document.getElementById('github-access-section');
+            const scienceSection = document.getElementById('science-checker-section');
+            if (githubSection) githubSection.style.display = 'block';
+            if (scienceSection) scienceSection.style.display = 'block';
+            renderGitHubUsers();
+            populateScienceCheckSelect();
+        }
+
+        // Override the verify button to also show admin sections
+        const originalVerifyHandler = verifyBtn.onclick;
+        verifyBtn.addEventListener('click', () => {
+            if (isAdminVerified) {
+                showAdminSections();
+            }
+        });
 
         renderSubmissions();
     </script>

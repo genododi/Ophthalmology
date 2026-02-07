@@ -374,9 +374,6 @@ textarea:focus {
     display: flex;
     justify-content: center;
     background: #f0f2f5;
-    background-image:
-        radial-gradient(circle, #cbd5e1 1px, transparent 1px);
-    background-size: 24px 24px;
 }
 
 .top-controls {
@@ -712,6 +709,11 @@ textarea:focus {
 /* --- VISUAL TYPES --- */
 
 /* 1. Red Flag (Warning) */
+.card-content .warning-list {
+    list-style: none;
+    padding-left: 0;
+}
+
 .card-content .warning-list li {
     background: #fef2f2;
     color: #991b1b;
@@ -827,6 +829,7 @@ textarea:focus {
 /* 5. Lists */
 .card-list {
     padding-left: 0;
+    list-style: none;
 }
 
 .card-list li {

@@ -2446,12 +2446,8 @@ function setupKnowledgeBase() {
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
         }
 
-        // Update count badge
+        // Count badge - will be updated after filtering below
         const countBadge = document.getElementById('library-count-badge');
-        if (countBadge) {
-            countBadge.textContent = library.length;
-            countBadge.style.display = library.length > 0 ? 'inline-block' : 'none';
-        }
 
         // Detect uncategorized infographics
         const uncategorizedCount = library.filter(item => !item.chapterId || item.chapterId === 'uncategorized').length;
@@ -2539,6 +2535,17 @@ function setupKnowledgeBase() {
             });
         }
 
+        // Update count badge to show filtered vs total count
+        if (countBadge) {
+            const isFiltered = showBookmarkedOnly || currentChapterFilter !== 'all' || currentSearchTerm;
+            if (isFiltered) {
+                countBadge.textContent = `${filteredLibrary.length} / ${library.length}`;
+            } else {
+                countBadge.textContent = library.length;
+            }
+            countBadge.style.display = library.length > 0 ? 'inline-block' : 'none';
+        }
+
         // Build chapter filter tabs
         const modalBody = modal.querySelector('.modal-body');
 
@@ -2600,11 +2607,12 @@ function setupKnowledgeBase() {
                         <option value="newly_added" ${currentSortMode === 'newly_added' ? 'selected' : ''}>Sort by Newly Added</option>
                     </select>
                 </div>
-                <div class="bookmark-filter-wrapper">
+                <div class="bookmark-filter-wrapper" style="display: flex; align-items: center; gap: 6px;">
                     <button id="bookmark-filter-btn" class="btn-small ${showBookmarkedOnly ? 'btn-active' : ''}" title="Show Bookmarked Only">
                         <span class="material-symbols-rounded" style="font-size: 1.1rem;">${showBookmarkedOnly ? 'bookmark' : 'bookmark_border'}</span>
                         ${showBookmarkedOnly ? 'Bookmarked' : 'All'}
                     </button>
+                    <span id="filtered-count-display" style="font-size: 0.85rem; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 12px;">${filteredLibrary.length}</span>
                 </div>
             </div>
             <div class="toolbar-row" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -2619,6 +2627,10 @@ function setupKnowledgeBase() {
                     </button>
                 ` : ''}
                 ${selectionMode && selectedItems.size > 0 ? `
+                    <button class="btn-small btn-bookmark-all" id="bookmark-selected-btn" style="background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); color: white; border: none;">
+                        <span class="material-symbols-rounded">bookmarks</span>
+                        Bookmark All (${selectedItems.size})
+                    </button>
                     <button class="btn-small btn-delete-selected" id="delete-selected-btn" style="background-color: #fee2e2; color: #ef4444; border-color: #fca5a5;">
                         <span class="material-symbols-rounded">delete</span>
                         Delete Selected (${selectedItems.size})
@@ -2692,6 +2704,29 @@ function setupKnowledgeBase() {
                 filteredLibrary.forEach(item => selectedItems.add(item.id));
                 renderLibraryList();
                 updateExportButtonVisibility();
+            });
+        }
+
+        // Bookmark All Selected Handler
+        const bookmarkSelectedBtn = toolbar.querySelector('#bookmark-selected-btn');
+        if (bookmarkSelectedBtn) {
+            bookmarkSelectedBtn.addEventListener('click', () => {
+                if (selectedItems.size === 0) return;
+
+                const updatedLibrary = library.map(item => {
+                    if (selectedItems.has(item.id)) {
+                        return { ...item, bookmarked: true };
+                    }
+                    return item;
+                });
+                localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
+
+                const count = selectedItems.size;
+                selectionMode = false;
+                selectedItems.clear();
+                renderLibraryList();
+                updateExportButtonVisibility();
+                alert(`Bookmarked ${count} infographic(s)!`);
             });
         }
 
@@ -2794,7 +2829,12 @@ function setupKnowledgeBase() {
                     const newChapterId = e.target.value;
                     const updatedLibrary = library.map(item => {
                         if (selectedItems.has(item.id)) {
-                            return { ...item, chapterId: newChapterId };
+                            // Update both the library item and the nested data chapterId
+                            const updated = { ...item, chapterId: newChapterId };
+                            if (updated.data) {
+                                updated.data = { ...updated.data, chapterId: newChapterId };
+                            }
+                            return updated;
                         }
                         return item;
                     });
@@ -2978,7 +3018,7 @@ function setupKnowledgeBase() {
         }
     }
 
-    // CHECK / CORRECT CATEGORISATION HANDLER
+    // CHECK / CORRECT CATEGORISATION HANDLER (Improved mindset)
     const checkCategorisationBtn = document.getElementById('check-categorisation-btn');
     if (checkCategorisationBtn) {
         checkCategorisationBtn.addEventListener('click', () => {
@@ -2989,46 +3029,85 @@ function setupKnowledgeBase() {
                 return;
             }
 
-            // Find items where the current category doesn't match what auto-detect would suggest
+            // Deep analysis: check title AND content sections for better categorisation
             const mismatches = [];
             library.forEach(item => {
                 const currentChapter = item.chapterId || 'uncategorized';
                 const suggestedChapter = autoDetectChapter(item.title);
 
-                // Only flag if current is uncategorized OR different from suggested (if suggested isn't uncategorized)
-                if (currentChapter === 'uncategorized' && suggestedChapter !== 'uncategorized') {
+                // Also analyse section titles and content for secondary signals
+                let contentBasedChapter = 'uncategorized';
+                if (item.data && item.data.sections && Array.isArray(item.data.sections)) {
+                    const allSectionText = item.data.sections.map(s => {
+                        let text = s.title || '';
+                        if (typeof s.content === 'string') text += ' ' + s.content;
+                        else if (Array.isArray(s.content)) text += ' ' + s.content.join(' ');
+                        return text;
+                    }).join(' ');
+                    contentBasedChapter = autoDetectChapter(allSectionText);
+                }
+
+                // Determine best suggestion: prefer title-based, fallback to content-based
+                let bestSuggestion = suggestedChapter;
+                if (bestSuggestion === 'uncategorized' && contentBasedChapter !== 'uncategorized') {
+                    bestSuggestion = contentBasedChapter;
+                }
+
+                // Flag if: uncategorized and we have a suggestion, or categorised differently from what both analyses suggest
+                if (currentChapter === 'uncategorized' && bestSuggestion !== 'uncategorized') {
                     mismatches.push({
                         id: item.id,
                         title: item.title,
                         current: currentChapter,
-                        suggested: suggestedChapter
+                        suggested: bestSuggestion,
+                        confidence: suggestedChapter !== 'uncategorized' ? 'high' : 'medium'
                     });
-                } else if (currentChapter !== 'uncategorized' && suggestedChapter !== 'uncategorized' && currentChapter !== suggestedChapter) {
-                    mismatches.push({
-                        id: item.id,
-                        title: item.title,
-                        current: currentChapter,
-                        suggested: suggestedChapter
-                    });
+                } else if (currentChapter !== 'uncategorized' && bestSuggestion !== 'uncategorized' && currentChapter !== bestSuggestion) {
+                    // Only suggest override if both title and content agree on a different category
+                    if (suggestedChapter !== 'uncategorized' && contentBasedChapter !== 'uncategorized' && suggestedChapter === contentBasedChapter) {
+                        mismatches.push({
+                            id: item.id,
+                            title: item.title,
+                            current: currentChapter,
+                            suggested: bestSuggestion,
+                            confidence: 'high'
+                        });
+                    } else if (suggestedChapter !== 'uncategorized') {
+                        mismatches.push({
+                            id: item.id,
+                            title: item.title,
+                            current: currentChapter,
+                            suggested: bestSuggestion,
+                            confidence: 'low'
+                        });
+                    }
                 }
             });
 
             if (mismatches.length === 0) {
-                alert('✅ All items are correctly categorised! No suggestions found.');
+                const totalCategorised = library.filter(i => i.chapterId && i.chapterId !== 'uncategorized').length;
+                alert(`✅ All ${totalCategorised}/${library.length} categorised items look correct! No suggestions found.`);
                 return;
             }
 
-            // Build a summary message
+            // Sort by confidence (high first)
+            mismatches.sort((a, b) => {
+                const order = { high: 0, medium: 1, low: 2 };
+                return (order[a.confidence] || 3) - (order[b.confidence] || 3);
+            });
+
+            // Build a summary message with confidence indicators
             let msg = `Found ${mismatches.length} item(s) with categorisation suggestions:\n\n`;
             mismatches.slice(0, 10).forEach((m, i) => {
                 const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
                 const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
-                msg += `${i + 1}. "${m.title.substring(0, 35)}..."\n   Current: ${currentName} → Suggested: ${suggestedName}\n\n`;
+                const confidenceIcon = m.confidence === 'high' ? '🟢' : m.confidence === 'medium' ? '🟡' : '🔴';
+                msg += `${i + 1}. ${confidenceIcon} "${m.title.substring(0, 35)}${m.title.length > 35 ? '...' : ''}"\n   ${currentName} → ${suggestedName}\n\n`;
             });
             if (mismatches.length > 10) {
                 msg += `...and ${mismatches.length - 10} more\n\n`;
             }
-            msg += 'Apply all suggested corrections?';
+            msg += '🟢 = High confidence  🟡 = Medium  🔴 = Low\n\nApply all suggested corrections?';
 
             if (confirm(msg)) {
                 let changedCount = 0;
@@ -3036,6 +3115,10 @@ function setupKnowledgeBase() {
                     const item = library.find(i => i.id === m.id);
                     if (item) {
                         item.chapterId = m.suggested;
+                        // Also update nested data.chapterId so the tag badge updates
+                        if (item.data) {
+                            item.data.chapterId = m.suggested;
+                        }
                         changedCount++;
                     }
                 });
@@ -3059,17 +3142,32 @@ function setupKnowledgeBase() {
                 return;
             }
 
-            // Find infographics that contain red_flag type sections
+            // Find infographics that contain red_flag type sections OR any red-themed sections
             const redFlagItems = [];
             library.forEach(item => {
                 if (item.data && item.data.sections) {
-                    const hasRedFlag = item.data.sections.some(section => section.type === 'red_flag');
-                    if (hasRedFlag) {
-                        // Extract the red flag content
-                        const flags = item.data.sections
-                            .filter(s => s.type === 'red_flag')
-                            .map(s => Array.isArray(s.content) ? s.content : [s.content])
-                            .flat();
+                    // Match red_flag type sections AND any section with color_theme 'red'
+                    const redSections = item.data.sections.filter(section =>
+                        section.type === 'red_flag' || section.color_theme === 'red'
+                    );
+                    if (redSections.length > 0) {
+                        // Extract content from all red sections
+                        const flags = [];
+                        redSections.forEach(s => {
+                            const sectionLabel = s.title ? `[${s.title}] ` : '';
+                            if (s.type === 'red_flag') {
+                                const items = Array.isArray(s.content) ? s.content : [s.content];
+                                items.forEach(f => flags.push(sectionLabel + f));
+                            } else if (Array.isArray(s.content)) {
+                                s.content.forEach(f => flags.push(sectionLabel + f));
+                            } else if (typeof s.content === 'string') {
+                                flags.push(sectionLabel + s.content);
+                            } else if (s.content && s.content.explanation) {
+                                flags.push(sectionLabel + s.content.explanation);
+                            } else if (s.content && s.content.data && Array.isArray(s.content.data)) {
+                                s.content.data.forEach(d => flags.push(sectionLabel + `${d.label}: ${d.value}%`));
+                            }
+                        });
                         redFlagItems.push({
                             id: item.id,
                             title: item.title,
@@ -3080,7 +3178,7 @@ function setupKnowledgeBase() {
             });
 
             if (redFlagItems.length === 0) {
-                alert('🎉 No red flags found! All infographics are clear.');
+                alert('No red flags or red-themed sections found! All infographics are clear.');
                 return;
             }
 
@@ -3131,21 +3229,27 @@ function setupKnowledgeBase() {
                         <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
                             ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
                         </ul>
-                        <button class="btn-small" style="margin-top: 0.75rem;" onclick="
-                            const lib = JSON.parse(localStorage.getItem('ophthalmic_library') || '[]');
-                            const found = lib.find(i => i.id === ${item.id});
-                            if (found && found.data) {
-                                renderInfographic(found.data);
-                                document.getElementById('red-flag-modal').classList.remove('active');
-                                document.getElementById('library-modal').classList.remove('active');
-                            }
-                        ">
+                        <button class="btn-small view-redflag-infographic" data-item-id="${item.id}" style="margin-top: 0.75rem;">
                             <span class="material-symbols-rounded">visibility</span>
                             View Infographic
                         </button>
                     </div>
                 `).join('')}
             `;
+
+            // Attach click handlers for "View Infographic" buttons
+            body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const itemId = parseInt(btn.dataset.itemId);
+                    const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const found = lib.find(i => i.id === itemId);
+                    if (found && found.data) {
+                        renderInfographic(found.data);
+                        redFlagModal.classList.remove('active');
+                        document.getElementById('library-modal').classList.remove('active');
+                    }
+                });
+            });
 
             redFlagModal.classList.add('active');
         });
@@ -3169,6 +3273,7 @@ function setupSyncStatus() {
     const closeBtn = document.getElementById('close-sync-status-btn');
     const contentEl = document.getElementById('sync-status-content');
     const exportBtn = document.getElementById('export-local-only-btn');
+    const downloadServerOnlyBtn = document.getElementById('download-server-only-btn');
     const refreshBtn = document.getElementById('refresh-sync-status-btn');
     const preferenceToggle = document.getElementById('sync-preference-toggle');
 
@@ -3299,6 +3404,11 @@ function setupSyncStatus() {
             // Show/hide export button
             if (exportBtn) {
                 exportBtn.style.display = localOnly.length > 0 ? 'flex' : 'none';
+            }
+
+            // Show/hide download server-only button
+            if (downloadServerOnlyBtn) {
+                downloadServerOnlyBtn.style.display = serverOnly.length > 0 ? 'flex' : 'none';
             }
 
         } catch (err) {
@@ -3466,6 +3576,73 @@ function setupSyncStatus() {
     // Refresh button
     if (refreshBtn) {
         refreshBtn.addEventListener('click', comparLibraries);
+    }
+
+    // Download server-only infographs to local library
+    if (downloadServerOnlyBtn) {
+        downloadServerOnlyBtn.addEventListener('click', async () => {
+            const serverOnlyItems = currentDifferences.serverOnly || [];
+            if (serverOnlyItems.length === 0) {
+                alert('No server-only infographics to download.');
+                return;
+            }
+
+            if (!confirm(`Download ${serverOnlyItems.length} server-only infographic(s) to your local library?`)) return;
+
+            downloadServerOnlyBtn.disabled = true;
+            downloadServerOnlyBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Downloading...';
+
+            let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            let addedCount = 0;
+            let skippedCount = 0;
+
+            for (const item of serverOnlyItems) {
+                const normTitle = normalizeTitle(item.title);
+                const exists = localLibrary.some(l => normalizeTitle(l.title) === normTitle);
+                if (exists) {
+                    skippedCount++;
+                    continue;
+                }
+
+                // Calculate next seqId
+                let nextSeqId = 1;
+                if (localLibrary.length > 0) {
+                    const maxSeqId = localLibrary.reduce((max, i) => (i.seqId > max ? i.seqId : max), 0);
+                    nextSeqId = maxSeqId + 1;
+                }
+
+                const newItem = {
+                    id: Date.now() + addedCount,
+                    seqId: nextSeqId,
+                    title: item.title,
+                    summary: item.summary || item.data?.summary || '',
+                    date: item.date || new Date().toISOString(),
+                    data: item.data || item,
+                    chapterId: item.chapterId || autoDetectChapter(item.title),
+                    _newlyImported: Date.now()
+                };
+
+                if (newItem.data) {
+                    newItem.data.chapterId = newItem.chapterId;
+                }
+
+                localLibrary.unshift(newItem);
+                addedCount++;
+            }
+
+            localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+
+            downloadServerOnlyBtn.disabled = false;
+            downloadServerOnlyBtn.innerHTML = '<span class="material-symbols-rounded">cloud_download</span> Download Server-Only Infographs';
+
+            let msg = `Downloaded ${addedCount} infographic(s) to your library.`;
+            if (skippedCount > 0) msg += ` (${skippedCount} already existed)`;
+            alert(msg);
+
+            // Refresh comparison
+            comparLibraries();
+        });
     }
 
     // Publish local-only to the Community Hub (supports 500+ items with chunked processing)
@@ -4221,7 +4398,6 @@ function renderInfographic(data) {
             <div class="card-content">
                 ${contentHtml}
             </div>
-            <div class="card-deco"></div>
         `;
         grid.appendChild(card);
     });
