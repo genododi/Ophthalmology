@@ -688,9 +688,14 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
             nextSeqId = maxSeqId + 1;
         }
 
-        // Preserve original category if valid, otherwise auto-detect
+        // PRIORITY: Preserve the original category as submitted by the user
+        // 1. submission.chapterId (top-level, set by original uploader)
+        // 2. submission.data.chapterId (nested in infographic data)
+        // 3. Auto-detect as last resort
         let chapterId = 'uncategorized';
-        if (submission.data.chapterId && submission.data.chapterId !== 'uncategorized') {
+        if (submission.chapterId && submission.chapterId !== 'uncategorized') {
+            chapterId = submission.chapterId;
+        } else if (submission.data.chapterId && submission.data.chapterId !== 'uncategorized') {
             chapterId = submission.data.chapterId;
         } else {
             chapterId = autoDetectChapterFromTitle(submission.title);

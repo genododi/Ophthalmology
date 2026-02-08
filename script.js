@@ -1445,15 +1445,43 @@ function autoDetectChapter(title) {
         },
     ];
 
+    // SCORING-BASED MATCHING: Count keyword hits per category
+    // Multi-word phrases get higher weight; short terms use word-boundary matching
+    const scores = {};
+    const shortTermMinLength = 4; // Terms shorter than this need word-boundary matching
+
     for (const rule of rules) {
+        let score = 0;
         for (const keyword of rule.keywords) {
-            if (titleLower.includes(keyword)) {
-                return rule.chapter;
+            if (keyword.length < shortTermMinLength) {
+                // Short terms (e.g., 'rop', 'amd', 'iop') - use word boundary regex to avoid false matches
+                const regex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+                if (regex.test(titleLower)) {
+                    score += keyword.includes(' ') ? 3 : 2; // Multi-word phrases score higher
+                }
+            } else {
+                if (titleLower.includes(keyword)) {
+                    // Longer keywords are more specific and reliable
+                    score += keyword.includes(' ') ? 3 : 1; // Multi-word phrases score higher
+                }
             }
+        }
+        if (score > 0) {
+            scores[rule.chapter] = (scores[rule.chapter] || 0) + score;
         }
     }
 
-    return 'uncategorized';
+    // Find the chapter with the highest score
+    let bestChapter = 'uncategorized';
+    let bestScore = 0;
+    for (const [chapter, score] of Object.entries(scores)) {
+        if (score > bestScore) {
+            bestScore = score;
+            bestChapter = chapter;
+        }
+    }
+
+    return bestChapter;
 }
 
 // Auto-Sync to Server Logic
@@ -1917,11 +1945,19 @@ function setupKnowledgeBase() {
                             const newItem = { ...serverItem };
                             delete newItem.seqId;
 
-                            // PRESERVE CHAPTER: Keep the server's chapterId if available
-                            // Auto-detect chapter if not set
+                            // PRESERVE CHAPTER: Keep the original category as submitted
+                            // Priority: communitySource chapterId > data.chapterId > auto-detect
                             if (!newItem.chapterId || newItem.chapterId === 'uncategorized') {
-                                const autoChapter = autoDetectChapter(newItem.title);
-                                newItem.chapterId = autoChapter;
+                                if (newItem.data && newItem.data.chapterId && newItem.data.chapterId !== 'uncategorized') {
+                                    newItem.chapterId = newItem.data.chapterId;
+                                } else {
+                                    const autoChapter = autoDetectChapter(newItem.title);
+                                    newItem.chapterId = autoChapter;
+                                }
+                            }
+                            // Sync tag: ensure data.chapterId matches the item chapterId
+                            if (newItem.data && newItem.chapterId !== 'uncategorized') {
+                                newItem.data.chapterId = newItem.chapterId;
                             }
 
                             // Mark as newly imported for green hashtag display
@@ -2840,6 +2876,17 @@ function setupKnowledgeBase() {
                     });
                     localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
 
+                    // Update the currently displayed infographic's tag if it was affected
+                    if (currentInfographicData) {
+                        const currentTitle = currentInfographicData.title;
+                        const affectedItem = updatedLibrary.find(
+                            i => selectedItems.has(i.id) && i.title === currentTitle
+                        );
+                        if (affectedItem) {
+                            updateInfographicCategoryBadge(newChapterId);
+                        }
+                    }
+
                     // Auto-sync enabled
                     syncLibraryToServer();
 
@@ -2847,6 +2894,9 @@ function setupKnowledgeBase() {
                     selectedItems.clear();
                     renderLibraryList();
                     updateExportButtonVisibility();
+
+                    const chapterName = DEFAULT_CHAPTERS.find(c => c.id === newChapterId)?.name || newChapterId;
+                    alert(`✅ Category updated to "${chapterName}" — infographic tag has been updated.`);
                 }
             });
         }
@@ -2966,6 +3016,18 @@ function setupKnowledgeBase() {
                     const id = parseInt(e.target.dataset.id);
                     const targetItem = library.find(i => i.id === id);
                     if (targetItem) {
+                        if (!targetItem.data || (typeof targetItem.data === 'object' && !targetItem.data.sections)) {
+                            // Data is missing or corrupt - show resubmission prompt
+                            const authorInfo = targetItem.communityAuthor
+                                ? `\n\nOriginal author: ${targetItem.communityAuthor}`
+                                : '';
+                            alert(
+                                `⚠️ Unable to load "${targetItem.title}"\n\n` +
+                                `The infographic data is missing or corrupted and cannot be displayed.${authorInfo}\n\n` +
+                                `Please contact the original uploader and ask them to resubmit this infographic to the Community Hub.`
+                            );
+                            // Still attempt to render (will show the in-page error with resubmission notice)
+                        }
                         currentInfographicData = targetItem.data;
                         renderInfographic(targetItem.data);
                         modal.classList.remove('active');
@@ -3029,42 +3091,80 @@ function setupKnowledgeBase() {
                 return;
             }
 
-            // Deep analysis: check title AND content sections for better categorisation
+            // DEEP MULTI-SIGNAL ANALYSIS: title + summary + all section content + nested data
+            // Extracts maximum text from every part of the infographic for the most intelligent categorisation
             const mismatches = [];
+
+            // Helper: recursively extract text from any content structure
+            function extractTextDeep(content) {
+                if (!content) return '';
+                if (typeof content === 'string') return content;
+                if (Array.isArray(content)) return content.map(extractTextDeep).join(' ');
+                if (typeof content === 'object') {
+                    let parts = [];
+                    for (const val of Object.values(content)) {
+                        parts.push(extractTextDeep(val));
+                    }
+                    return parts.join(' ');
+                }
+                return String(content);
+            }
+
             library.forEach(item => {
                 const currentChapter = item.chapterId || 'uncategorized';
-                const suggestedChapter = autoDetectChapter(item.title);
 
-                // Also analyse section titles and content for secondary signals
-                let contentBasedChapter = 'uncategorized';
+                // Signal 1: Title analysis (highest weight)
+                const titleChapter = autoDetectChapter(item.title);
+
+                // Signal 2: Summary analysis
+                const summaryText = (item.summary || '') + ' ' + (item.data?.summary || '');
+                const summaryChapter = autoDetectChapter(summaryText);
+
+                // Signal 3: Deep content analysis - extract ALL text from all sections
+                let contentChapter = 'uncategorized';
                 if (item.data && item.data.sections && Array.isArray(item.data.sections)) {
                     const allSectionText = item.data.sections.map(s => {
                         let text = s.title || '';
-                        if (typeof s.content === 'string') text += ' ' + s.content;
-                        else if (Array.isArray(s.content)) text += ' ' + s.content.join(' ');
+                        text += ' ' + extractTextDeep(s.content);
                         return text;
                     }).join(' ');
-                    contentBasedChapter = autoDetectChapter(allSectionText);
+                    contentChapter = autoDetectChapter(allSectionText);
                 }
 
-                // Determine best suggestion: prefer title-based, fallback to content-based
-                let bestSuggestion = suggestedChapter;
-                if (bestSuggestion === 'uncategorized' && contentBasedChapter !== 'uncategorized') {
-                    bestSuggestion = contentBasedChapter;
+                // Combine signals with priority weighting:
+                // Title > Summary > Content (for tie-breaking)
+                const candidates = [titleChapter, summaryChapter, contentChapter].filter(c => c !== 'uncategorized');
+                let bestSuggestion = 'uncategorized';
+                let confidence = 'low';
+
+                if (candidates.length === 0) {
+                    // No signals - skip
+                    return;
+                } else if (candidates.length >= 2) {
+                    // Count votes - majority wins
+                    const votes = {};
+                    candidates.forEach(c => votes[c] = (votes[c] || 0) + 1);
+                    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+                    bestSuggestion = sorted[0][0];
+                    confidence = sorted[0][1] >= 2 ? 'high' : 'medium';
+                } else {
+                    // Only one signal
+                    bestSuggestion = candidates[0];
+                    confidence = titleChapter !== 'uncategorized' ? 'medium' : 'low';
                 }
 
-                // Flag if: uncategorized and we have a suggestion, or categorised differently from what both analyses suggest
+                // Flag if: uncategorized and we have a suggestion, or current doesn't match consensus
                 if (currentChapter === 'uncategorized' && bestSuggestion !== 'uncategorized') {
                     mismatches.push({
                         id: item.id,
                         title: item.title,
                         current: currentChapter,
                         suggested: bestSuggestion,
-                        confidence: suggestedChapter !== 'uncategorized' ? 'high' : 'medium'
+                        confidence: confidence === 'low' ? 'medium' : confidence // Upgrade for uncategorized items
                     });
                 } else if (currentChapter !== 'uncategorized' && bestSuggestion !== 'uncategorized' && currentChapter !== bestSuggestion) {
-                    // Only suggest override if both title and content agree on a different category
-                    if (suggestedChapter !== 'uncategorized' && contentBasedChapter !== 'uncategorized' && suggestedChapter === contentBasedChapter) {
+                    // Only suggest override with sufficient confidence
+                    if (confidence === 'high') {
                         mismatches.push({
                             id: item.id,
                             title: item.title,
@@ -3072,7 +3172,7 @@ function setupKnowledgeBase() {
                             suggested: bestSuggestion,
                             confidence: 'high'
                         });
-                    } else if (suggestedChapter !== 'uncategorized') {
+                    } else if (confidence === 'medium' && titleChapter !== 'uncategorized') {
                         mismatches.push({
                             id: item.id,
                             title: item.title,
@@ -3124,14 +3224,26 @@ function setupKnowledgeBase() {
                 });
 
                 localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
-                alert(`✅ Updated categorisation for ${changedCount} item(s)!`);
+
+                // Update the currently displayed infographic's tag if it was in the changed set
+                if (currentInfographicData) {
+                    const matchedMismatch = mismatches.find(m => {
+                        const item = library.find(i => i.id === m.id);
+                        return item && item.title === currentInfographicData.title;
+                    });
+                    if (matchedMismatch) {
+                        updateInfographicCategoryBadge(matchedMismatch.suggested);
+                    }
+                }
+
+                alert(`✅ Updated categorisation for ${changedCount} item(s)! Tags have been updated.`);
                 renderLibraryList();
                 syncLibraryToServer();
             }
         });
     }
 
-    // RED FLAGS SECTION HANDLER
+    // RED FLAGS SECTION HANDLER (with category filter)
     const redFlagsBtn = document.getElementById('red-flags-btn');
     if (redFlagsBtn) {
         redFlagsBtn.addEventListener('click', () => {
@@ -3171,6 +3283,7 @@ function setupKnowledgeBase() {
                         redFlagItems.push({
                             id: item.id,
                             title: item.title,
+                            chapterId: item.chapterId || item.data.chapterId || 'uncategorized',
                             flags: flags
                         });
                     }
@@ -3181,6 +3294,13 @@ function setupKnowledgeBase() {
                 alert('No red flags or red-themed sections found! All infographics are clear.');
                 return;
             }
+
+            // Collect unique categories that have red flags
+            const categoriesWithFlags = [...new Set(redFlagItems.map(i => i.chapterId))];
+            const categoryOptions = categoriesWithFlags.map(cId => {
+                const ch = DEFAULT_CHAPTERS.find(c => c.id === cId);
+                return { id: cId, name: ch ? ch.name : cId, color: ch ? ch.color : '#64748b' };
+            }).sort((a, b) => a.name.localeCompare(b.name));
 
             // Create a modal overlay for red flags
             let redFlagModal = document.getElementById('red-flag-modal');
@@ -3214,43 +3334,83 @@ function setupKnowledgeBase() {
                 });
             }
 
-            // Populate red flag content
-            const body = redFlagModal.querySelector('#red-flag-body');
-            body.innerHTML = `
-                <p style="margin-bottom: 1rem; color: #ef4444; font-weight: 500;">
-                    Found ${redFlagItems.length} infographic(s) with red flag warnings:
-                </p>
-                ${redFlagItems.map(item => `
-                    <div class="red-flag-card" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                        <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
-                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
-                            ${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}
-                        </h3>
-                        <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
-                            ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
-                        </ul>
-                        <button class="btn-small view-redflag-infographic" data-item-id="${item.id}" style="margin-top: 0.75rem;">
-                            <span class="material-symbols-rounded">visibility</span>
-                            View Infographic
-                        </button>
+            // Helper: render red flag cards (filtered or all)
+            function renderRedFlagCards(items, filterLabel) {
+                const body = redFlagModal.querySelector('#red-flag-body');
+                body.innerHTML = `
+                    <!-- Category Filter Dropdown -->
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                        <label for="red-flag-category-filter" style="font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-symbols-rounded" style="font-size: 1.1rem;">filter_list</span>
+                            Filter by Category:
+                        </label>
+                        <select id="red-flag-category-filter" style="padding: 0.5rem 1rem; border: 1px solid #fecaca; border-radius: 8px; font-size: 0.9rem; background: white; color: #374151; min-width: 180px;">
+                            <option value="all">All Categories (${redFlagItems.length})</option>
+                            ${categoryOptions.map(c => `<option value="${c.id}" ${filterLabel === c.id ? 'selected' : ''}>${c.name} (${redFlagItems.filter(i => i.chapterId === c.id).length})</option>`).join('')}
+                        </select>
                     </div>
-                `).join('')}
-            `;
+                    <p style="margin-bottom: 1rem; color: #ef4444; font-weight: 500;">
+                        Showing ${items.length} infographic(s) with red flag warnings${filterLabel && filterLabel !== 'all' ? ` in "${categoryOptions.find(c => c.id === filterLabel)?.name || filterLabel}"` : ''}:
+                    </p>
+                    ${items.map(item => {
+                        const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
+                        const catBadge = ch && item.chapterId !== 'uncategorized'
+                            ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
+                            : '';
+                        return `
+                        <div class="red-flag-card" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
+                                ${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}
+                                ${catBadge}
+                            </h3>
+                            <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
+                                ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
+                            </ul>
+                            <button class="btn-small view-redflag-infographic" data-item-id="${item.id}" style="margin-top: 0.75rem;">
+                                <span class="material-symbols-rounded">visibility</span>
+                                View Infographic
+                            </button>
+                        </div>
+                    `}).join('')}
+                `;
 
-            // Attach click handlers for "View Infographic" buttons
-            body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const itemId = parseInt(btn.dataset.itemId);
-                    const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-                    const found = lib.find(i => i.id === itemId);
-                    if (found && found.data) {
-                        renderInfographic(found.data);
-                        redFlagModal.classList.remove('active');
-                        document.getElementById('library-modal').classList.remove('active');
-                    }
+                // Attach dropdown filter change handler
+                const filterSelect = body.querySelector('#red-flag-category-filter');
+                if (filterSelect) {
+                    filterSelect.addEventListener('change', (e) => {
+                        const selectedCat = e.target.value;
+                        const filtered = selectedCat === 'all'
+                            ? redFlagItems
+                            : redFlagItems.filter(i => i.chapterId === selectedCat);
+                        renderRedFlagCards(filtered, selectedCat);
+                    });
+                }
+
+                // Attach click handlers for "View Infographic" buttons
+                body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const itemId = parseInt(btn.dataset.itemId);
+                        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                        const found = lib.find(i => i.id === itemId);
+                        if (found && found.data) {
+                            renderInfographic(found.data);
+                            redFlagModal.classList.remove('active');
+                            document.getElementById('library-modal').classList.remove('active');
+                        } else if (found) {
+                            const authorInfo = found.communityAuthor ? `\nOriginal author: ${found.communityAuthor}` : '';
+                            alert(
+                                `⚠️ Unable to load "${found.title}"\n\n` +
+                                `The infographic data is missing or corrupted.${authorInfo}\n\n` +
+                                `Please ask the original uploader to resubmit this infographic.`
+                            );
+                        }
+                    });
                 });
-            });
+            }
 
+            // Initial render: show all
+            renderRedFlagCards(redFlagItems, 'all');
             redFlagModal.classList.add('active');
         });
     }
@@ -4177,6 +4337,26 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
+// Utility: Update the category badge on the currently displayed infographic
+function updateInfographicCategoryBadge(newChapterId) {
+    const badge = document.getElementById('infographic-category-badge');
+    if (!badge) return;
+    const chapter = DEFAULT_CHAPTERS.find(c => c.id === newChapterId);
+    if (chapter && newChapterId !== 'uncategorized') {
+        badge.style.display = 'inline-flex';
+        badge.style.background = chapter.color;
+        badge.dataset.chapterId = newChapterId;
+        badge.innerHTML = `<span class="material-symbols-rounded" style="font-size: 14px;">folder</span> ${chapter.name}`;
+    } else {
+        badge.style.display = 'none';
+        badge.dataset.chapterId = 'uncategorized';
+    }
+    // Also update the currentInfographicData if available
+    if (currentInfographicData) {
+        currentInfographicData.chapterId = newChapterId;
+    }
+}
+
 function renderInfographic(data) {
     outputContainer.innerHTML = '';
     outputContainer.classList.remove('empty-state');
@@ -4192,8 +4372,13 @@ function renderInfographic(data) {
         outputContainer.innerHTML = `
             <div class="error-message" style="padding: 2rem; text-align: center; color: #e74c3c;">
                 <span class="material-symbols-rounded" style="font-size: 3rem;">error</span>
-                <p>Unable to load this infographic - no data found.</p>
-                <p style="font-size: 0.9rem; color: #888;">This may be an old format that's no longer supported.</p>
+                <h3 style="margin: 0.5rem 0;">Unable to Load Infographic</h3>
+                <p>No data found for this infographic. The content may be corrupted or missing.</p>
+                <p style="font-size: 0.9rem; color: #888; margin-top: 0.5rem;">This may be an old format that's no longer supported.</p>
+                <div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e;">
+                    <span class="material-symbols-rounded" style="font-size: 1.2rem; vertical-align: middle;">contact_mail</span>
+                    <strong>Request Resubmission:</strong> Please ask the original uploader to resubmit this infographic to the Community Hub so it can be restored.
+                </div>
             </div>
         `;
         return;
@@ -4209,7 +4394,12 @@ function renderInfographic(data) {
             outputContainer.innerHTML = `
                 <div class="error-message" style="padding: 2rem; text-align: center; color: #e74c3c;">
                     <span class="material-symbols-rounded" style="font-size: 3rem;">error</span>
-                    <p>Unable to parse infographic data.</p>
+                    <h3 style="margin: 0.5rem 0;">Unable to Parse Infographic</h3>
+                    <p>The infographic data is corrupted and cannot be displayed.</p>
+                    <div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e;">
+                        <span class="material-symbols-rounded" style="font-size: 1.2rem; vertical-align: middle;">contact_mail</span>
+                        <strong>Request Resubmission:</strong> Please ask the original uploader to resubmit this infographic to the Community Hub so it can be restored.
+                    </div>
                 </div>
             `;
             return;
@@ -4256,7 +4446,7 @@ function renderInfographic(data) {
         const chapter = DEFAULT_CHAPTERS.find(c => c.id === chapterId);
         if (chapter) {
             categoryBadgeHtml = `
-                <span class="category-badge" style="
+                <span class="category-badge" id="infographic-category-badge" data-chapter-id="${chapterId}" style="
                     display: inline-flex;
                     align-items: center;
                     gap: 4px;
@@ -4275,6 +4465,9 @@ function renderInfographic(data) {
                 </span>
             `;
         }
+    } else {
+        // Add placeholder for dynamic updates even when uncategorized
+        categoryBadgeHtml = `<span class="category-badge" id="infographic-category-badge" data-chapter-id="uncategorized" style="display: none;"></span>`;
     }
 
     header.innerHTML = `
@@ -6697,7 +6890,12 @@ function setupCommunityHub() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         } else {
-            alert('Could not load submission data.');
+            const authorInfo = submission?.userName ? `\n\nOriginal author: ${submission.userName}` : '';
+            alert(
+                `⚠️ Unable to load this infographic.\n\n` +
+                `The content data is missing or corrupted.${authorInfo}\n\n` +
+                `Please contact the original uploader and ask them to resubmit this infographic to the Community Hub.`
+            );
         }
     };
 
@@ -6773,9 +6971,18 @@ function setupCommunityHub() {
                 return;
             }
 
-            // Confirm action
-            if (!confirm(`Add all ${approved.length} approved infographics to your library?`)) {
-                return;
+            // Ask user whether to replace existing or skip duplicates
+            const replaceExisting = confirm(
+                `Add all ${approved.length} approved infographics to your library?\n\n` +
+                `Click OK to REPLACE existing duplicates with updated versions.\n` +
+                `Click Cancel to skip duplicates (keep existing).`
+            );
+
+            // Second confirm if they clicked Cancel (they may have wanted to abort entirely)
+            if (!replaceExisting) {
+                if (!confirm(`Add all ${approved.length} infographics, SKIPPING any that already exist in your library?`)) {
+                    return;
+                }
             }
 
             // Disable button and show progress
@@ -6789,6 +6996,7 @@ function setupCommunityHub() {
             }
 
             let added = 0;
+            let replaced = 0;
             let skipped = 0;
             let failed = 0;
 
@@ -6801,10 +7009,19 @@ function setupCommunityHub() {
                 }
 
                 try {
-                    const result = await CommunitySubmissions.downloadToLibrary(submission.id);
+                    // First try without overwrite
+                    let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
                     if (result.success) {
                         added++;
-                    } else if (result.message && result.message.includes('already')) {
+                    } else if (result.status === 'duplicate' && replaceExisting) {
+                        // User chose to replace - retry with overwrite
+                        result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
+                        if (result.success) {
+                            replaced++;
+                        } else {
+                            failed++;
+                        }
+                    } else if (result.status === 'duplicate') {
                         skipped++;
                     } else {
                         failed++;
@@ -6818,14 +7035,18 @@ function setupCommunityHub() {
             // Show final result
             if (addAllProgress) {
                 addAllProgress.className = 'bulk-progress success';
-                addAllProgress.textContent = `Done: ${added} added, ${skipped} skipped, ${failed} failed`;
+                addAllProgress.textContent = `Done: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed`;
             }
 
             // Re-enable button
             addAllToLibraryBtn.disabled = false;
             addAllToLibraryBtn.innerHTML = originalHTML;
 
-            alert(`Bulk import complete!\n\n✓ Added: ${added}\n⊘ Already in library: ${skipped}\n✗ Failed: ${failed}`);
+            let msg = `Bulk import complete!\n\n✓ Added: ${added}`;
+            if (replaced > 0) msg += `\n↻ Replaced: ${replaced}`;
+            if (skipped > 0) msg += `\n⊘ Skipped: ${skipped}`;
+            if (failed > 0) msg += `\n✗ Failed: ${failed}`;
+            alert(msg);
         });
     }
 

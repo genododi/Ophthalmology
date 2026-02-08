@@ -688,7 +688,7 @@
             await renderSubmissions();
         };
 
-        // Handle add all pending to local library
+        // Handle add all pending to local library (with replace option)
         window.handleAddAllToLibrary = async function () {
             const pending = currentSubmissions.submissions || [];
             if (pending.length === 0) {
@@ -696,24 +696,35 @@
                 return;
             }
 
-            if (!confirm(`Add all ${pending.length} pending submissions to your local library?`)) {
-                return;
+            const replaceExisting = confirm(
+                `Add all ${pending.length} pending submissions to your local library?\n\n` +
+                `Click OK to REPLACE any existing duplicates.\nClick Cancel to skip duplicates.`
+            );
+
+            if (!replaceExisting) {
+                if (!confirm(`Add all ${pending.length} submissions, SKIPPING duplicates?`)) return;
             }
 
             showLoading();
 
-            let successCount = 0;
+            let addedCount = 0;
+            let replacedCount = 0;
             let failCount = 0;
 
-            // Add each submission to local library
             for (const submission of pending) {
                 try {
-                    const result = await CommunitySubmissions.downloadToLocal(submission.id, false);
+                    let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
                     if (result.success) {
-                        successCount++;
+                        addedCount++;
+                    } else if (result.status === 'duplicate' && replaceExisting) {
+                        result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
+                        if (result.success) {
+                            replacedCount++;
+                        } else {
+                            failCount++;
+                        }
                     } else {
                         failCount++;
-                        console.error('Failed to add to library:', submission.id, result.message);
                     }
                 } catch (err) {
                     failCount++;
@@ -723,10 +734,11 @@
 
             hideLoading();
 
-            if (successCount > 0) {
-                const msg = failCount > 0
-                    ? `📚 ${successCount} added to library, ⚠️ ${failCount} skipped (may already exist).`
-                    : `📚 All ${successCount} submissions added to your library!`;
+            const total = addedCount + replacedCount;
+            if (total > 0) {
+                let msg = `📚 ${addedCount} added`;
+                if (replacedCount > 0) msg += `, ↻ ${replacedCount} replaced`;
+                if (failCount > 0) msg += `, ⚠️ ${failCount} skipped`;
                 showToast(msg, 'success');
             } else {
                 showToast('No new items added. They may already be in your library.', 'info');
