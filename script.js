@@ -2861,8 +2861,13 @@ function setupKnowledgeBase() {
         const assignSelect = toolbar.querySelector('#assign-chapter-select');
         if (assignSelect) {
             assignSelect.addEventListener('change', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (e.target.value && selectedItems.size > 0) {
                     const newChapterId = e.target.value;
+                    const chapterName = DEFAULT_CHAPTERS.find(c => c.id === newChapterId)?.name || newChapterId;
+                    const count = selectedItems.size;
+
                     const updatedLibrary = library.map(item => {
                         if (selectedItems.has(item.id)) {
                             // Update both the library item and the nested data chapterId
@@ -2887,16 +2892,34 @@ function setupKnowledgeBase() {
                         }
                     }
 
-                    // Auto-sync enabled
+                    // Auto-sync enabled (don't await - do in background)
                     syncLibraryToServer();
 
+                    // Update the library card badges in-place without full re-render
+                    selectedItems.forEach(itemId => {
+                        const card = listContainer.querySelector(`.library-card[data-id="${itemId}"]`);
+                        if (card) {
+                            const badge = card.querySelector('.category-badge, .chapter-badge');
+                            if (badge) {
+                                const ch = DEFAULT_CHAPTERS.find(c => c.id === newChapterId);
+                                if (ch) {
+                                    badge.textContent = ch.name;
+                                    badge.style.background = ch.color;
+                                    badge.style.display = '';
+                                }
+                            }
+                        }
+                    });
+
+                    // Reset selection without full re-render
                     selectionMode = false;
                     selectedItems.clear();
-                    renderLibraryList();
-                    updateExportButtonVisibility();
 
-                    const chapterName = DEFAULT_CHAPTERS.find(c => c.id === newChapterId)?.name || newChapterId;
-                    alert(`✅ Category updated to "${chapterName}" — infographic tag has been updated.`);
+                    // Delayed re-render to avoid visual "reload" feel
+                    setTimeout(() => {
+                        renderLibraryList();
+                        updateExportButtonVisibility();
+                    }, 100);
                 }
             });
         }
@@ -3196,26 +3219,122 @@ function setupKnowledgeBase() {
                 return (order[a.confidence] || 3) - (order[b.confidence] || 3);
             });
 
-            // Build a summary message with confidence indicators
-            let msg = `Found ${mismatches.length} item(s) with categorisation suggestions:\n\n`;
-            mismatches.slice(0, 10).forEach((m, i) => {
-                const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
-                const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
-                const confidenceIcon = m.confidence === 'high' ? '🟢' : m.confidence === 'medium' ? '🟡' : '🔴';
-                msg += `${i + 1}. ${confidenceIcon} "${m.title.substring(0, 35)}${m.title.length > 35 ? '...' : ''}"\n   ${currentName} → ${suggestedName}\n\n`;
-            });
-            if (mismatches.length > 10) {
-                msg += `...and ${mismatches.length - 10} more\n\n`;
-            }
-            msg += '🟢 = High confidence  🟡 = Medium  🔴 = Low\n\nApply all suggested corrections?';
+            // Create a modal to show ALL suggestions with individual checkboxes
+            let catModal = document.getElementById('categorisation-suggestions-modal');
+            if (!catModal) {
+                catModal = document.createElement('div');
+                catModal.id = 'categorisation-suggestions-modal';
+                catModal.className = 'modal-overlay';
+                catModal.innerHTML = `
+                    <div class="modal-content modal-lg" style="border: 2px solid #8b5cf6;">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white;">
+                            <h2 style="display: flex; align-items: center; gap: 8px;">
+                                <span class="material-symbols-rounded">auto_fix_high</span>
+                                Categorisation Suggestions
+                            </h2>
+                            <button id="close-cat-suggestions-modal" class="icon-btn-ghost" style="color: white;">
+                                <span class="material-symbols-rounded">close</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" id="cat-suggestions-body" style="max-height: 70vh; overflow-y: auto;">
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(catModal);
 
-            if (confirm(msg)) {
+                catModal.querySelector('#close-cat-suggestions-modal').addEventListener('click', () => {
+                    catModal.classList.remove('active');
+                });
+                catModal.addEventListener('click', (e) => {
+                    if (e.target === catModal) catModal.classList.remove('active');
+                });
+            }
+
+            const catBody = catModal.querySelector('#cat-suggestions-body');
+            catBody.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <p style="margin: 0; color: #6d28d9; font-weight: 600;">
+                        Found ${mismatches.length} suggestion(s). Select which to apply:
+                    </p>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="cat-select-all-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            Select All
+                        </button>
+                        <button id="cat-deselect-all-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            Deselect All
+                        </button>
+                    </div>
+                </div>
+                <p style="margin: 0 0 1rem 0; font-size: 0.8rem; color: #64748b;">
+                    🟢 High confidence &nbsp; 🟡 Medium &nbsp; 🔴 Low
+                </p>
+                <div id="cat-suggestions-list">
+                    ${mismatches.map((m, i) => {
+                        const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
+                        const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
+                        const suggestedColor = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.color || '#64748b';
+                        const confidenceIcon = m.confidence === 'high' ? '🟢' : m.confidence === 'medium' ? '🟡' : '🔴';
+                        const checked = m.confidence !== 'low' ? 'checked' : '';
+                        return `
+                        <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; margin-bottom: 0.5rem; background: ${m.confidence === 'high' ? '#f0fdf4' : m.confidence === 'medium' ? '#fefce8' : '#fef2f2'}; border: 1px solid ${m.confidence === 'high' ? '#bbf7d0' : m.confidence === 'medium' ? '#fef08a' : '#fecaca'}; border-radius: 8px; cursor: pointer; transition: background 0.15s;">
+                            <input type="checkbox" class="cat-suggestion-check" data-index="${i}" ${checked}
+                                style="margin-top: 3px; width: 18px; height: 18px; accent-color: #7c3aed; cursor: pointer; flex-shrink: 0;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 0.9rem; color: #1e293b; margin-bottom: 2px; word-break: break-word;">
+                                    ${confidenceIcon} ${m.title}
+                                </div>
+                                <div style="font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                    <span style="padding: 1px 6px; background: #e2e8f0; border-radius: 4px;">${currentName}</span>
+                                    <span class="material-symbols-rounded" style="font-size: 14px;">arrow_forward</span>
+                                    <span style="padding: 1px 6px; background: ${suggestedColor}; color: white; border-radius: 4px; font-weight: 600;">${suggestedName}</span>
+                                </div>
+                            </div>
+                        </label>
+                    `}).join('')}
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+                    <button id="cat-cancel-btn" style="padding: 0.6rem 1.25rem; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Cancel
+                    </button>
+                    <button id="cat-apply-btn" style="padding: 0.6rem 1.25rem; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">check_circle</span>
+                        Apply Selected
+                    </button>
+                </div>
+            `;
+
+            // Select All / Deselect All
+            catBody.querySelector('#cat-select-all-btn').addEventListener('click', () => {
+                catBody.querySelectorAll('.cat-suggestion-check').forEach(cb => cb.checked = true);
+            });
+            catBody.querySelector('#cat-deselect-all-btn').addEventListener('click', () => {
+                catBody.querySelectorAll('.cat-suggestion-check').forEach(cb => cb.checked = false);
+            });
+
+            // Cancel
+            catBody.querySelector('#cat-cancel-btn').addEventListener('click', () => {
+                catModal.classList.remove('active');
+            });
+
+            // Apply Selected
+            catBody.querySelector('#cat-apply-btn').addEventListener('click', () => {
+                const selectedIndices = [];
+                catBody.querySelectorAll('.cat-suggestion-check:checked').forEach(cb => {
+                    selectedIndices.push(parseInt(cb.dataset.index));
+                });
+
+                if (selectedIndices.length === 0) {
+                    alert('No suggestions selected. Please check at least one item to apply.');
+                    return;
+                }
+
                 let changedCount = 0;
-                mismatches.forEach(m => {
+                selectedIndices.forEach(idx => {
+                    const m = mismatches[idx];
+                    if (!m) return;
                     const item = library.find(i => i.id === m.id);
                     if (item) {
                         item.chapterId = m.suggested;
-                        // Also update nested data.chapterId so the tag badge updates
                         if (item.data) {
                             item.data.chapterId = m.suggested;
                         }
@@ -3227,19 +3346,24 @@ function setupKnowledgeBase() {
 
                 // Update the currently displayed infographic's tag if it was in the changed set
                 if (currentInfographicData) {
-                    const matchedMismatch = mismatches.find(m => {
+                    for (const idx of selectedIndices) {
+                        const m = mismatches[idx];
+                        if (!m) continue;
                         const item = library.find(i => i.id === m.id);
-                        return item && item.title === currentInfographicData.title;
-                    });
-                    if (matchedMismatch) {
-                        updateInfographicCategoryBadge(matchedMismatch.suggested);
+                        if (item && item.title === currentInfographicData.title) {
+                            updateInfographicCategoryBadge(m.suggested);
+                            break;
+                        }
                     }
                 }
 
+                catModal.classList.remove('active');
                 alert(`✅ Updated categorisation for ${changedCount} item(s)! Tags have been updated.`);
                 renderLibraryList();
                 syncLibraryToServer();
-            }
+            });
+
+            catModal.classList.add('active');
         });
     }
 
@@ -3334,83 +3458,95 @@ function setupKnowledgeBase() {
                 });
             }
 
-            // Helper: render red flag cards (filtered or all)
-            function renderRedFlagCards(items, filterLabel) {
-                const body = redFlagModal.querySelector('#red-flag-body');
-                body.innerHTML = `
-                    <!-- Category Filter Dropdown -->
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
-                        <label for="red-flag-category-filter" style="font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 4px;">
-                            <span class="material-symbols-rounded" style="font-size: 1.1rem;">filter_list</span>
-                            Filter by Category:
-                        </label>
-                        <select id="red-flag-category-filter" style="padding: 0.5rem 1rem; border: 1px solid #fecaca; border-radius: 8px; font-size: 0.9rem; background: white; color: #374151; min-width: 180px;">
-                            <option value="all">All Categories (${redFlagItems.length})</option>
-                            ${categoryOptions.map(c => `<option value="${c.id}" ${filterLabel === c.id ? 'selected' : ''}>${c.name} (${redFlagItems.filter(i => i.chapterId === c.id).length})</option>`).join('')}
-                        </select>
+            // Render all cards once with data-chapter attributes for filtering
+            const body = redFlagModal.querySelector('#red-flag-body');
+            body.innerHTML = `
+                <!-- Category Filter Dropdown -->
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <label for="red-flag-category-filter" style="font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">filter_list</span>
+                        Filter by Category:
+                    </label>
+                    <select id="red-flag-category-filter" style="padding: 0.5rem 1rem; border: 1px solid #fecaca; border-radius: 8px; font-size: 0.9rem; background: white; color: #374151; min-width: 180px;">
+                        <option value="all">All Categories (${redFlagItems.length})</option>
+                        ${categoryOptions.map(c => `<option value="${c.id}">${c.name} (${redFlagItems.filter(i => i.chapterId === c.id).length})</option>`).join('')}
+                    </select>
+                </div>
+                <p id="red-flag-count-text" style="margin-bottom: 1rem; color: #ef4444; font-weight: 500;">
+                    Showing ${redFlagItems.length} infographic(s) with red flag warnings:
+                </p>
+                ${redFlagItems.map(item => {
+                    const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
+                    const catBadge = ch && item.chapterId !== 'uncategorized'
+                        ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
+                        : '';
+                    return `
+                    <div class="red-flag-card" data-chapter="${item.chapterId}" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                        <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
+                            ${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}
+                            ${catBadge}
+                        </h3>
+                        <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
+                            ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
+                        </ul>
+                        <button class="btn-small view-redflag-infographic" data-item-id="${item.id}" style="margin-top: 0.75rem;">
+                            <span class="material-symbols-rounded">visibility</span>
+                            View Infographic
+                        </button>
                     </div>
-                    <p style="margin-bottom: 1rem; color: #ef4444; font-weight: 500;">
-                        Showing ${items.length} infographic(s) with red flag warnings${filterLabel && filterLabel !== 'all' ? ` in "${categoryOptions.find(c => c.id === filterLabel)?.name || filterLabel}"` : ''}:
-                    </p>
-                    ${items.map(item => {
-                        const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
-                        const catBadge = ch && item.chapterId !== 'uncategorized'
-                            ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
-                            : '';
-                        return `
-                        <div class="red-flag-card" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                            <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
-                                ${item.title.substring(0, 50)}${item.title.length > 50 ? '...' : ''}
-                                ${catBadge}
-                            </h3>
-                            <ul style="margin: 0; padding-left: 1.5rem; color: #b91c1c;">
-                                ${item.flags.map(f => `<li style="margin-bottom: 4px;">${f}</li>`).join('')}
-                            </ul>
-                            <button class="btn-small view-redflag-infographic" data-item-id="${item.id}" style="margin-top: 0.75rem;">
-                                <span class="material-symbols-rounded">visibility</span>
-                                View Infographic
-                            </button>
-                        </div>
-                    `}).join('')}
-                `;
+                `}).join('')}
+            `;
 
-                // Attach dropdown filter change handler
-                const filterSelect = body.querySelector('#red-flag-category-filter');
-                if (filterSelect) {
-                    filterSelect.addEventListener('change', (e) => {
-                        const selectedCat = e.target.value;
-                        const filtered = selectedCat === 'all'
-                            ? redFlagItems
-                            : redFlagItems.filter(i => i.chapterId === selectedCat);
-                        renderRedFlagCards(filtered, selectedCat);
-                    });
-                }
+            // Category filter: show/hide cards in-place (no re-render)
+            const filterSelect = body.querySelector('#red-flag-category-filter');
+            const countText = body.querySelector('#red-flag-count-text');
+            if (filterSelect) {
+                filterSelect.addEventListener('change', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const selectedCat = e.target.value;
+                    let visibleCount = 0;
 
-                // Attach click handlers for "View Infographic" buttons
-                body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const itemId = parseInt(btn.dataset.itemId);
-                        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-                        const found = lib.find(i => i.id === itemId);
-                        if (found && found.data) {
-                            renderInfographic(found.data);
-                            redFlagModal.classList.remove('active');
-                            document.getElementById('library-modal').classList.remove('active');
-                        } else if (found) {
-                            const authorInfo = found.communityAuthor ? `\nOriginal author: ${found.communityAuthor}` : '';
-                            alert(
-                                `⚠️ Unable to load "${found.title}"\n\n` +
-                                `The infographic data is missing or corrupted.${authorInfo}\n\n` +
-                                `Please ask the original uploader to resubmit this infographic.`
-                            );
+                    body.querySelectorAll('.red-flag-card').forEach(card => {
+                        if (selectedCat === 'all' || card.dataset.chapter === selectedCat) {
+                            card.style.display = '';
+                            visibleCount++;
+                        } else {
+                            card.style.display = 'none';
                         }
                     });
+
+                    // Update count text
+                    if (countText) {
+                        const catName = selectedCat !== 'all'
+                            ? categoryOptions.find(c => c.id === selectedCat)?.name || selectedCat
+                            : '';
+                        countText.textContent = `Showing ${visibleCount} infographic(s) with red flag warnings${catName ? ` in "${catName}"` : ''}:`;
+                    }
                 });
             }
 
-            // Initial render: show all
-            renderRedFlagCards(redFlagItems, 'all');
+            // Attach click handlers for "View Infographic" buttons
+            body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const itemId = parseInt(btn.dataset.itemId);
+                    const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const found = lib.find(i => i.id === itemId);
+                    if (found && found.data) {
+                        renderInfographic(found.data);
+                        redFlagModal.classList.remove('active');
+                        document.getElementById('library-modal').classList.remove('active');
+                    } else if (found) {
+                        const authorInfo = found.communityAuthor ? `\nOriginal author: ${found.communityAuthor}` : '';
+                        alert(
+                            `⚠️ Unable to load "${found.title}"\n\n` +
+                            `The infographic data is missing or corrupted.${authorInfo}\n\n` +
+                            `Please ask the original uploader to resubmit this infographic.`
+                        );
+                    }
+                });
+            });
             redFlagModal.classList.add('active');
         });
     }
@@ -6737,7 +6873,7 @@ function setupCommunityHub() {
         }
 
         emptyElement.style.display = 'none';
-        container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, true)).join('');
+        container.innerHTML = submissions.map(s => CommunitySubmissions.generateCardHTML(s, false)).join('');
     }
 
     // Tab switching
@@ -6946,6 +7082,46 @@ function setupCommunityHub() {
         } catch (err) {
             console.error('Download error:', err);
             alert('An error occurred while downloading.');
+        }
+    };
+
+    // Approve submission (admin action from community hub)
+    window.handleApproveSubmission = async function (submissionId) {
+        const adminPIN = prompt('Enter admin PIN to approve this submission:');
+        if (!adminPIN) return;
+
+        try {
+            const result = await CommunitySubmissions.approve(submissionId, adminPIN);
+            if (result.success) {
+                alert('Submission approved successfully!');
+                await loadCommunitySubmissions();
+            } else {
+                alert(result.message || 'Failed to approve submission.');
+            }
+        } catch (err) {
+            console.error('Approve error:', err);
+            alert('An error occurred while approving.');
+        }
+    };
+
+    // Reject submission (admin action from community hub)
+    window.handleRejectSubmission = async function (submissionId) {
+        const adminPIN = prompt('Enter admin PIN to reject this submission:');
+        if (!adminPIN) return;
+
+        if (!confirm('Are you sure you want to reject and permanently delete this submission?')) return;
+
+        try {
+            const result = await CommunitySubmissions.reject(submissionId, adminPIN);
+            if (result.success) {
+                alert('Submission rejected and removed.');
+                await loadCommunitySubmissions();
+            } else {
+                alert(result.message || 'Failed to reject submission.');
+            }
+        } catch (err) {
+            console.error('Reject error:', err);
+            alert('An error occurred while rejecting.');
         }
     };
 
