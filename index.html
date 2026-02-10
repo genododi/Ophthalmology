@@ -738,6 +738,14 @@
                         <p>Fresh uploads from community members. They are published instantly so you can preview, like,
                             and add them to your local library.</p>
                     </div>
+                    <div class="community-bulk-actions">
+                        <button id="add-all-pending-to-library-btn" class="btn-primary"
+                            style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="material-symbols-rounded">library_add</span>
+                            Add All to Library
+                        </button>
+                        <span id="add-all-pending-progress" class="bulk-progress" style="display: none;"></span>
+                    </div>
                     <div id="pending-submissions-list" class="community-grid">
                         <!-- Submissions will be injected here -->
                     </div>

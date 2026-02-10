@@ -7226,6 +7226,90 @@ function setupCommunityHub() {
         });
     }
 
+    // Add All to Library button (Bulk download PENDING / New Uploads)
+    const addAllPendingBtn = document.getElementById('add-all-pending-to-library-btn');
+    const addAllPendingProgress = document.getElementById('add-all-pending-progress');
+
+    if (addAllPendingBtn) {
+        addAllPendingBtn.addEventListener('click', async () => {
+            const pending = cachedSubmissions.submissions || [];
+
+            if (pending.length === 0) {
+                alert('No new uploads to add.');
+                return;
+            }
+
+            const replaceExisting = confirm(
+                `Add all ${pending.length} new uploads to your library?\n\n` +
+                `Click OK to REPLACE existing duplicates with updated versions.\n` +
+                `Click Cancel to skip duplicates (keep existing).`
+            );
+
+            if (!replaceExisting) {
+                if (!confirm(`Add all ${pending.length} uploads, SKIPPING any that already exist in your library?`)) {
+                    return;
+                }
+            }
+
+            addAllPendingBtn.disabled = true;
+            const originalHTML = addAllPendingBtn.innerHTML;
+            addAllPendingBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Processing...';
+
+            if (addAllPendingProgress) {
+                addAllPendingProgress.style.display = 'flex';
+                addAllPendingProgress.className = 'bulk-progress';
+            }
+
+            let added = 0;
+            let replaced = 0;
+            let skipped = 0;
+            let failed = 0;
+
+            for (let i = 0; i < pending.length; i++) {
+                const submission = pending[i];
+
+                if (addAllPendingProgress) {
+                    addAllPendingProgress.textContent = `Processing ${i + 1}/${pending.length}...`;
+                }
+
+                try {
+                    let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
+                    if (result.success) {
+                        added++;
+                    } else if (result.status === 'duplicate' && replaceExisting) {
+                        result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
+                        if (result.success) {
+                            replaced++;
+                        } else {
+                            failed++;
+                        }
+                    } else if (result.status === 'duplicate') {
+                        skipped++;
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    console.error(`Failed to add ${submission.title}:`, err);
+                    failed++;
+                }
+            }
+
+            if (addAllPendingProgress) {
+                addAllPendingProgress.className = 'bulk-progress success';
+                addAllPendingProgress.textContent = `Done: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed`;
+            }
+
+            addAllPendingBtn.disabled = false;
+            addAllPendingBtn.innerHTML = originalHTML;
+
+            let msg = `Bulk import complete!\n\n✓ Added: ${added}`;
+            if (replaced > 0) msg += `\n↻ Replaced: ${replaced}`;
+            if (skipped > 0) msg += `\n⊘ Skipped: ${skipped}`;
+            if (failed > 0) msg += `\n✗ Failed: ${failed}`;
+            alert(msg);
+        });
+    }
+
     if (closeCommBtn) {
         closeCommBtn.addEventListener('click', () => {
             communityModal.classList.remove('active');
