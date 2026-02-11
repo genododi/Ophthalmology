@@ -2351,6 +2351,11 @@ function setupKnowledgeBase() {
             const itemTitle = currentInfographicData.title || "Untitled Infographic";
             const autoChapter = autoDetectChapter(itemTitle);
 
+            // Sync chapterId into the infographic data so the tag renders correctly
+            if (autoChapter !== 'uncategorized') {
+                currentInfographicData.chapterId = autoChapter;
+            }
+
             const newItem = {
                 id: Date.now(),
                 seqId: 1, // Will be reassigned below
@@ -2479,6 +2484,18 @@ function setupKnowledgeBase() {
 
         // Ensure IDs are assigned (Migration check)
         if (assignSequentialIds(library)) {
+            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+        }
+
+        // Sync chapterId into data.chapterId for all items (ensures tag always matches)
+        let chapterSynced = false;
+        library.forEach(item => {
+            if (item.data && item.chapterId && item.data.chapterId !== item.chapterId) {
+                item.data.chapterId = item.chapterId;
+                chapterSynced = true;
+            }
+        });
+        if (chapterSynced) {
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
         }
 
@@ -3051,6 +3068,10 @@ function setupKnowledgeBase() {
                             );
                             // Still attempt to render (will show the in-page error with resubmission notice)
                         }
+                        // Sync the library's chapterId into data so the tag renders correctly
+                        if (targetItem.data && targetItem.chapterId) {
+                            targetItem.data.chapterId = targetItem.chapterId;
+                        }
                         currentInfographicData = targetItem.data;
                         renderInfographic(targetItem.data);
                         modal.classList.remove('active');
@@ -3534,6 +3555,8 @@ function setupKnowledgeBase() {
                     const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                     const found = lib.find(i => i.id === itemId);
                     if (found && found.data) {
+                        // Sync library chapterId into data for correct tag rendering
+                        if (found.chapterId) found.data.chapterId = found.chapterId;
                         renderInfographic(found.data);
                         redFlagModal.classList.remove('active');
                         document.getElementById('library-modal').classList.remove('active');
@@ -4397,7 +4420,7 @@ async function generateInfographicData(apiKey, topic) {
                         // Create as many sections as needed to cover ALL input text.
                         {
                             "title": "Section Title",
-                            "icon": "material_symbol_name", 
+                            "icon": "valid_material_symbols_rounded_name", // MUST be a valid Google Material Symbols Rounded icon name e.g. "visibility", "biotech", "warning", "lightbulb", "medication", "psychology", "cardiology", "science", "menu_book", "analytics", "school", "healing", "fingerprint", "genetics"
                             "type": "layout_type", // "chart", "red_flag", "mindmap", "remember", "key_point", "process", "plain_text", "table"
                             "layout": "full_width" | "half_width", // Use "full_width" for large diagrams or main headers
                             "color_theme": "blue" | "red" | "green" | "yellow" | "purple", 
@@ -4491,6 +4514,499 @@ function updateInfographicCategoryBadge(newChapterId) {
     if (currentInfographicData) {
         currentInfographicData.chapterId = newChapterId;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MATERIAL SYMBOLS ICON SANITIZER
+// Maps AI-generated icon names that are NOT valid Material Symbols
+// to their closest valid equivalents. Prevents broken/empty icon boxes.
+// ═══════════════════════════════════════════════════════════════════════
+const ICON_FALLBACK_MAP = {
+    // Science & Medical - common AI-generated invalid names
+    'microscope': 'biotech',
+    'dna': 'genetics',
+    'gene': 'genetics',
+    'genetics_icon': 'genetics',
+    'molecule': 'science',
+    'atom': 'science',
+    'flask': 'science',
+    'test_tube': 'science',
+    'lab': 'science',
+    'laboratory': 'science',
+    'beaker': 'science',
+    'experiment': 'science',
+    'research': 'biotech',
+    'heart_pulse': 'cardiology',
+    'heartbeat': 'cardiology',
+    'heart_rate': 'cardiology',
+    'pulse': 'cardiology',
+    'heart': 'favorite',
+    'stethoscope': 'stethoscope_check',
+    'syringe': 'vaccines',
+    'injection': 'vaccines',
+    'needle': 'vaccines',
+    'pill': 'medication',
+    'pills': 'medication',
+    'capsule': 'medication',
+    'drug': 'medication',
+    'medicine': 'medication',
+    'prescription': 'clinical_notes',
+    'hospital': 'local_hospital',
+    'clinic': 'local_hospital',
+    'ambulance': 'emergency',
+    'first_aid': 'medical_services',
+    'bandage': 'healing',
+    'wound': 'healing',
+    'bone': 'orthopedics',
+    'skeleton': 'orthopedics',
+    'brain': 'psychology',
+    'neurology': 'psychology',
+    'mental': 'psychology',
+    'lung': 'pulmonology',
+    'lungs': 'pulmonology',
+    'breathing': 'pulmonology',
+    'stomach': 'gastroenterology',
+    'kidney': 'nephrology',
+    'liver': 'hepatology',
+    'blood': 'bloodtype',
+    'blood_drop': 'bloodtype',
+    'virus': 'coronavirus',
+    'bacteria': 'coronavirus',
+    'germ': 'coronavirus',
+    'infection': 'coronavirus',
+    'microbe': 'coronavirus',
+    'pathogen': 'coronavirus',
+    'thermometer': 'device_thermostat',
+    'temperature': 'device_thermostat',
+    'fever': 'device_thermostat',
+    'scan': 'radiology',
+    'xray': 'radiology',
+    'x_ray': 'radiology',
+    'ct_scan': 'radiology',
+    'mri': 'radiology',
+    'imaging': 'radiology',
+    'ultrasound': 'radiology',
+
+    // Eye / Ophthalmology specific
+    'eye': 'visibility',
+    'eyes': 'visibility',
+    'vision': 'visibility',
+    'sight': 'visibility',
+    'retina': 'visibility',
+    'cornea': 'visibility',
+    'pupil': 'visibility',
+    'lens_eye': 'visibility',
+    'ophthalmology': 'visibility',
+    'optic': 'visibility',
+    'eyeglasses': 'eyeglasses',
+    'glasses': 'eyeglasses',
+    'spectacles': 'eyeglasses',
+    'blind': 'visibility_off',
+    'blindness': 'visibility_off',
+    'eye_closed': 'visibility_off',
+
+    // Charts & Data
+    'chart': 'bar_chart',
+    'graph': 'bar_chart',
+    'bar_graph': 'bar_chart',
+    'histogram': 'bar_chart',
+    'pie_chart': 'pie_chart',
+    'line_chart': 'show_chart',
+    'line_graph': 'show_chart',
+    'trend': 'trending_up',
+    'statistics': 'query_stats',
+    'stats': 'query_stats',
+    'data': 'analytics',
+    'analysis': 'analytics',
+    'analyze': 'analytics',
+    'analytics_icon': 'analytics',
+    'metrics': 'analytics',
+    'measure': 'straighten',
+    'measurement': 'straighten',
+    'scale': 'scale',
+    'ruler': 'straighten',
+
+    // Documents & Learning
+    'book': 'menu_book',
+    'textbook': 'menu_book',
+    'reference': 'menu_book',
+    'bibliography': 'menu_book',
+    'library': 'local_library',
+    'study': 'school',
+    'education': 'school',
+    'learn': 'school',
+    'teach': 'school',
+    'lecture': 'school',
+    'graduation': 'school',
+    'certificate': 'workspace_premium',
+    'diploma': 'workspace_premium',
+    'document': 'description',
+    'file': 'description',
+    'paper': 'description',
+    'report': 'summarize',
+    'summary': 'summarize',
+    'notes': 'clinical_notes',
+    'note': 'clinical_notes',
+    'clipboard': 'assignment',
+    'checklist_icon': 'checklist',
+    'todo': 'checklist',
+    'pencil': 'edit',
+    'pen': 'edit',
+    'write': 'edit',
+    'compose': 'edit_note',
+
+    // People & Body
+    'person': 'person',
+    'user': 'person',
+    'patient': 'personal_injury',
+    'doctor': 'medical_information',
+    'surgeon': 'medical_information',
+    'nurse': 'medical_information',
+    'team': 'groups',
+    'group': 'groups',
+    'people': 'groups',
+    'family': 'family_restroom',
+    'child': 'child_care',
+    'baby': 'child_care',
+    'infant': 'child_care',
+    'elderly': 'elderly',
+    'hand': 'back_hand',
+    'finger': 'back_hand',
+    'touch': 'touch_app',
+
+    // Navigation & Markers
+    'target': 'gps_fixed',
+    'bullseye': 'gps_fixed',
+    'aim': 'gps_fixed',
+    'focus': 'center_focus_strong',
+    'crosshair': 'gps_fixed',
+    'pin': 'push_pin',
+    'marker': 'push_pin',
+    'location': 'location_on',
+    'map': 'map',
+    'compass': 'explore',
+    'navigate': 'navigation',
+    'direction': 'navigation',
+    'arrow': 'arrow_forward',
+    'pointer': 'arrow_forward',
+    'path': 'route',
+    'road': 'route',
+
+    // Warning & Status
+    'danger': 'dangerous',
+    'hazard': 'dangerous',
+    'toxic': 'dangerous',
+    'caution': 'warning',
+    'alert': 'warning',
+    'alarm': 'alarm',
+    'exclamation': 'priority_high',
+    'important': 'priority_high',
+    'urgent': 'priority_high',
+    'critical': 'emergency',
+    'stop': 'block',
+    'forbidden': 'block',
+    'banned': 'block',
+    'error_icon': 'error',
+    'bug': 'bug_report',
+    'issue': 'bug_report',
+
+    // Common objects
+    'key': 'key',
+    'lock': 'lock',
+    'unlock': 'lock_open',
+    'shield': 'shield',
+    'protect': 'shield',
+    'defense': 'shield',
+    'security': 'security',
+    'safe': 'security',
+    'clock': 'schedule',
+    'time': 'schedule',
+    'timer': 'timer',
+    'hourglass': 'hourglass_empty',
+    'calendar': 'calendar_today',
+    'date': 'calendar_today',
+    'bell': 'notifications',
+    'notification': 'notifications',
+    'mail': 'mail',
+    'email': 'mail',
+    'envelope': 'mail',
+    'phone': 'phone',
+    'call': 'phone',
+    'camera': 'photo_camera',
+    'photo': 'photo_camera',
+    'image': 'image',
+    'picture': 'image',
+    'video': 'videocam',
+    'film': 'movie',
+    'play': 'play_arrow',
+    'music': 'music_note',
+    'speaker': 'volume_up',
+    'volume': 'volume_up',
+    'microphone': 'mic',
+    'mic': 'mic',
+    'battery': 'battery_full',
+    'power': 'power',
+    'plug': 'power',
+    'lightning': 'bolt',
+    'bolt': 'bolt',
+    'electricity': 'bolt',
+    'fire': 'local_fire_department',
+    'flame': 'local_fire_department',
+    'water': 'water_drop',
+    'drop': 'water_drop',
+    'droplet': 'water_drop',
+    'sun': 'light_mode',
+    'sunshine': 'light_mode',
+    'bright': 'light_mode',
+    'moon': 'dark_mode',
+    'night': 'dark_mode',
+    'cloud': 'cloud',
+    'weather': 'cloud',
+    'rain': 'rainy',
+    'snow': 'ac_unit',
+    'wind': 'air',
+    'tree': 'park',
+    'plant': 'eco',
+    'leaf': 'eco',
+    'nature': 'eco',
+    'flower': 'local_florist',
+    'animal': 'pets',
+    'pet': 'pets',
+    'dog': 'pets',
+    'cat': 'pets',
+    'globe': 'public',
+    'world': 'public',
+    'earth': 'public',
+    'planet': 'public',
+    'star': 'star',
+    'stars': 'star',
+    'rating': 'star',
+    'diamond': 'diamond',
+    'gem': 'diamond',
+    'trophy': 'emoji_events',
+    'award': 'emoji_events',
+    'medal': 'military_tech',
+    'crown': 'workspace_premium',
+    'king': 'workspace_premium',
+    'queen': 'workspace_premium',
+
+    // Technology
+    'computer': 'computer',
+    'laptop': 'laptop',
+    'desktop': 'desktop_windows',
+    'monitor': 'desktop_windows',
+    'screen': 'desktop_windows',
+    'mobile': 'smartphone',
+    'smartphone': 'smartphone',
+    'tablet': 'tablet',
+    'wifi': 'wifi',
+    'internet': 'language',
+    'web': 'language',
+    'browser': 'language',
+    'website': 'language',
+    'link': 'link',
+    'chain': 'link',
+    'code': 'code',
+    'programming': 'code',
+    'terminal': 'terminal',
+    'database': 'storage',
+    'server': 'dns',
+    'cloud_computing': 'cloud',
+    'download': 'download',
+    'upload': 'upload',
+    'refresh': 'refresh',
+    'sync': 'sync',
+    'settings': 'settings',
+    'gear': 'settings',
+    'cog': 'settings',
+    'wrench': 'build',
+    'tool': 'build',
+    'tools': 'build',
+    'hammer': 'build',
+    'robot': 'smart_toy',
+    'ai': 'smart_toy',
+
+    // Rehabilitation / Therapy
+    'rehabilitation': 'accessibility_new',
+    'therapy': 'accessibility_new',
+    'recovery': 'healing',
+    'rehab': 'accessibility_new',
+    'physiotherapy': 'accessibility_new',
+    'exercise': 'fitness_center',
+    'workout': 'fitness_center',
+    'gym': 'fitness_center',
+    'muscle': 'fitness_center',
+    'strength': 'fitness_center',
+    'yoga': 'self_improvement',
+    'meditation': 'self_improvement',
+    'wellness': 'spa',
+    'spa': 'spa',
+    'relax': 'spa',
+    'biometrics': 'fingerprint',
+    'fingerprint': 'fingerprint',
+    'identity': 'fingerprint',
+    'identification': 'badge',
+
+    // Misc frequently generated
+    'hole': 'radio_button_unchecked',
+    'circle_outline': 'radio_button_unchecked',
+    'ring': 'radio_button_unchecked',
+    'dot': 'fiber_manual_record',
+    'spot': 'fiber_manual_record',
+    'point': 'fiber_manual_record',
+    'legend': 'format_list_bulleted',
+    'list_icon': 'format_list_bulleted',
+    'bullet': 'format_list_bulleted',
+    'numbered_list': 'format_list_numbered',
+    'steps': 'format_list_numbered',
+    'step': 'looks_one',
+    'number': 'tag',
+    'hash': 'tag',
+    'hashtag': 'tag',
+    'label': 'label',
+    'tag_icon': 'label',
+    'category': 'category',
+    'folder': 'folder',
+    'box': 'inventory_2',
+    'package': 'inventory_2',
+    'container': 'inventory_2',
+    'basket': 'shopping_basket',
+    'cart': 'shopping_cart',
+    'bag': 'shopping_bag',
+    'gift': 'redeem',
+    'present': 'redeem',
+    'money': 'payments',
+    'cash': 'payments',
+    'dollar': 'attach_money',
+    'currency': 'attach_money',
+    'coin': 'monetization_on',
+    'bank': 'account_balance',
+    'building': 'apartment',
+    'house': 'home',
+    'home_icon': 'home',
+    'puzzle': 'extension',
+    'jigsaw': 'extension',
+    'magic': 'auto_fix_high',
+    'wand': 'auto_fix_high',
+    'sparkle': 'auto_awesome',
+    'shine': 'auto_awesome',
+    'glow': 'auto_awesome',
+    'idea': 'lightbulb',
+    'bulb': 'lightbulb',
+    'lamp': 'lightbulb',
+    'light': 'lightbulb',
+    'think': 'lightbulb',
+    'thought': 'lightbulb',
+    'brain_idea': 'lightbulb',
+    'question': 'help',
+    'help_icon': 'help',
+    'faq': 'help',
+    'info_icon': 'info',
+    'information': 'info',
+    'about': 'info',
+    'check': 'check_circle',
+    'tick': 'check_circle',
+    'done': 'check_circle',
+    'success': 'check_circle',
+    'correct': 'check_circle',
+    'approve': 'check_circle',
+    'close_icon': 'cancel',
+    'cross': 'cancel',
+    'x': 'cancel',
+    'deny': 'cancel',
+    'reject': 'cancel',
+    'plus': 'add_circle',
+    'add_icon': 'add_circle',
+    'new': 'add_circle',
+    'minus': 'remove_circle',
+    'remove': 'remove_circle',
+    'subtract': 'remove_circle',
+    'compare': 'compare_arrows',
+    'versus': 'compare_arrows',
+    'vs': 'compare_arrows',
+    'swap': 'swap_horiz',
+    'exchange': 'swap_horiz',
+    'switch': 'swap_horiz',
+    'split': 'call_split',
+    'branch': 'call_split',
+    'merge': 'merge',
+    'combine': 'merge',
+    'connect': 'hub',
+    'network': 'hub',
+    'hub_icon': 'hub',
+    'node': 'hub',
+    'tree_structure': 'account_tree',
+    'hierarchy': 'account_tree',
+    'organization': 'account_tree',
+    'flowchart': 'account_tree',
+    'process_icon': 'account_tree',
+    'workflow': 'account_tree',
+    'cycle': 'autorenew',
+    'loop': 'autorenew',
+    'repeat': 'autorenew',
+    'recycle': 'autorenew',
+    'rotate': 'autorenew',
+    'layer': 'layers',
+    'layers_icon': 'layers',
+    'stack': 'layers',
+    'filter_icon': 'filter_list',
+    'sort': 'sort',
+    'order': 'sort',
+    'arrange': 'sort',
+    'search_icon': 'search',
+    'find': 'search',
+    'lookup': 'search',
+    'magnify': 'search',
+    'zoom': 'zoom_in',
+    'expand': 'open_in_full',
+    'fullscreen': 'fullscreen',
+    'minimize': 'close_fullscreen',
+    'shrink': 'close_fullscreen',
+    'crop': 'crop',
+    'cut': 'content_cut',
+    'scissors': 'content_cut',
+    'copy': 'content_copy',
+    'paste': 'content_paste',
+    'share': 'share',
+    'send': 'send',
+    'forward': 'forward',
+    'reply': 'reply',
+    'undo': 'undo',
+    'redo': 'redo',
+    'save_icon': 'save',
+    'floppy': 'save',
+    'print': 'print',
+    'printer': 'print',
+    'delete_icon': 'delete',
+    'trash': 'delete',
+    'bin': 'delete',
+    'recycle_bin': 'delete',
+};
+
+/**
+ * Sanitize an icon name to ensure it's a valid Material Symbols Rounded icon.
+ * Maps common AI-generated invalid names to valid equivalents.
+ * Falls back to a safe default if the icon is unknown.
+ */
+function sanitizeMaterialIcon(iconName) {
+    if (!iconName || typeof iconName !== 'string') return 'circle';
+
+    // Clean up the icon name
+    const cleaned = iconName.trim().toLowerCase().replace(/-/g, '_');
+
+    // Check if it's in our fallback map (known invalid → valid mapping)
+    if (ICON_FALLBACK_MAP[cleaned]) {
+        return ICON_FALLBACK_MAP[cleaned];
+    }
+
+    // Return as-is if it looks like a valid Material Symbols name
+    // (lowercase with underscores, no spaces, no special chars)
+    if (/^[a-z][a-z0-9_]*$/.test(cleaned)) {
+        return cleaned;
+    }
+
+    // Last resort: return a safe default
+    return 'circle';
 }
 
 function renderInfographic(data) {
@@ -4628,7 +5144,7 @@ function renderInfographic(data) {
 
         card.style.animationDelay = `${index * 100}ms`;
 
-        const iconName = section.icon || 'circle';
+        const iconName = sanitizeMaterialIcon(section.icon || 'circle');
 
         let contentHtml = '';
 
