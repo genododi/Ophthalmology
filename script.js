@@ -2501,6 +2501,261 @@ function setupKnowledgeBase() {
         });
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // CONTENT FILTER MODAL — displays matching section text like red flags
+    // ═══════════════════════════════════════════════════════════════
+    function openContentFilterModal(filterType, library) {
+        const filterDef = CONTENT_TYPE_FILTERS.find(f => f.id === filterType);
+        if (!filterDef || !filterDef.keywords) return;
+
+        // Helper: safely extract text from section content
+        function extractSectionText(section) {
+            if (!section || !section.content) return [];
+            const lines = [];
+            try {
+                if (typeof section.content === 'string') {
+                    lines.push(section.content);
+                } else if (Array.isArray(section.content)) {
+                    section.content.forEach(c => {
+                        if (typeof c === 'string') lines.push(c);
+                        else if (c && c.label) lines.push(`${c.label}${c.value !== undefined ? ': ' + c.value : ''}`);
+                        else if (c && typeof c === 'object') {
+                            // Table rows, mindmap nodes, etc.
+                            const parts = Object.entries(c).map(([k, v]) => `${k}: ${v}`);
+                            lines.push(parts.join(' | '));
+                        }
+                    });
+                } else if (typeof section.content === 'object') {
+                    // Chart data, mindmap, etc.
+                    if (section.content.data && Array.isArray(section.content.data)) {
+                        section.content.data.forEach(d => {
+                            if (d.label) lines.push(`${d.label}${d.value !== undefined ? ': ' + d.value : ''}`);
+                        });
+                    }
+                    if (section.content.explanation) lines.push(section.content.explanation);
+                    if (section.content.mnemonic) lines.push(section.content.mnemonic);
+                    if (section.content.items && Array.isArray(section.content.items)) {
+                        section.content.items.forEach(it => {
+                            if (typeof it === 'string') lines.push(it);
+                            else if (it && it.text) lines.push(it.text);
+                            else if (it && it.label) lines.push(it.label);
+                        });
+                    }
+                    // Table: rows
+                    if (section.content.headers && section.content.rows) {
+                        lines.push(section.content.headers.join(' | '));
+                        section.content.rows.forEach(row => {
+                            if (Array.isArray(row)) lines.push(row.join(' | '));
+                        });
+                    }
+                }
+            } catch { /* ignore */ }
+            return lines;
+        }
+
+        // Scan library for matching content
+        const matchingItems = [];
+        library.forEach(item => {
+            try {
+                if (!item.data || !item.data.sections) return;
+                const sections = Array.isArray(item.data.sections) ? item.data.sections : [];
+                const matchedSections = [];
+
+                sections.forEach(section => {
+                    if (!section) return;
+                    const sTitle = (section.title || '').toLowerCase();
+                    let sContentText = '';
+                    try {
+                        const lines = extractSectionText(section);
+                        sContentText = lines.join(' ').toLowerCase();
+                    } catch { sContentText = ''; }
+                    const combined = sTitle + ' ' + sContentText;
+
+                    // Check if matches by type or keywords
+                    let matches = false;
+                    if (filterDef.sectionTypes && filterDef.sectionTypes.includes(section.type)) matches = true;
+                    if (!matches) matches = filterDef.keywords.some(kw => combined.includes(kw));
+
+                    if (matches) {
+                        const textLines = extractSectionText(section);
+                        matchedSections.push({
+                            title: section.title || 'Untitled Section',
+                            type: section.type || 'unknown',
+                            lines: textLines
+                        });
+                    }
+                });
+
+                if (matchedSections.length > 0) {
+                    matchingItems.push({
+                        id: item.id,
+                        title: item.title,
+                        chapterId: item.chapterId || 'uncategorized',
+                        sections: matchedSections
+                    });
+                }
+            } catch { /* skip malformed items */ }
+        });
+
+        if (matchingItems.length === 0) {
+            alert(`No "${filterDef.name}" content found across your library.`);
+            return;
+        }
+
+        // Collect categories for the filter dropdown
+        const categoriesPresent = [...new Set(matchingItems.map(i => i.chapterId))];
+        const catOptions = categoriesPresent.map(cId => {
+            const ch = DEFAULT_CHAPTERS.find(c => c.id === cId);
+            return { id: cId, name: ch ? ch.name : cId, color: ch ? ch.color : '#64748b' };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        // Theme colors per filter type
+        const themeColors = {
+            tables: { bg: '#eff6ff', border: '#bfdbfe', header: '#2563eb', headerEnd: '#1d4ed8', accent: '#1e40af' },
+            causes: { bg: '#fefce8', border: '#fef08a', header: '#ca8a04', headerEnd: '#a16207', accent: '#854d0e' },
+            clinical: { bg: '#f0fdf4', border: '#bbf7d0', header: '#16a34a', headerEnd: '#15803d', accent: '#166534' },
+            complications: { bg: '#fef2f2', border: '#fecaca', header: '#ef4444', headerEnd: '#dc2626', accent: '#b91c1c' },
+            workup: { bg: '#faf5ff', border: '#e9d5ff', header: '#9333ea', headerEnd: '#7e22ce', accent: '#6b21a8' },
+            investigations: { bg: '#ecfeff', border: '#a5f3fc', header: '#0891b2', headerEnd: '#0e7490', accent: '#155e75' },
+            treatment: { bg: '#fff7ed', border: '#fed7aa', header: '#ea580c', headerEnd: '#c2410c', accent: '#9a3412' },
+        };
+        const theme = themeColors[filterType] || themeColors.tables;
+
+        // Create or reuse modal
+        let cfModal = document.getElementById('content-filter-modal');
+        if (!cfModal) {
+            cfModal = document.createElement('div');
+            cfModal.id = 'content-filter-modal';
+            cfModal.className = 'modal-overlay';
+            cfModal.innerHTML = `
+                <div class="modal-content modal-lg" id="cf-modal-inner" style="border: 2px solid ${theme.border};">
+                    <div class="modal-header" id="cf-modal-header" style="background: linear-gradient(135deg, ${theme.header} 0%, ${theme.headerEnd} 100%); color: white;">
+                        <h2 id="cf-modal-title" style="display: flex; align-items: center; gap: 8px;"></h2>
+                        <button id="close-cf-modal" class="icon-btn-ghost" style="color: white;">
+                            <span class="material-symbols-rounded">close</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="cf-modal-body" style="max-height: 70vh; overflow-y: auto;"></div>
+                </div>
+            `;
+            document.body.appendChild(cfModal);
+
+            cfModal.querySelector('#close-cf-modal').addEventListener('click', () => {
+                cfModal.classList.remove('active');
+            });
+            cfModal.addEventListener('click', (e) => {
+                if (e.target === cfModal) cfModal.classList.remove('active');
+            });
+        }
+
+        // Update modal theme
+        const inner = cfModal.querySelector('#cf-modal-inner');
+        inner.style.border = `2px solid ${theme.header}`;
+        const header = cfModal.querySelector('#cf-modal-header');
+        header.style.background = `linear-gradient(135deg, ${theme.header} 0%, ${theme.headerEnd} 100%)`;
+
+        // Set title
+        cfModal.querySelector('#cf-modal-title').innerHTML = `
+            <span class="material-symbols-rounded">${filterDef.icon}</span>
+            ${filterDef.name}
+        `;
+
+        // Render body
+        const cfBody = cfModal.querySelector('#cf-modal-body');
+        const totalSections = matchingItems.reduce((sum, i) => sum + i.sections.length, 0);
+
+        cfBody.innerHTML = `
+            <!-- Category filter -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                <label style="font-weight: 600; color: ${theme.accent}; display: flex; align-items: center; gap: 4px;">
+                    <span class="material-symbols-rounded" style="font-size: 1.1rem;">filter_list</span>
+                    Filter by Category:
+                </label>
+                <select id="cf-category-filter" style="padding: 0.5rem 1rem; border: 1px solid ${theme.border}; border-radius: 8px; font-size: 0.9rem; background: white; color: #374151; min-width: 180px;">
+                    <option value="all">All Categories (${matchingItems.length})</option>
+                    ${catOptions.map(c => `<option value="${c.id}">${c.name} (${matchingItems.filter(i => i.chapterId === c.id).length})</option>`).join('')}
+                </select>
+            </div>
+            <p id="cf-count-text" style="margin-bottom: 1rem; color: ${theme.accent}; font-weight: 500;">
+                Found ${totalSections} matching section(s) across ${matchingItems.length} infographic(s):
+            </p>
+            ${matchingItems.map(item => {
+                const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
+                const catBadge = ch && item.chapterId !== 'uncategorized'
+                    ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
+                    : '';
+                return `
+                <div class="cf-card" data-chapter="${item.chapterId}" style="background: ${theme.bg}; border: 1px solid ${theme.border}; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <h3 style="color: ${theme.accent}; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span class="material-symbols-rounded" style="font-size: 1.2rem;">${filterDef.icon}</span>
+                        ${item.title.substring(0, 60)}${item.title.length > 60 ? '...' : ''}
+                        ${catBadge}
+                    </h3>
+                    ${item.sections.map(sec => `
+                        <div style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: white; border-radius: 6px; border-left: 3px solid ${theme.header};">
+                            <div style="font-weight: 600; font-size: 0.85rem; color: ${theme.accent}; margin-bottom: 4px;">
+                                ${sec.title}
+                            </div>
+                            ${sec.lines.length > 0 ? `
+                                <ul style="margin: 0; padding-left: 1.25rem; color: #374151; font-size: 0.85rem;">
+                                    ${sec.lines.slice(0, 20).map(l => `<li style="margin-bottom: 3px;">${l}</li>`).join('')}
+                                    ${sec.lines.length > 20 ? `<li style="color: #94a3b8; font-style: italic;">...and ${sec.lines.length - 20} more items</li>` : ''}
+                                </ul>
+                            ` : '<p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">No text content extracted.</p>'}
+                        </div>
+                    `).join('')}
+                    <button class="btn-small cf-view-btn" data-item-id="${item.id}" style="margin-top: 0.5rem;">
+                        <span class="material-symbols-rounded">visibility</span>
+                        View Infographic
+                    </button>
+                </div>
+            `}).join('')}
+        `;
+
+        // Category filter: show/hide in-place
+        const cfFilter = cfBody.querySelector('#cf-category-filter');
+        const cfCountText = cfBody.querySelector('#cf-count-text');
+        if (cfFilter) {
+            cfFilter.addEventListener('change', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const sel = e.target.value;
+                let visCount = 0;
+                let secCount = 0;
+                cfBody.querySelectorAll('.cf-card').forEach(card => {
+                    if (sel === 'all' || card.dataset.chapter === sel) {
+                        card.style.display = '';
+                        visCount++;
+                        secCount += card.querySelectorAll('[style*="border-left"]').length;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                if (cfCountText) {
+                    const catName = sel !== 'all' ? catOptions.find(c => c.id === sel)?.name || sel : '';
+                    cfCountText.textContent = `Found ${secCount} matching section(s) across ${visCount} infographic(s)${catName ? ` in "${catName}"` : ''}:`;
+                }
+            });
+        }
+
+        // View infographic buttons
+        cfBody.querySelectorAll('.cf-view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const itemId = parseInt(btn.dataset.itemId);
+                const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                const found = lib.find(i => i.id === itemId);
+                if (found && found.data) {
+                    if (found.chapterId) found.data.chapterId = found.chapterId;
+                    renderInfographic(found.data);
+                    cfModal.classList.remove('active');
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        cfModal.classList.add('active');
+    }
+
     function renderLibraryList() {
         const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
 
@@ -2800,16 +3055,22 @@ function setupKnowledgeBase() {
             });
         }
 
-        // Content-Type Filter Handler
+        // Content-Type Filter Handler — opens a modal showing matching text content
         const contentFilterSelect = toolbar.querySelector('#content-type-filter');
         if (contentFilterSelect) {
             contentFilterSelect.addEventListener('change', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 const newValue = e.target.value;
-                currentContentFilter = newValue;
-                // Defer re-render to next tick to avoid DOM destruction during event
-                setTimeout(() => { renderLibraryList(); }, 0);
+                if (newValue === 'all') {
+                    currentContentFilter = 'all';
+                    setTimeout(() => { renderLibraryList(); }, 0);
+                    return;
+                }
+                // Reset dropdown visually (modal will handle display)
+                e.target.value = 'all';
+                // Open content display modal
+                setTimeout(() => { openContentFilterModal(newValue, library); }, 0);
             });
         }
 
