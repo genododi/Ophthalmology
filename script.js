@@ -5778,6 +5778,11 @@ function renderInfographic(data) {
     // Enable Studio Tools when infographic is generated
     enableStudioTools();
 
+    // Auto-load adhered Kanski images if present
+    setTimeout(() => {
+        loadAdheredKanskiImages(data);
+    }, 100);
+
     // Auto-collapse sidebar to give more space for viewing the infographic
     setTimeout(() => {
         collapseSidebar();
@@ -8585,6 +8590,109 @@ function setupMusicPlayer() {
 }
 
 /* ========================================
+   KANSKI CLINICAL PHOTOS — ADHERED IMAGE LOADER
+   Restores permanently saved Kanski images
+   when an infographic is loaded
+   ======================================== */
+
+function loadAdheredKanskiImages(data) {
+    if (!data) return;
+
+    // Check data itself, or look up in library by title
+    let kanskiImages = data.kanskiImages;
+    if (!kanskiImages || kanskiImages.length === 0) {
+        try {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const item = library.find(i => i.title === data.title);
+            if (item && item.kanskiImages && item.kanskiImages.length > 0) {
+                kanskiImages = item.kanskiImages;
+            }
+        } catch { /* ignore */ }
+    }
+
+    if (!kanskiImages || kanskiImages.length === 0) return;
+
+    const posterGrid = document.querySelector('.poster-grid');
+    if (!posterGrid) return;
+
+    // Remove any existing Kanski section
+    const existing = posterGrid.querySelector('#kanski-images-section');
+    if (existing) existing.remove();
+
+    // Create the Kanski section with Adhere/Remove buttons
+    const kanskiSection = document.createElement('div');
+    kanskiSection.id = 'kanski-images-section';
+    kanskiSection.className = 'poster-card card-key_point col-span-2 theme-blue';
+    kanskiSection.style.cssText = 'animation-delay: 0ms;';
+    kanskiSection.innerHTML = `
+        <h3 class="card-title" style="color: #0e7490;">
+            <div class="icon-box" style="background: linear-gradient(135deg, #0891b2, #0e7490);"><span class="material-symbols-rounded">photo_library</span></div>
+            Kanski Clinical Photos
+            <span style="font-size: 0.7rem; font-weight: 500; color: #059669; margin-left: 6px; padding: 2px 8px; background: #d1fae5; border-radius: 12px;">
+                <span class="material-symbols-rounded" style="font-size: 0.7rem; vertical-align: middle;">push_pin</span> Adhered
+            </span>
+            <span style="font-size: 0.75rem; font-weight: 400; color: #64748b; margin-left: auto;">
+                ${kanskiImages.length} image(s)
+            </span>
+        </h3>
+        <div style="display: flex; gap: 0.5rem; margin: 0.5rem 0; flex-wrap: wrap;">
+            <button id="kanski-adhered-remove-btn" class="btn-small" title="Remove Kanski images from this infographic"
+                style="display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;
+                background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; cursor: pointer; transition: all 0.2s;">
+                <span class="material-symbols-rounded" style="font-size: 1rem;">delete</span>
+                Remove
+            </button>
+        </div>
+        <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
+            ${kanskiImages.map(img => `
+                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
+                    <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
+                        alt="Kanski p.${img.pageNum}" 
+                        onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
+                        title="Click to expand/collapse">
+                    <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                        <strong>p.${img.pageNum}</strong>${img.keywords && img.keywords.length > 0 ? ' · ' + img.keywords.slice(0, 3).join(', ') : ''}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    posterGrid.appendChild(kanskiSection);
+
+    // Remove button handler
+    const removeBtn = kanskiSection.querySelector('#kanski-adhered-remove-btn');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+            const removePermanently = confirm(
+                'Kanski images are permanently adhered to this infographic.\n\n' +
+                'Click OK to remove them permanently (from library too).\n' +
+                'Click Cancel to only hide them for this session.'
+            );
+
+            if (removePermanently) {
+                try {
+                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const item = library.find(i => i.title === data.title);
+                    if (item) {
+                        delete item.kanskiImages;
+                        if (item.data) delete item.data.kanskiImages;
+                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                    }
+                    if (currentInfographicData) delete currentInfographicData.kanskiImages;
+                } catch (err) {
+                    console.error('Error removing adhered Kanski images:', err);
+                }
+            }
+
+            kanskiSection.remove();
+        });
+    }
+
+    console.log(`[Kanski] Loaded ${kanskiImages.length} adhered image(s) for "${data.title}"`);
+}
+
+/* ========================================
    KANSKI CLINICAL PHOTOS
    Import images from Kanski PDF and match
    them to the current infographic topic
@@ -8684,33 +8792,47 @@ function setupKanskiPics() {
         kanskiBtn.innerHTML = '<span class="material-symbols-rounded">image_search</span><span class="tool-label">Matching...</span>';
 
         try {
-            // Extract keywords from the current infographic
-            const keywords = extractInfographicKeywords(currentInfographicData);
-            console.log(`[Kanski] Searching for keywords:`, keywords.slice(0, 15));
+            // Extract weighted keywords from the current infographic
+            const weightedKeywords = extractInfographicKeywordsWeighted(currentInfographicData);
+            console.log(`[Kanski] Primary topic keywords:`, weightedKeywords.filter(k => k.weight >= 20).map(k => k.term));
+            console.log(`[Kanski] Total keywords:`, weightedKeywords.length);
 
-            // Score each page by keyword matches
+            // Score each page by weighted keyword matches
             const scoredPages = [];
             kanskiPageTexts.forEach(({ pageNum, text }) => {
                 if (!text || text.length < 50) return; // Skip nearly empty pages
                 let score = 0;
+                let primaryHits = 0; // Hits from headline/topic keywords
                 const matchedKeywords = [];
-                keywords.forEach(kw => {
-                    const kwLower = kw.toLowerCase();
-                    // Count occurrences
-                    const regex = new RegExp(`\\b${kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+
+                weightedKeywords.forEach(({ term, weight }) => {
+                    const kwLower = term.toLowerCase();
+                    const escaped = kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    // Use word boundary for short terms, looser match for longer phrases
+                    const regex = kwLower.length < 5
+                        ? new RegExp(`\\b${escaped}\\b`, 'gi')
+                        : new RegExp(`\\b${escaped}`, 'gi');
                     const matches = text.match(regex);
                     if (matches) {
-                        score += matches.length * (kwLower.includes(' ') ? 3 : 1); // Multi-word = higher weight
-                        if (!matchedKeywords.includes(kw)) matchedKeywords.push(kw);
+                        const hitScore = matches.length * weight;
+                        score += hitScore;
+                        if (weight >= 20) primaryHits += matches.length;
+                        if (!matchedKeywords.includes(term)) matchedKeywords.push(term);
                     }
                 });
+
                 if (score > 0) {
-                    scoredPages.push({ pageNum, score, matchedKeywords });
+                    scoredPages.push({ pageNum, score, primaryHits, matchedKeywords });
                 }
             });
 
-            // Sort by score descending, take top pages
-            scoredPages.sort((a, b) => b.score - a.score);
+            // Sort: pages with primary topic hits first, then by total score
+            scoredPages.sort((a, b) => {
+                // Primary topic hits are most important
+                if (b.primaryHits !== a.primaryHits) return b.primaryHits - a.primaryHits;
+                return b.score - a.score;
+            });
+
             const topPages = scoredPages.slice(0, 12); // Max 12 images
 
             if (topPages.length === 0) {
@@ -8732,45 +8854,225 @@ function setupKanskiPics() {
         }
     }
 
-    function extractInfographicKeywords(data) {
-        const keywords = new Set();
+    /**
+     * Extract keywords from infographic data with WEIGHTS.
+     * Ophthalmic headline topic terms get highest weight (50x),
+     * title medical terms get high weight (20x),
+     * section titles get medium weight (5x),
+     * generic content words get low weight (1x).
+     */
+    function extractInfographicKeywordsWeighted(data) {
+        const weighted = []; // [{term, weight}]
+        const seen = new Set();
 
-        // Title words (2+ chars, excluding common words)
-        const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'were',
-            'been', 'has', 'have', 'had', 'not', 'but', 'its', 'can', 'may', 'will', 'into', 'all', 'also',
-            'than', 'more', 'most', 'some', 'such', 'both', 'each', 'other', 'one', 'two', 'which', 'their',
-            'about', 'between', 'through', 'during', 'before', 'after', 'above', 'below', 'when', 'where']);
+        const stopWords = new Set([
+            'the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'were',
+            'been', 'has', 'have', 'had', 'not', 'but', 'its', 'can', 'may', 'will',
+            'into', 'all', 'also', 'than', 'more', 'most', 'some', 'such', 'both',
+            'each', 'other', 'one', 'two', 'which', 'their', 'about', 'between',
+            'through', 'during', 'before', 'after', 'above', 'below', 'when', 'where',
+            'what', 'how', 'who', 'whom', 'does', 'did', 'would', 'could', 'should',
+            'being', 'just', 'then', 'still', 'here', 'there', 'very', 'much', 'over',
+            'under', 'only', 'same', 'your', 'they', 'them', 'these', 'those', 'many',
+            'types', 'type', 'causes', 'cause', 'treatment', 'treatments', 'management',
+            'diagnosis', 'clinical', 'features', 'overview', 'introduction', 'summary',
+            'presentation', 'approach', 'review', 'case', 'study', 'comprehensive',
+            'guide', 'complete', 'essential', 'common', 'important', 'key', 'points',
+            'infographic', 'infograph', 'ophthalmic'
+        ]);
 
-        // Add full title as a phrase
-        if (data.title) keywords.add(data.title);
+        // ═══════════════════════════════════════════════════════
+        // OPHTHALMIC TOPIC DICTIONARY — headline diagnostic terms
+        // These are the primary clinical terms that should match
+        // Kanski chapters, conditions, and figure captions.
+        // ═══════════════════════════════════════════════════════
+        const OPHTHALMIC_TOPIC_TERMS = [
+            // Retina & Vitreous
+            'retinoblastoma', 'retinal detachment', 'retinitis pigmentosa', 'retinopathy',
+            'diabetic retinopathy', 'retinopathy of prematurity', 'rop', 'macular degeneration',
+            'macular hole', 'epiretinal membrane', 'central serous', 'csr', 'cscr',
+            'vein occlusion', 'artery occlusion', 'rvo', 'crvo', 'brvo', 'crao', 'brao',
+            'proliferative vitreoretinopathy', 'pvr', 'vitreous hemorrhage', 'vitrectomy',
+            'scleral buckle', 'pneumatic retinopexy', 'anti-vegf', 'intravitreal',
+            'choroidal neovascularization', 'cnv', 'polypoidal', 'pcv',
+            'coats disease', 'eales disease', 'familial exudative vitreoretinopathy', 'fevr',
+            'stargardt', 'best disease', 'pattern dystrophy', 'choroideremia',
+            // Glaucoma
+            'glaucoma', 'neovascular glaucoma', 'nvg', 'poag', 'pacg', 'angle closure',
+            'normal tension glaucoma', 'ntg', 'trabeculectomy', 'tube shunt', 'ahmed valve',
+            'migs', 'istent', 'xen gel', 'cyclophotocoagulation', 'goniotomy',
+            'pseudoexfoliation', 'pxf', 'pigment dispersion', 'ocular hypertension',
+            'congenital glaucoma', 'buphthalmos', 'iridocorneal endothelial', 'ice syndrome',
+            // Cornea
+            'keratitis', 'keratoconus', 'corneal ulcer', 'corneal dystrophy', 'fuchs',
+            'acanthamoeba', 'herpes simplex keratitis', 'herpetic', 'dendrit',
+            'pterygium', 'pinguecula', 'band keratopathy', 'pellucid',
+            'corneal transplant', 'keratoplasty', 'dsaek', 'dmek', 'dalk',
+            'cross-linking', 'cxl', 'corneal graft', 'graft rejection',
+            'dry eye', 'meibomian', 'blepharitis', 'sjogren',
+            'mooren ulcer', 'terrien', 'salzmann', 'corneal ectasia',
+            // Uvea
+            'uveitis', 'iritis', 'iridocyclitis', 'panuveitis', 'intermediate uveitis',
+            'anterior uveitis', 'posterior uveitis', 'vkh', 'vogt-koyanagi-harada',
+            'behcet', 'sarcoidosis', 'sympathetic ophthalmia', 'birdshot',
+            'toxoplasmosis', 'toxocara', 'cmv retinitis', 'endophthalmitis',
+            'multifocal choroiditis', 'serpiginous', 'white dot syndrome',
+            'acute retinal necrosis', 'arn', 'presumed ocular histoplasmosis', 'pohs',
+            'fuchs heterochromic', 'posner-schlossman', 'hla-b27',
+            // Lens & Cataract
+            'cataract', 'phacoemulsification', 'phaco', 'intraocular lens', 'iol',
+            'posterior capsule opacification', 'pco', 'yag capsulotomy',
+            'ectopia lentis', 'subluxation', 'lens dislocation', 'marfan',
+            // Lids
+            'ptosis', 'entropion', 'ectropion', 'trichiasis', 'blepharospasm',
+            'chalazion', 'meibomian cyst', 'hordeolum', 'stye',
+            'basal cell carcinoma', 'bcc', 'squamous cell carcinoma', 'scc',
+            'sebaceous gland carcinoma', 'merkel cell', 'lid retraction',
+            'dermatochalasis', 'blepharoplasty', 'lagophthalmos', 'floppy eyelid',
+            // Orbit
+            'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'proptosis', 'exophthalmos',
+            'orbital cellulitis', 'preseptal cellulitis', 'orbital fracture', 'blow-out',
+            'orbital tumor', 'orbital tumour', 'cavernous hemangioma', 'lymphoma',
+            'optic nerve glioma', 'meningioma', 'rhabdomyosarcoma', 'lacrimal gland tumour',
+            'dacryoadenitis', 'orbital pseudotumor', 'idiopathic orbital inflammation',
+            // Lacrimal
+            'dacryocystitis', 'nasolacrimal duct', 'nld obstruction', 'dacryocystorhinostomy',
+            'dcr', 'lacrimal obstruction', 'epiphora', 'punctal stenosis',
+            'canaliculitis', 'lacrimal sac', 'congenital nld',
+            // Neuro-ophthalmology
+            'optic neuritis', 'papilledema', 'papilloedema', 'optic neuropathy',
+            'optic atrophy', 'ischaemic optic neuropathy', 'aion', 'naion',
+            'nystagmus', 'cranial nerve palsy', 'third nerve palsy', 'sixth nerve palsy',
+            'fourth nerve palsy', 'horner syndrome', 'myasthenia gravis',
+            'internuclear ophthalmoplegia', 'ino', 'anisocoria', 'argyll robertson',
+            'adie pupil', 'marcus gunn', 'relative afferent pupillary defect', 'rapd',
+            'chiasmal', 'hemianopia', 'homonymous', 'bitemporal',
+            'idiopathic intracranial hypertension', 'iih', 'pseudotumor cerebri',
+            'leber hereditary', 'lhon', 'optic disc drusen',
+            // Strabismus
+            'strabismus', 'esotropia', 'exotropia', 'hypertropia', 'amblyopia',
+            'duane syndrome', 'brown syndrome', 'moebius', 'squint',
+            'convergence insufficiency', 'divergence excess', 'accommodative esotropia',
+            'infantile esotropia', 'sensory exotropia', 'consecutive exotropia',
+            // Paediatric
+            'retinopathy of prematurity', 'congenital cataract', 'congenital glaucoma',
+            'persistent fetal vasculature', 'pfv', 'leukocoria', 'aniridia',
+            'microphthalmos', 'coloboma', 'peter anomaly', 'axenfeld-rieger',
+            // Tumours
+            'retinoblastoma', 'uveal melanoma', 'choroidal melanoma', 'iris melanoma',
+            'ciliary body melanoma', 'metastatic', 'choroidal metastasis',
+            'choroidal hemangioma', 'choroidal osteoma', 'nevus', 'naevus',
+            'melanocytoma', 'astrocytic hamartoma', 'lymphoma intraocular',
+            // Sclera
+            'scleritis', 'episcleritis', 'necrotizing scleritis', 'scleromalacia',
+            'posterior scleritis',
+            // Refractive
+            'lasik', 'prk', 'smile', 'refractive surgery', 'myopia', 'hyperopia',
+            'astigmatism', 'presbyopia', 'phakic iol', 'icl',
+            // Lasers
+            'laser photocoagulation', 'panretinal', 'prp', 'yag laser', 'slt',
+            'argon laser', 'diode laser', 'micropulse', 'pascal',
+            // Investigations
+            'oct', 'fluorescein angiography', 'ffa', 'icg', 'indocyanine green',
+            'ultrasound', 'b-scan', 'visual field', 'perimetry', 'humphrey',
+            'goldmann', 'gonioscopy', 'pachymetry', 'topography', 'pentacam',
+            'specular microscopy', 'electrophysiology', 'erg', 'vep',
+            'optical coherence tomography angiography', 'octa'
+        ];
 
-        // Add title words
+        function addTerm(term, weight) {
+            const key = term.toLowerCase().trim();
+            if (key.length < 2 || seen.has(key)) return;
+            seen.add(key);
+            weighted.push({ term: key, weight });
+        }
+
+        // ── Pass 1: Extract primary topic from title ──
+        // The infographic title is THE most important signal.
+        // Match known ophthalmic terms in the title with weight 50
+        const titleLower = (data.title || '').toLowerCase();
+        OPHTHALMIC_TOPIC_TERMS.forEach(term => {
+            if (titleLower.includes(term.toLowerCase())) {
+                addTerm(term, 50);
+            }
+        });
+
+        // Also add the full title as a phrase (weight 30)
+        if (data.title) addTerm(data.title, 30);
+
+        // Add individual title words that are NOT stop words (weight 10 for medical-looking, 3 otherwise)
         if (data.title) {
             data.title.split(/[\s,\-:;()/]+/).forEach(w => {
-                const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                if (clean.length > 2 && !stopWords.has(clean)) keywords.add(clean);
+                const clean = w.replace(/[^a-zA-Z0-9'-]/g, '').toLowerCase();
+                if (clean.length <= 2 || stopWords.has(clean)) return;
+                // Boost words that look medical (long, Latin/Greek-ish)
+                const isMedical = clean.length >= 6 || /itis$|oma$|osis$|emia$|opia$|ectomy$|plasty$|scopy$|pathy$|graft|laser|phaco|uvea|retin|cornea|sclera|iris|pupil|nerve|orbit/.test(clean);
+                addTerm(clean, isMedical ? 20 : 3);
             });
         }
 
-        // Add section titles
+        // ── Pass 2: Section titles (weight 5-15) ──
         if (data.sections && Array.isArray(data.sections)) {
             data.sections.forEach(s => {
-                if (s && s.title) {
-                    keywords.add(s.title);
-                    s.title.split(/[\s,\-:;()/]+/).forEach(w => {
-                        const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                        if (clean.length > 3 && !stopWords.has(clean)) keywords.add(clean);
+                if (!s || !s.title) return;
+                const secTitleLower = s.title.toLowerCase();
+
+                // Check for known ophthalmic terms in section titles (weight 15)
+                OPHTHALMIC_TOPIC_TERMS.forEach(term => {
+                    if (secTitleLower.includes(term.toLowerCase())) {
+                        addTerm(term, 15);
+                    }
+                });
+
+                // Individual section title words (weight 5)
+                s.title.split(/[\s,\-:;()/]+/).forEach(w => {
+                    const clean = w.replace(/[^a-zA-Z0-9'-]/g, '').toLowerCase();
+                    if (clean.length > 3 && !stopWords.has(clean)) addTerm(clean, 5);
+                });
+            });
+        }
+
+        // ── Pass 3: Section content — extract deep terms (weight 1-3) ──
+        if (data.sections && Array.isArray(data.sections)) {
+            data.sections.forEach(s => {
+                if (!s || !s.content) return;
+                let textBlob = '';
+                try {
+                    if (typeof s.content === 'string') textBlob = s.content;
+                    else if (Array.isArray(s.content)) textBlob = s.content.map(c => typeof c === 'string' ? c : (c && c.label ? c.label : '')).join(' ');
+                    else if (typeof s.content === 'object') {
+                        textBlob = Object.values(s.content).map(v => typeof v === 'string' ? v : '').join(' ');
+                    }
+                } catch { /* ignore */ }
+
+                if (textBlob.length > 10) {
+                    const contentLower = textBlob.toLowerCase();
+                    // Check for known ophthalmic terms in content (weight 3)
+                    OPHTHALMIC_TOPIC_TERMS.forEach(term => {
+                        if (contentLower.includes(term.toLowerCase())) {
+                            addTerm(term, 3);
+                        }
                     });
                 }
             });
         }
 
-        // Deduplicate and prioritize multi-word phrases
-        return [...keywords].sort((a, b) => {
-            const aMulti = a.includes(' ') ? 1 : 0;
-            const bMulti = b.includes(' ') ? 1 : 0;
-            return bMulti - aMulti || b.length - a.length;
-        });
+        // ── Pass 4: Chapter category context (weight 8) ──
+        if (data.chapterId && data.chapterId !== 'uncategorized') {
+            const chapter = DEFAULT_CHAPTERS.find(c => c.id === data.chapterId);
+            if (chapter) {
+                // Add the chapter name words
+                chapter.name.split(/[\s&,]+/).forEach(w => {
+                    const clean = w.toLowerCase().trim();
+                    if (clean.length > 2 && !stopWords.has(clean)) addTerm(clean, 8);
+                });
+            }
+        }
+
+        // Sort: highest weight first
+        weighted.sort((a, b) => b.weight - a.weight);
+
+        return weighted;
     }
 
     async function showKanskiModal(topPages) {
@@ -8943,10 +9245,19 @@ function setupKanskiPics() {
             return;
         }
 
+        // Remove any existing Kanski section first
+        const existingSection = posterGrid.querySelector('#kanski-images-section');
+        if (existingSection) existingSection.remove();
+
         // Create a Kanski images section card
         const kanskiSection = document.createElement('div');
+        kanskiSection.id = 'kanski-images-section';
         kanskiSection.className = 'poster-card card-key_point col-span-2 theme-blue';
         kanskiSection.style.cssText = 'animation-delay: 0ms;';
+
+        // Check if already adhered for this infographic
+        const isAlreadyAdhered = isKanskiAdhered();
+
         kanskiSection.innerHTML = `
             <h3 class="card-title" style="color: #0e7490;">
                 <div class="icon-box" style="background: linear-gradient(135deg, #0891b2, #0e7490);"><span class="material-symbols-rounded">photo_library</span></div>
@@ -8955,6 +9266,22 @@ function setupKanskiPics() {
                     ${images.length} image(s)
                 </span>
             </h3>
+            <div style="display: flex; gap: 0.5rem; margin: 0.5rem 0; flex-wrap: wrap;">
+                <button id="kanski-adhere-btn" class="btn-small" title="Save permanently with this infographic"
+                    style="display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;
+                    background: ${isAlreadyAdhered ? '#d1fae5' : 'linear-gradient(135deg, #059669, #047857)'}; 
+                    color: ${isAlreadyAdhered ? '#047857' : 'white'}; 
+                    border: ${isAlreadyAdhered ? '1px solid #6ee7b7' : 'none'}; cursor: pointer; transition: all 0.2s;">
+                    <span class="material-symbols-rounded" style="font-size: 1rem;">${isAlreadyAdhered ? 'check_circle' : 'push_pin'}</span>
+                    ${isAlreadyAdhered ? 'Adhered' : 'Adhere'}
+                </button>
+                <button id="kanski-remove-btn" class="btn-small" title="Remove Kanski images from this infographic"
+                    style="display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;
+                    background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; cursor: pointer; transition: all 0.2s;">
+                    <span class="material-symbols-rounded" style="font-size: 1rem;">delete</span>
+                    Remove
+                </button>
+            </div>
             <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
                 ${images.map(img => `
                     <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
@@ -8973,10 +9300,92 @@ function setupKanskiPics() {
         // Insert at the end of the poster grid
         posterGrid.appendChild(kanskiSection);
 
+        // ── Adhere button: save images permanently to the library item ──
+        const adhereBtn = kanskiSection.querySelector('#kanski-adhere-btn');
+        adhereBtn.addEventListener('click', () => {
+            if (!currentInfographicData) {
+                alert('No infographic loaded.');
+                return;
+            }
+
+            // Find the matching library item
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const item = library.find(i => i.title === currentInfographicData.title);
+            if (!item) {
+                alert('This infographic is not saved in your library. Save it first, then adhere Kanski images.');
+                return;
+            }
+
+            // Store kanski images data in the library item
+            // We store compact data: [{pageNum, imgUrl, keywords}]
+            item.kanskiImages = images.map(img => ({
+                pageNum: img.pageNum,
+                imgUrl: img.imgUrl,
+                keywords: img.keywords.slice(0, 5)
+            }));
+
+            // Also update data sub-object if present
+            if (item.data) {
+                item.data.kanskiImages = item.kanskiImages;
+            }
+
+            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+
+            // Update currentInfographicData too
+            currentInfographicData.kanskiImages = item.kanskiImages;
+
+            // Update button appearance to show "Adhered"
+            adhereBtn.style.background = '#d1fae5';
+            adhereBtn.style.color = '#047857';
+            adhereBtn.style.border = '1px solid #6ee7b7';
+            adhereBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">check_circle</span> Adhered';
+
+            alert(`✅ ${images.length} Kanski image(s) permanently saved with "${currentInfographicData.title}".\n\nThey will load automatically whenever you open this infographic.`);
+        });
+
+        // ── Remove button: remove Kanski images section (and optionally from library) ──
+        const removeBtn = kanskiSection.querySelector('#kanski-remove-btn');
+        removeBtn.addEventListener('click', () => {
+            const hasAdhered = isKanskiAdhered();
+
+            if (hasAdhered) {
+                const removeFromLibrary = confirm(
+                    'Kanski images are permanently adhered to this infographic.\n\n' +
+                    'Click OK to remove them permanently (from library too).\n' +
+                    'Click Cancel to only hide them for this session.'
+                );
+
+                if (removeFromLibrary) {
+                    // Remove from library storage
+                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const item = library.find(i => i.title === currentInfographicData.title);
+                    if (item) {
+                        delete item.kanskiImages;
+                        if (item.data) delete item.data.kanskiImages;
+                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                    }
+                    if (currentInfographicData) delete currentInfographicData.kanskiImages;
+                }
+            }
+
+            // Remove from DOM
+            kanskiSection.remove();
+        });
+
         // Scroll to the new section
         kanskiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        alert(`✅ ${images.length} Kanski image(s) inserted into the infographic!`);
+        alert(`✅ ${images.length} Kanski image(s) inserted into the infographic!\n\nUse "Adhere" to save them permanently, or they will disappear when you navigate away.`);
+    }
+
+    /**
+     * Check if current infographic has adhered Kanski images in library
+     */
+    function isKanskiAdhered() {
+        if (!currentInfographicData) return false;
+        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const item = library.find(i => i.title === currentInfographicData.title);
+        return item && item.kanskiImages && item.kanskiImages.length > 0;
     }
 
     console.log('Kanski Pics initialized.');
