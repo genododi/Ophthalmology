@@ -4538,6 +4538,35 @@ function setupFTPServer() {
 let currentInfographicData = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Migration: purge legacy kanskiImages blobs from localStorage ──
+    try {
+        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        let cleaned = false;
+        lib.forEach(item => {
+            if (item.kanskiImages) {
+                // Convert old format to lightweight meta (no imgUrl)
+                if (!item.kanskiMeta) {
+                    item.kanskiMeta = item.kanskiImages.map(img => ({
+                        pageNum: img.pageNum,
+                        keywords: img.keywords || []
+                    }));
+                }
+                delete item.kanskiImages;
+                cleaned = true;
+            }
+            if (item.data && item.data.kanskiImages) {
+                delete item.data.kanskiImages;
+                cleaned = true;
+            }
+        });
+        if (cleaned) {
+            localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+            console.log('[Kanski Migration] Purged legacy kanskiImages blobs from localStorage');
+        }
+    } catch (err) {
+        console.warn('[Kanski Migration] Error during cleanup:', err);
+    }
+
     setupPrintButton();
     setupPosterButton();
     setupKnowledgeBase();
@@ -8590,106 +8619,209 @@ function setupMusicPlayer() {
 }
 
 /* ========================================
+   KANSKI CLINICAL PHOTOS — IndexedDB STORAGE
+   Stores large image data in IndexedDB
+   (localStorage has a 5-10MB limit)
+   ======================================== */
+
+const KANSKI_DB_NAME = 'KanskiImagesDB';
+const KANSKI_DB_VERSION = 1;
+const KANSKI_STORE_NAME = 'images';
+
+function openKanskiDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(KANSKI_DB_NAME, KANSKI_DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(KANSKI_STORE_NAME)) {
+                db.createObjectStore(KANSKI_STORE_NAME, { keyPath: 'id' });
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function saveKanskiToIDB(infographicTitle, images) {
+    try {
+        const db = await openKanskiDB();
+        const tx = db.transaction(KANSKI_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(KANSKI_STORE_NAME);
+        // Key = title hash to avoid special chars issues
+        const id = 'kanski_' + btoa(unescape(encodeURIComponent(infographicTitle))).replace(/[^a-zA-Z0-9]/g, '_');
+        store.put({
+            id,
+            title: infographicTitle,
+            images: images, // [{pageNum, imgUrl, keywords}]
+            savedAt: Date.now()
+        });
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        console.log(`[Kanski IDB] Saved ${images.length} images for "${infographicTitle}"`);
+        return true;
+    } catch (err) {
+        console.error('[Kanski IDB] Save error:', err);
+        return false;
+    }
+}
+
+async function loadKanskiFromIDB(infographicTitle) {
+    try {
+        const db = await openKanskiDB();
+        const tx = db.transaction(KANSKI_STORE_NAME, 'readonly');
+        const store = tx.objectStore(KANSKI_STORE_NAME);
+        const id = 'kanski_' + btoa(unescape(encodeURIComponent(infographicTitle))).replace(/[^a-zA-Z0-9]/g, '_');
+        const result = await new Promise((resolve, reject) => {
+            const req = store.get(id);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        db.close();
+        if (result && result.images && result.images.length > 0) {
+            console.log(`[Kanski IDB] Loaded ${result.images.length} images for "${infographicTitle}"`);
+            return result.images;
+        }
+        return null;
+    } catch (err) {
+        console.error('[Kanski IDB] Load error:', err);
+        return null;
+    }
+}
+
+async function deleteKanskiFromIDB(infographicTitle) {
+    try {
+        const db = await openKanskiDB();
+        const tx = db.transaction(KANSKI_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(KANSKI_STORE_NAME);
+        const id = 'kanski_' + btoa(unescape(encodeURIComponent(infographicTitle))).replace(/[^a-zA-Z0-9]/g, '_');
+        store.delete(id);
+        await new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+        console.log(`[Kanski IDB] Deleted images for "${infographicTitle}"`);
+        return true;
+    } catch (err) {
+        console.error('[Kanski IDB] Delete error:', err);
+        return false;
+    }
+}
+
+/* ========================================
    KANSKI CLINICAL PHOTOS — ADHERED IMAGE LOADER
    Restores permanently saved Kanski images
    when an infographic is loaded
    ======================================== */
 
 function loadAdheredKanskiImages(data) {
-    if (!data) return;
+    if (!data || !data.title) return;
 
-    // Check data itself, or look up in library by title
-    let kanskiImages = data.kanskiImages;
-    if (!kanskiImages || kanskiImages.length === 0) {
-        try {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-            const item = library.find(i => i.title === data.title);
-            if (item && item.kanskiImages && item.kanskiImages.length > 0) {
-                kanskiImages = item.kanskiImages;
-            }
-        } catch { /* ignore */ }
-    }
+    // Check localStorage for the lightweight meta flag
+    let hasAdhered = false;
+    try {
+        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const item = library.find(i => i.title === data.title);
+        hasAdhered = item && item.kanskiMeta && item.kanskiMeta.length > 0;
+    } catch { /* ignore */ }
 
-    if (!kanskiImages || kanskiImages.length === 0) return;
+    if (!hasAdhered) return;
 
-    const posterGrid = document.querySelector('.poster-grid');
-    if (!posterGrid) return;
+    // Load actual images from IndexedDB (async)
+    loadKanskiFromIDB(data.title).then(kanskiImages => {
+        if (!kanskiImages || kanskiImages.length === 0) {
+            console.warn('[Kanski] Meta flag exists but no images in IndexedDB for:', data.title);
+            return;
+        }
 
-    // Remove any existing Kanski section
-    const existing = posterGrid.querySelector('#kanski-images-section');
-    if (existing) existing.remove();
+        const posterGrid = document.querySelector('.poster-grid');
+        if (!posterGrid) return;
 
-    // Create the Kanski section with Adhere/Remove buttons
-    const kanskiSection = document.createElement('div');
-    kanskiSection.id = 'kanski-images-section';
-    kanskiSection.className = 'poster-card card-key_point col-span-2 theme-blue';
-    kanskiSection.style.cssText = 'animation-delay: 0ms;';
-    kanskiSection.innerHTML = `
-        <h3 class="card-title" style="color: #0e7490;">
-            <div class="icon-box" style="background: linear-gradient(135deg, #0891b2, #0e7490);"><span class="material-symbols-rounded">photo_library</span></div>
-            Kanski Clinical Photos
-            <span style="font-size: 0.7rem; font-weight: 500; color: #059669; margin-left: 6px; padding: 2px 8px; background: #d1fae5; border-radius: 12px;">
-                <span class="material-symbols-rounded" style="font-size: 0.7rem; vertical-align: middle;">push_pin</span> Adhered
-            </span>
-            <span style="font-size: 0.75rem; font-weight: 400; color: #64748b; margin-left: auto;">
-                ${kanskiImages.length} image(s)
-            </span>
-        </h3>
-        <div style="display: flex; gap: 0.5rem; margin: 0.5rem 0; flex-wrap: wrap;">
-            <button id="kanski-adhered-remove-btn" class="btn-small" title="Remove Kanski images from this infographic"
-                style="display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;
-                background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; cursor: pointer; transition: all 0.2s;">
-                <span class="material-symbols-rounded" style="font-size: 1rem;">delete</span>
-                Remove
-            </button>
-        </div>
-        <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
-            ${kanskiImages.map(img => `
-                <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
-                    <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
-                        alt="Kanski p.${img.pageNum}" 
-                        onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
-                        title="Click to expand/collapse">
-                    <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
-                        <strong>p.${img.pageNum}</strong>${img.keywords && img.keywords.length > 0 ? ' · ' + img.keywords.slice(0, 3).join(', ') : ''}
+        // Remove any existing Kanski section
+        const existing = posterGrid.querySelector('#kanski-images-section');
+        if (existing) existing.remove();
+
+        // Create the Kanski section
+        const kanskiSection = document.createElement('div');
+        kanskiSection.id = 'kanski-images-section';
+        kanskiSection.className = 'poster-card card-key_point col-span-2 theme-blue';
+        kanskiSection.style.cssText = 'animation-delay: 0ms;';
+        kanskiSection.innerHTML = `
+            <h3 class="card-title" style="color: #0e7490;">
+                <div class="icon-box" style="background: linear-gradient(135deg, #0891b2, #0e7490);"><span class="material-symbols-rounded">photo_library</span></div>
+                Kanski Clinical Photos
+                <span style="font-size: 0.7rem; font-weight: 500; color: #059669; margin-left: 6px; padding: 2px 8px; background: #d1fae5; border-radius: 12px;">
+                    <span class="material-symbols-rounded" style="font-size: 0.7rem; vertical-align: middle;">push_pin</span> Adhered
+                </span>
+                <span style="font-size: 0.75rem; font-weight: 400; color: #64748b; margin-left: auto;">
+                    ${kanskiImages.length} image(s)
+                </span>
+            </h3>
+            <div style="display: flex; gap: 0.5rem; margin: 0.5rem 0; flex-wrap: wrap;">
+                <button id="kanski-adhered-remove-btn" class="btn-small" title="Remove Kanski images from this infographic"
+                    style="display: flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;
+                    background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; cursor: pointer; transition: all 0.2s;">
+                    <span class="material-symbols-rounded" style="font-size: 1rem;">delete</span>
+                    Remove
+                </button>
+            </div>
+            <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
+                ${kanskiImages.map(img => `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
+                        <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
+                            alt="Kanski p.${img.pageNum}" 
+                            onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
+                            title="Click to expand/collapse">
+                        <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                            <strong>p.${img.pageNum}</strong>${img.keywords && img.keywords.length > 0 ? ' · ' + img.keywords.slice(0, 3).join(', ') : ''}
+                        </div>
                     </div>
-                </div>
-            `).join('')}
-        </div>
-    `;
+                `).join('')}
+            </div>
+        `;
 
-    posterGrid.appendChild(kanskiSection);
+        posterGrid.appendChild(kanskiSection);
 
-    // Remove button handler
-    const removeBtn = kanskiSection.querySelector('#kanski-adhered-remove-btn');
-    if (removeBtn) {
-        removeBtn.addEventListener('click', () => {
-            const removePermanently = confirm(
-                'Kanski images are permanently adhered to this infographic.\n\n' +
-                'Click OK to remove them permanently (from library too).\n' +
-                'Click Cancel to only hide them for this session.'
-            );
+        // Remove button handler
+        const removeBtn = kanskiSection.querySelector('#kanski-adhered-remove-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                const removePermanently = confirm(
+                    'Kanski images are permanently adhered to this infographic.\n\n' +
+                    'Click OK to remove them permanently (from library too).\n' +
+                    'Click Cancel to only hide them for this session.'
+                );
 
-            if (removePermanently) {
-                try {
-                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-                    const item = library.find(i => i.title === data.title);
-                    if (item) {
-                        delete item.kanskiImages;
-                        if (item.data) delete item.data.kanskiImages;
-                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                if (removePermanently) {
+                    // Remove lightweight meta from localStorage
+                    try {
+                        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                        const item = library.find(i => i.title === data.title);
+                        if (item) {
+                            delete item.kanskiMeta;
+                            delete item.kanskiImages; // Clean up any legacy data
+                            if (item.data) {
+                                delete item.data.kanskiMeta;
+                                delete item.data.kanskiImages;
+                            }
+                            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                        }
+                    } catch (err) {
+                        console.error('Error removing Kanski meta:', err);
                     }
-                    if (currentInfographicData) delete currentInfographicData.kanskiImages;
-                } catch (err) {
-                    console.error('Error removing adhered Kanski images:', err);
+                    // Remove images from IndexedDB
+                    deleteKanskiFromIDB(data.title);
                 }
-            }
 
-            kanskiSection.remove();
-        });
-    }
+                kanskiSection.remove();
+            });
+        }
 
-    console.log(`[Kanski] Loaded ${kanskiImages.length} adhered image(s) for "${data.title}"`);
+        console.log(`[Kanski] Displayed ${kanskiImages.length} adhered image(s) for "${data.title}"`);
+    });
 }
 
 /* ========================================
@@ -9300,9 +9432,9 @@ function setupKanskiPics() {
         // Insert at the end of the poster grid
         posterGrid.appendChild(kanskiSection);
 
-        // ── Adhere button: save images permanently to the library item ──
+        // ── Adhere button: save images to IndexedDB, meta to localStorage ──
         const adhereBtn = kanskiSection.querySelector('#kanski-adhere-btn');
-        adhereBtn.addEventListener('click', () => {
+        adhereBtn.addEventListener('click', async () => {
             if (!currentInfographicData) {
                 alert('No infographic loaded.');
                 return;
@@ -9316,25 +9448,39 @@ function setupKanskiPics() {
                 return;
             }
 
-            // Store kanski images data in the library item
-            // We store compact data: [{pageNum, imgUrl, keywords}]
-            item.kanskiImages = images.map(img => ({
+            adhereBtn.disabled = true;
+            adhereBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">hourglass_top</span> Saving...';
+
+            // Store actual image data in IndexedDB (no size limit)
+            const idbImages = images.map(img => ({
                 pageNum: img.pageNum,
                 imgUrl: img.imgUrl,
                 keywords: img.keywords.slice(0, 5)
             }));
+            const saved = await saveKanskiToIDB(currentInfographicData.title, idbImages);
 
-            // Also update data sub-object if present
+            if (!saved) {
+                alert('Failed to save Kanski images. Please try again.');
+                adhereBtn.disabled = false;
+                adhereBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">push_pin</span> Adhere';
+                return;
+            }
+
+            // Store lightweight meta in localStorage (just page nums + keywords, NO images)
+            item.kanskiMeta = images.map(img => ({
+                pageNum: img.pageNum,
+                keywords: img.keywords.slice(0, 5)
+            }));
+            // Clean up any legacy kanskiImages from localStorage
+            delete item.kanskiImages;
             if (item.data) {
-                item.data.kanskiImages = item.kanskiImages;
+                delete item.data.kanskiImages;
             }
 
             localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 
-            // Update currentInfographicData too
-            currentInfographicData.kanskiImages = item.kanskiImages;
-
             // Update button appearance to show "Adhered"
+            adhereBtn.disabled = false;
             adhereBtn.style.background = '#d1fae5';
             adhereBtn.style.color = '#047857';
             adhereBtn.style.border = '1px solid #6ee7b7';
@@ -9343,9 +9489,9 @@ function setupKanskiPics() {
             alert(`✅ ${images.length} Kanski image(s) permanently saved with "${currentInfographicData.title}".\n\nThey will load automatically whenever you open this infographic.`);
         });
 
-        // ── Remove button: remove Kanski images section (and optionally from library) ──
+        // ── Remove button: remove Kanski images section (and optionally from storage) ──
         const removeBtn = kanskiSection.querySelector('#kanski-remove-btn');
-        removeBtn.addEventListener('click', () => {
+        removeBtn.addEventListener('click', async () => {
             const hasAdhered = isKanskiAdhered();
 
             if (hasAdhered) {
@@ -9356,15 +9502,20 @@ function setupKanskiPics() {
                 );
 
                 if (removeFromLibrary) {
-                    // Remove from library storage
+                    // Remove meta from localStorage
                     const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
                     const item = library.find(i => i.title === currentInfographicData.title);
                     if (item) {
-                        delete item.kanskiImages;
-                        if (item.data) delete item.data.kanskiImages;
+                        delete item.kanskiMeta;
+                        delete item.kanskiImages; // Clean up legacy
+                        if (item.data) {
+                            delete item.data.kanskiMeta;
+                            delete item.data.kanskiImages;
+                        }
                         localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
                     }
-                    if (currentInfographicData) delete currentInfographicData.kanskiImages;
+                    // Remove images from IndexedDB
+                    await deleteKanskiFromIDB(currentInfographicData.title);
                 }
             }
 
@@ -9380,12 +9531,15 @@ function setupKanskiPics() {
 
     /**
      * Check if current infographic has adhered Kanski images in library
+     * (checks lightweight meta in localStorage — no heavy image data)
      */
     function isKanskiAdhered() {
         if (!currentInfographicData) return false;
-        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-        const item = library.find(i => i.title === currentInfographicData.title);
-        return item && item.kanskiImages && item.kanskiImages.length > 0;
+        try {
+            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const item = library.find(i => i.title === currentInfographicData.title);
+            return item && item.kanskiMeta && item.kanskiMeta.length > 0;
+        } catch { return false; }
     }
 
     console.log('Kanski Pics initialized.');
