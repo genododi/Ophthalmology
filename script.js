@@ -8585,6 +8585,404 @@ function setupMusicPlayer() {
 }
 
 /* ========================================
+   KANSKI CLINICAL PHOTOS
+   Import images from Kanski PDF and match
+   them to the current infographic topic
+   ======================================== */
+
+function setupKanskiPics() {
+    const kanskiBtn = document.getElementById('kanski-pics-btn');
+    const kanskiInput = document.getElementById('kanski-pdf-input');
+    if (!kanskiBtn || !kanskiInput) return;
+
+    // Cache: store extracted page data per session to avoid re-processing
+    let kanskiPdfDoc = null;
+    let kanskiPageTexts = []; // [{pageNum, text}]
+    let kanskiFileName = '';
+
+    kanskiBtn.addEventListener('click', () => {
+        if (!currentInfographicData) {
+            alert('Please generate or load an infographic first, then use Kanski Pics to find matching clinical photos.');
+            return;
+        }
+
+        if (kanskiPdfDoc) {
+            // PDF already loaded — go straight to matching
+            matchAndDisplayKanskiPages();
+        } else {
+            kanskiInput.click();
+        }
+    });
+
+    kanskiInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Please select a PDF file.');
+            return;
+        }
+
+        kanskiFileName = file.name;
+
+        // Show loading state
+        kanskiBtn.disabled = true;
+        const originalHTML = kanskiBtn.innerHTML;
+        kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Loading PDF...</span>';
+
+        try {
+            if (typeof pdfjsLib === 'undefined') {
+                alert('PDF.js library not loaded. Please refresh the page.');
+                return;
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            kanskiPdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+
+            // Extract text from all pages for keyword matching
+            kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Indexing pages...</span>';
+
+            kanskiPageTexts = [];
+            const totalPages = kanskiPdfDoc.numPages;
+
+            for (let i = 1; i <= totalPages; i++) {
+                try {
+                    const page = await kanskiPdfDoc.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const text = textContent.items.map(item => item.str).join(' ');
+                    kanskiPageTexts.push({ pageNum: i, text: text.toLowerCase() });
+                } catch {
+                    kanskiPageTexts.push({ pageNum: i, text: '' });
+                }
+
+                // Update progress every 50 pages
+                if (i % 50 === 0) {
+                    kanskiBtn.querySelector('.tool-label').textContent = `Indexing ${i}/${totalPages}...`;
+                }
+            }
+
+            console.log(`[Kanski] Indexed ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
+
+            // Now match pages to current infographic
+            await matchAndDisplayKanskiPages();
+
+        } catch (err) {
+            console.error('Kanski PDF error:', err);
+            alert('Error loading PDF: ' + err.message);
+        } finally {
+            kanskiBtn.disabled = false;
+            kanskiBtn.innerHTML = originalHTML;
+            kanskiInput.value = ''; // Reset file input
+        }
+    });
+
+    async function matchAndDisplayKanskiPages() {
+        if (!kanskiPdfDoc || !currentInfographicData) return;
+
+        kanskiBtn.disabled = true;
+        const originalHTML = kanskiBtn.innerHTML;
+        kanskiBtn.innerHTML = '<span class="material-symbols-rounded">image_search</span><span class="tool-label">Matching...</span>';
+
+        try {
+            // Extract keywords from the current infographic
+            const keywords = extractInfographicKeywords(currentInfographicData);
+            console.log(`[Kanski] Searching for keywords:`, keywords.slice(0, 15));
+
+            // Score each page by keyword matches
+            const scoredPages = [];
+            kanskiPageTexts.forEach(({ pageNum, text }) => {
+                if (!text || text.length < 50) return; // Skip nearly empty pages
+                let score = 0;
+                const matchedKeywords = [];
+                keywords.forEach(kw => {
+                    const kwLower = kw.toLowerCase();
+                    // Count occurrences
+                    const regex = new RegExp(`\\b${kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
+                    const matches = text.match(regex);
+                    if (matches) {
+                        score += matches.length * (kwLower.includes(' ') ? 3 : 1); // Multi-word = higher weight
+                        if (!matchedKeywords.includes(kw)) matchedKeywords.push(kw);
+                    }
+                });
+                if (score > 0) {
+                    scoredPages.push({ pageNum, score, matchedKeywords });
+                }
+            });
+
+            // Sort by score descending, take top pages
+            scoredPages.sort((a, b) => b.score - a.score);
+            const topPages = scoredPages.slice(0, 12); // Max 12 images
+
+            if (topPages.length === 0) {
+                alert(`No matching pages found in "${kanskiFileName}" for "${currentInfographicData.title}".\n\nTry loading an infographic with more specific ophthalmic content.`);
+                return;
+            }
+
+            console.log(`[Kanski] Found ${scoredPages.length} matching pages, showing top ${topPages.length}`);
+
+            // Render page images and display in a modal
+            await showKanskiModal(topPages);
+
+        } catch (err) {
+            console.error('Kanski matching error:', err);
+            alert('Error matching pages: ' + err.message);
+        } finally {
+            kanskiBtn.disabled = false;
+            kanskiBtn.innerHTML = originalHTML;
+        }
+    }
+
+    function extractInfographicKeywords(data) {
+        const keywords = new Set();
+
+        // Title words (2+ chars, excluding common words)
+        const stopWords = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'were',
+            'been', 'has', 'have', 'had', 'not', 'but', 'its', 'can', 'may', 'will', 'into', 'all', 'also',
+            'than', 'more', 'most', 'some', 'such', 'both', 'each', 'other', 'one', 'two', 'which', 'their',
+            'about', 'between', 'through', 'during', 'before', 'after', 'above', 'below', 'when', 'where']);
+
+        // Add full title as a phrase
+        if (data.title) keywords.add(data.title);
+
+        // Add title words
+        if (data.title) {
+            data.title.split(/[\s,\-:;()/]+/).forEach(w => {
+                const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                if (clean.length > 2 && !stopWords.has(clean)) keywords.add(clean);
+            });
+        }
+
+        // Add section titles
+        if (data.sections && Array.isArray(data.sections)) {
+            data.sections.forEach(s => {
+                if (s && s.title) {
+                    keywords.add(s.title);
+                    s.title.split(/[\s,\-:;()/]+/).forEach(w => {
+                        const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                        if (clean.length > 3 && !stopWords.has(clean)) keywords.add(clean);
+                    });
+                }
+            });
+        }
+
+        // Deduplicate and prioritize multi-word phrases
+        return [...keywords].sort((a, b) => {
+            const aMulti = a.includes(' ') ? 1 : 0;
+            const bMulti = b.includes(' ') ? 1 : 0;
+            return bMulti - aMulti || b.length - a.length;
+        });
+    }
+
+    async function showKanskiModal(topPages) {
+        // Create or reuse modal
+        let kModal = document.getElementById('kanski-modal');
+        if (!kModal) {
+            kModal = document.createElement('div');
+            kModal.id = 'kanski-modal';
+            kModal.className = 'modal-overlay';
+            kModal.innerHTML = `
+                <div class="modal-content modal-lg" style="border: 2px solid #0891b2; max-width: 900px;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); color: white;">
+                        <h2 style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-rounded">photo_library</span>
+                            Kanski Clinical Photos
+                        </h2>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button id="kanski-insert-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Insert selected images into infographic">
+                                <span class="material-symbols-rounded" style="font-size: 1.1rem;">add_photo_alternate</span>
+                                Insert into Infographic
+                            </button>
+                            <button id="close-kanski-modal" class="icon-btn-ghost" style="color: white;">
+                                <span class="material-symbols-rounded">close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-body" id="kanski-modal-body" style="max-height: 75vh; overflow-y: auto; padding: 1rem;">
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(kModal);
+
+            kModal.querySelector('#close-kanski-modal').addEventListener('click', () => {
+                kModal.classList.remove('active');
+            });
+            kModal.addEventListener('click', (e) => {
+                if (e.target === kModal) kModal.classList.remove('active');
+            });
+        }
+
+        const body = kModal.querySelector('#kanski-modal-body');
+        body.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap;">
+                <p style="margin: 0; color: #0e7490; font-weight: 600;">
+                    <span class="material-symbols-rounded" style="font-size: 1rem; vertical-align: middle;">menu_book</span>
+                    ${topPages.length} relevant page(s) found for "${currentInfographicData.title}"
+                </p>
+                <span style="font-size: 0.8rem; color: #64748b;">Click images to select, then insert into infographic</span>
+            </div>
+            <div id="kanski-images-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                ${topPages.map((p, idx) => `
+                    <div class="kanski-page-card" data-page="${p.pageNum}" data-index="${idx}"
+                        style="border: 2px solid #e2e8f0; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; position: relative;">
+                        <div class="kanski-img-container" style="background: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 200px;">
+                            <div class="kanski-loading" style="text-align: center; color: #94a3b8;">
+                                <span class="material-symbols-rounded" style="font-size: 2rem; animation: spin 1s linear infinite;">progress_activity</span>
+                                <p style="font-size: 0.8rem; margin: 4px 0 0;">Rendering p.${p.pageNum}...</p>
+                            </div>
+                        </div>
+                        <div style="padding: 0.5rem 0.75rem; background: white; border-top: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.8rem; font-weight: 600; color: #0e7490;">Page ${p.pageNum}</div>
+                            <div style="font-size: 0.7rem; color: #64748b; margin-top: 2px;">
+                                Score: ${p.score} · Keywords: ${p.matchedKeywords.slice(0, 3).join(', ')}
+                            </div>
+                        </div>
+                        <div class="kanski-selected-badge" style="display: none; position: absolute; top: 8px; right: 8px; background: #0891b2; color: white; width: 28px; height: 28px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.2rem; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                            <span class="material-symbols-rounded" style="font-size: 1.2rem;">check</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        // Add spin animation if not exists
+        if (!document.getElementById('kanski-spin-style')) {
+            const style = document.createElement('style');
+            style.id = 'kanski-spin-style';
+            style.textContent = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`;
+            document.head.appendChild(style);
+        }
+
+        kModal.classList.add('active');
+
+        // Render page images asynchronously
+        const selectedPages = new Set();
+
+        for (const p of topPages) {
+            try {
+                const page = await kanskiPdfDoc.getPage(p.pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+
+                // Convert to image
+                const imgUrl = canvas.toDataURL('image/jpeg', 0.85);
+                const card = body.querySelector(`.kanski-page-card[data-page="${p.pageNum}"]`);
+                if (card) {
+                    const container = card.querySelector('.kanski-img-container');
+                    container.innerHTML = `<img src="${imgUrl}" style="width: 100%; display: block;" alt="Kanski p.${p.pageNum}">`;
+                    card.dataset.imgUrl = imgUrl;
+                }
+            } catch (err) {
+                console.warn(`Failed to render page ${p.pageNum}:`, err);
+                const card = body.querySelector(`.kanski-page-card[data-page="${p.pageNum}"]`);
+                if (card) {
+                    card.querySelector('.kanski-img-container').innerHTML = `<div style="padding: 2rem; text-align: center; color: #ef4444;"><span class="material-symbols-rounded">error</span><p>Failed to render</p></div>`;
+                }
+            }
+        }
+
+        // Selection toggle on card click
+        body.querySelectorAll('.kanski-page-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const pageNum = parseInt(card.dataset.page);
+                const badge = card.querySelector('.kanski-selected-badge');
+                if (selectedPages.has(pageNum)) {
+                    selectedPages.delete(pageNum);
+                    card.style.borderColor = '#e2e8f0';
+                    card.style.boxShadow = '';
+                    if (badge) badge.style.display = 'none';
+                } else {
+                    selectedPages.add(pageNum);
+                    card.style.borderColor = '#0891b2';
+                    card.style.boxShadow = '0 0 0 3px rgba(8, 145, 178, 0.3)';
+                    if (badge) badge.style.display = 'flex';
+                }
+            });
+        });
+
+        // Insert into infographic button
+        const insertBtn = kModal.querySelector('#kanski-insert-btn');
+        insertBtn.onclick = () => {
+            if (selectedPages.size === 0) {
+                // If none selected, insert all
+                if (!confirm(`No images selected. Insert all ${topPages.length} images into the infographic?`)) return;
+                topPages.forEach(p => selectedPages.add(p.pageNum));
+            }
+
+            // Collect selected images
+            const images = [];
+            body.querySelectorAll('.kanski-page-card').forEach(card => {
+                const pageNum = parseInt(card.dataset.page);
+                if (selectedPages.has(pageNum) && card.dataset.imgUrl) {
+                    images.push({
+                        pageNum,
+                        imgUrl: card.dataset.imgUrl,
+                        keywords: topPages.find(p => p.pageNum === pageNum)?.matchedKeywords || []
+                    });
+                }
+            });
+
+            if (images.length === 0) {
+                alert('No rendered images available to insert.');
+                return;
+            }
+
+            // Insert images into the currently rendered infographic
+            insertKanskiImages(images);
+            kModal.classList.remove('active');
+        };
+    }
+
+    function insertKanskiImages(images) {
+        const posterGrid = document.querySelector('.poster-grid');
+        if (!posterGrid) {
+            alert('No infographic is currently displayed. Please load one first.');
+            return;
+        }
+
+        // Create a Kanski images section card
+        const kanskiSection = document.createElement('div');
+        kanskiSection.className = 'poster-card card-key_point col-span-2 theme-blue';
+        kanskiSection.style.cssText = 'animation-delay: 0ms;';
+        kanskiSection.innerHTML = `
+            <h3 class="card-title" style="color: #0e7490;">
+                <div class="icon-box" style="background: linear-gradient(135deg, #0891b2, #0e7490);"><span class="material-symbols-rounded">photo_library</span></div>
+                Kanski Clinical Photos
+                <span style="font-size: 0.75rem; font-weight: 400; color: #64748b; margin-left: auto;">
+                    ${images.length} image(s)
+                </span>
+            </h3>
+            <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
+                ${images.map(img => `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
+                        <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
+                            alt="Kanski p.${img.pageNum}" 
+                            onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
+                            title="Click to expand/collapse">
+                        <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                            <strong>p.${img.pageNum}</strong> · ${img.keywords.slice(0, 3).join(', ')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        // Insert at the end of the poster grid
+        posterGrid.appendChild(kanskiSection);
+
+        // Scroll to the new section
+        kanskiSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        alert(`✅ ${images.length} Kanski image(s) inserted into the infographic!`);
+    }
+
+    console.log('Kanski Pics initialized.');
+}
+
+/* ========================================
    INITIALIZE ALL STUDIO TOOLS
    ======================================== */
 
@@ -8597,6 +8995,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFlashcards();
     setupQuiz();
     setupSlideDeck();
+    setupKanskiPics();
 
     // Initialize Community Hub
     setupCommunityHub();
