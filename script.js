@@ -2587,21 +2587,37 @@ function setupKnowledgeBase() {
             const filterDef = CONTENT_TYPE_FILTERS.find(f => f.id === currentContentFilter);
             if (filterDef && filterDef.keywords) {
                 filteredLibrary = filteredLibrary.filter(item => {
-                    if (!item.data || !item.data.sections) return false;
-                    // Check section types first (e.g., table type)
-                    if (filterDef.sectionTypes) {
-                        const hasType = item.data.sections.some(s => filterDef.sectionTypes.includes(s.type));
-                        if (hasType) return true;
+                    try {
+                        if (!item.data || !item.data.sections) return false;
+                        const sections = Array.isArray(item.data.sections) ? item.data.sections : [];
+                        // Check section types first (e.g., table type)
+                        if (filterDef.sectionTypes) {
+                            const hasType = sections.some(s => s && filterDef.sectionTypes.includes(s.type));
+                            if (hasType) return true;
+                        }
+                        // Check section titles and content for keywords
+                        return sections.some(section => {
+                            if (!section) return false;
+                            const sTitle = (section.title || '').toLowerCase();
+                            let sContent = '';
+                            try {
+                                if (typeof section.content === 'string') {
+                                    sContent = section.content.toLowerCase();
+                                } else if (Array.isArray(section.content)) {
+                                    sContent = section.content
+                                        .map(c => typeof c === 'string' ? c : (c && c.label ? c.label : ''))
+                                        .join(' ').toLowerCase();
+                                } else if (section.content && typeof section.content === 'object') {
+                                    sContent = JSON.stringify(section.content).toLowerCase();
+                                }
+                            } catch { sContent = ''; }
+                            const combined = sTitle + ' ' + sContent;
+                            return filterDef.keywords.some(kw => combined.includes(kw));
+                        });
+                    } catch (err) {
+                        console.warn('Content filter error for item:', item.title, err);
+                        return false;
                     }
-                    // Check section titles and content for keywords
-                    return item.data.sections.some(section => {
-                        const sTitle = (section.title || '').toLowerCase();
-                        let sContent = '';
-                        if (typeof section.content === 'string') sContent = section.content.toLowerCase();
-                        else if (Array.isArray(section.content)) sContent = section.content.join(' ').toLowerCase();
-                        const combined = sTitle + ' ' + sContent;
-                        return filterDef.keywords.some(kw => combined.includes(kw));
-                    });
                 });
             }
         }
@@ -2790,8 +2806,10 @@ function setupKnowledgeBase() {
             contentFilterSelect.addEventListener('change', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                currentContentFilter = e.target.value;
-                renderLibraryList();
+                const newValue = e.target.value;
+                currentContentFilter = newValue;
+                // Defer re-render to next tick to avoid DOM destruction during event
+                setTimeout(() => { renderLibraryList(); }, 0);
             });
         }
 
