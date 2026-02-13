@@ -1537,8 +1537,30 @@ function setupKnowledgeBase() {
     let currentSearchTerm = ''; // NEW: Search state
     let currentSortMode = 'date'; // NEW: Sort state
     let showBookmarkedOnly = false; // NEW: Bookmark filter state
+    let currentContentFilter = 'all'; // Content-type filter: tables, causes, etc.
     let selectionMode = false;
     let selectedItems = new Set();
+
+    // Content-type filter definitions
+    // Each filter scans section titles and content for matching keywords
+    const CONTENT_TYPE_FILTERS = [
+        { id: 'all', name: 'All Content', icon: 'apps' },
+        { id: 'tables', name: 'Tables', icon: 'table_chart',
+          keywords: ['table', 'comparison', 'versus', 'vs', 'differential', 'grading', 'staging', 'classification', 'scoring'],
+          sectionTypes: ['table'] },
+        { id: 'causes', name: 'Causes', icon: 'help_outline',
+          keywords: ['cause', 'aetiology', 'etiology', 'pathogenesis', 'pathophysiology', 'mechanism', 'risk factor', 'predisposing', 'associated with', 'due to'] },
+        { id: 'clinical', name: 'Clinical Presentations', icon: 'medical_information',
+          keywords: ['clinical', 'presentation', 'symptom', 'sign', 'feature', 'manifestation', 'finding', 'examination', 'history', 'complaint', 'onset'] },
+        { id: 'complications', name: 'Complications', icon: 'warning',
+          keywords: ['complication', 'adverse', 'side effect', 'sequelae', 'prognosis', 'outcome', 'morbidity', 'risk', 'deterioration', 'progression'] },
+        { id: 'workup', name: 'Workup', icon: 'assignment',
+          keywords: ['workup', 'work-up', 'work up', 'assessment', 'evaluation', 'approach', 'algorithm', 'protocol', 'guideline', 'screening', 'triage'] },
+        { id: 'investigations', name: 'Investigations', icon: 'biotech',
+          keywords: ['investigation', 'imaging', 'test', 'laboratory', 'lab', 'diagnostic', 'scan', 'oct', 'angiography', 'ultrasound', 'biopsy', 'blood test', 'xray', 'mri', 'ct'] },
+        { id: 'treatment', name: 'Treatment', icon: 'medication',
+          keywords: ['treatment', 'management', 'therapy', 'drug', 'medication', 'surgical', 'operation', 'procedure', 'intervention', 'dose', 'dosage', 'regimen', 'protocol', 'conservative', 'medical', 'pharmacological', 'anti-vegf', 'laser', 'injection'] },
+    ];
 
     // Toggle Export Button
     function updateExportButtonVisibility() {
@@ -2555,9 +2577,33 @@ function setupKnowledgeBase() {
             );
         }
 
-        // 2.5 Filter by Bookmarked (NEW)
+        // 2.5 Filter by Bookmarked
         if (showBookmarkedOnly) {
             filteredLibrary = filteredLibrary.filter(item => item.bookmarked === true);
+        }
+
+        // 2.6 Filter by Content Type (tables, causes, clinical, etc.)
+        if (currentContentFilter !== 'all') {
+            const filterDef = CONTENT_TYPE_FILTERS.find(f => f.id === currentContentFilter);
+            if (filterDef && filterDef.keywords) {
+                filteredLibrary = filteredLibrary.filter(item => {
+                    if (!item.data || !item.data.sections) return false;
+                    // Check section types first (e.g., table type)
+                    if (filterDef.sectionTypes) {
+                        const hasType = item.data.sections.some(s => filterDef.sectionTypes.includes(s.type));
+                        if (hasType) return true;
+                    }
+                    // Check section titles and content for keywords
+                    return item.data.sections.some(section => {
+                        const sTitle = (section.title || '').toLowerCase();
+                        let sContent = '';
+                        if (typeof section.content === 'string') sContent = section.content.toLowerCase();
+                        else if (Array.isArray(section.content)) sContent = section.content.join(' ').toLowerCase();
+                        const combined = sTitle + ' ' + sContent;
+                        return filterDef.keywords.some(kw => combined.includes(kw));
+                    });
+                });
+            }
         }
 
         // 3. Apply Sorting
@@ -2590,7 +2636,7 @@ function setupKnowledgeBase() {
 
         // Update count badge to show filtered vs total count
         if (countBadge) {
-            const isFiltered = showBookmarkedOnly || currentChapterFilter !== 'all' || currentSearchTerm;
+            const isFiltered = showBookmarkedOnly || currentChapterFilter !== 'all' || currentSearchTerm || currentContentFilter !== 'all';
             if (isFiltered) {
                 countBadge.textContent = `${filteredLibrary.length} / ${library.length}`;
             } else {
@@ -2658,6 +2704,11 @@ function setupKnowledgeBase() {
                         <option value="name" ${currentSortMode === 'name' ? 'selected' : ''}>Sort by Name</option>
                         <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
                         <option value="newly_added" ${currentSortMode === 'newly_added' ? 'selected' : ''}>Sort by Newly Added</option>
+                    </select>
+                </div>
+                <div class="content-filter-wrapper">
+                    <select id="content-type-filter" style="padding: 8px 10px; border: 1px solid ${currentContentFilter !== 'all' ? '#8b5cf6' : '#e2e8f0'}; border-radius: 6px; font-size: 0.9rem; background-color: ${currentContentFilter !== 'all' ? '#f5f3ff' : 'white'}; cursor: pointer; color: ${currentContentFilter !== 'all' ? '#6d28d9' : 'inherit'}; font-weight: ${currentContentFilter !== 'all' ? '600' : 'normal'};">
+                        ${CONTENT_TYPE_FILTERS.map(f => `<option value="${f.id}" ${currentContentFilter === f.id ? 'selected' : ''}>${f.name}</option>`).join('')}
                     </select>
                 </div>
                 <div class="bookmark-filter-wrapper" style="display: flex; align-items: center; gap: 6px;">
@@ -2729,6 +2780,17 @@ function setupKnowledgeBase() {
         if (sortSelect) {
             sortSelect.addEventListener('change', (e) => {
                 currentSortMode = e.target.value;
+                renderLibraryList();
+            });
+        }
+
+        // Content-Type Filter Handler
+        const contentFilterSelect = toolbar.querySelector('#content-type-filter');
+        if (contentFilterSelect) {
+            contentFilterSelect.addEventListener('change', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                currentContentFilter = e.target.value;
                 renderLibraryList();
             });
         }
@@ -4981,6 +5043,190 @@ const ICON_FALLBACK_MAP = {
     'trash': 'delete',
     'bin': 'delete',
     'recycle_bin': 'delete',
+
+    // ═══════════════ Additional AI-generated invalid names ═══════════════
+    // Blood / Cardiovascular
+    'blood_type': 'bloodtype',
+    'blood_group': 'bloodtype',
+    'bloodtype_icon': 'bloodtype',
+    'transfusion': 'bloodtype',
+    'hematology': 'bloodtype',
+    'haematology': 'bloodtype',
+    'vascular': 'cardiology',
+    'artery': 'cardiology',
+    'vein': 'cardiology',
+    'circulation': 'cardiology',
+    'cardiac': 'cardiology',
+
+    // Radiation / Nuclear
+    'radioactive': 'radiology',
+    'radiation': 'radiology',
+    'nuclear': 'radiology',
+    'radiotherapy': 'radiology',
+    'gamma': 'radiology',
+    'isotope': 'radiology',
+    'radioactivity': 'radiology',
+
+    // Geometry / Spatial
+    'triangulation': 'change_history',
+    'triangle': 'change_history',
+    'pyramid': 'change_history',
+    'delta': 'change_history',
+    'angle': 'square_foot',
+    'geometry': 'square_foot',
+    'shape': 'category',
+    'square': 'crop_square',
+    'rectangle': 'crop_square',
+    'hexagon': 'hexagon',
+    'pentagon': 'pentagon',
+    'octagon': 'stop',
+    'oval': 'radio_button_unchecked',
+    'sphere': 'public',
+
+    // Vision / Optics (extended)
+    'farsightedness': 'eyeglasses',
+    'hyperopia_icon': 'eyeglasses',
+    'nearsightedness': 'eyeglasses',
+    'myopia_icon': 'eyeglasses',
+    'astigmatism_icon': 'eyeglasses',
+    'presbyopia_icon': 'eyeglasses',
+    'refraction_icon': 'eyeglasses',
+    'visual_acuity': 'visibility',
+    'eye_exam': 'visibility',
+    'eye_test': 'visibility',
+    'eye_chart': 'visibility',
+    'snellen': 'visibility',
+    'ophthalmoscope': 'visibility',
+    'slit_lamp': 'visibility',
+    'tonometer': 'speed',
+    'iop_icon': 'speed',
+    'pressure': 'speed',
+    'intraocular': 'visibility',
+    'fundus': 'visibility',
+    'macula': 'visibility',
+    'fovea': 'visibility',
+    'optic_nerve': 'visibility',
+    'optic_disc': 'visibility',
+    'visual_field': 'grid_view',
+    'perimetry': 'grid_view',
+    'gonioscopy': 'visibility',
+    'pachymetry': 'straighten',
+    'keratometry': 'straighten',
+
+    // Surgery / Procedures (extended)
+    'scalpel': 'content_cut',
+    'surgery': 'medical_services',
+    'operate': 'medical_services',
+    'incision': 'content_cut',
+    'suture': 'healing',
+    'stitch': 'healing',
+    'clamp': 'build',
+    'forceps': 'build',
+    'retractor': 'build',
+    'cannula': 'vaccines',
+    'catheter': 'vaccines',
+    'drain': 'water_drop',
+    'implant': 'settings_accessibility',
+    'prosthesis': 'settings_accessibility',
+    'graft': 'healing',
+    'transplant': 'healing',
+
+    // Anatomy (extended)
+    'skull': 'psychology',
+    'spine': 'straighten',
+    'joint': 'accessibility_new',
+    'tendon': 'accessibility_new',
+    'ligament': 'accessibility_new',
+    'nerve': 'psychology',
+    'neuron': 'psychology',
+    'synapse': 'psychology',
+    'cell': 'biotech',
+    'tissue': 'biotech',
+    'organ': 'biotech',
+    'membrane': 'layers',
+    'epithelium': 'layers',
+    'endothelium': 'layers',
+
+    // Miscellaneous medical
+    'diagnosis': 'assignment',
+    'prognosis': 'trending_up',
+    'etiology': 'help_outline',
+    'aetiology': 'help_outline',
+    'pathology': 'biotech',
+    'histology': 'biotech',
+    'cytology': 'biotech',
+    'biopsy_icon': 'biotech',
+    'specimen': 'biotech',
+    'culture': 'biotech',
+    'sensitivity_icon': 'biotech',
+    'antibiotic': 'medication',
+    'antifungal': 'medication',
+    'antiviral': 'medication',
+    'steroid': 'medication',
+    'immunosuppressant': 'medication',
+    'chemotherapy': 'medication',
+    'dosage': 'medication',
+    'prescription_icon': 'clinical_notes',
+    'clinical': 'clinical_notes',
+    'ward': 'local_hospital',
+    'icu': 'local_hospital',
+    'emergency_room': 'emergency',
+    'er': 'emergency',
+    'triage': 'assignment',
+    'referral': 'send',
+    'follow_up': 'event_repeat',
+    'followup': 'event_repeat',
+    'review': 'rate_review',
+    'audit': 'fact_check',
+    'guideline': 'rule',
+    'protocol_icon': 'rule',
+    'consent': 'handshake',
+    'handshake': 'handshake',
+    'agreement': 'handshake',
+
+    // Symbols & Misc
+    'infinity': 'all_inclusive',
+    'infinite': 'all_inclusive',
+    'percentage': 'percent',
+    'percent_icon': 'percent',
+    'ratio': 'percent',
+    'fraction': 'percent',
+    'equal': 'drag_handle',
+    'equals': 'drag_handle',
+    'greater': 'chevron_right',
+    'less': 'chevron_left',
+    'up_arrow': 'arrow_upward',
+    'down_arrow': 'arrow_downward',
+    'increase': 'trending_up',
+    'decrease': 'trending_down',
+    'rise': 'trending_up',
+    'fall': 'trending_down',
+    'growth': 'trending_up',
+    'decline': 'trending_down',
+    'positive': 'add_circle',
+    'negative': 'remove_circle',
+    'normal': 'check_circle',
+    'abnormal': 'error',
+    'elevated': 'arrow_upward',
+    'reduced': 'arrow_downward',
+    'bilateral': 'compare_arrows',
+    'unilateral': 'arrow_forward',
+    'acute': 'bolt',
+    'chronic': 'schedule',
+    'recurrent': 'autorenew',
+    'progressive': 'trending_up',
+    'stable': 'horizontal_rule',
+    'resolved': 'check_circle',
+
+    // Weather / Environment (extended)
+    'toxic_icon': 'dangerous',
+    'chemical': 'science',
+    'formula': 'functions',
+    'equation': 'functions',
+    'math': 'calculate',
+    'calculation': 'calculate',
+    'calculator': 'calculate',
+    'abacus': 'calculate',
 };
 
 /**
