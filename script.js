@@ -4711,8 +4711,8 @@ function saveStickyNote(text) {
             source: infographicTitle,
             createdAt: new Date().toISOString()
         });
-        // Keep max 200 notes
-        if (notes.length > 200) notes.length = 200;
+        // Keep max 10000 notes
+        if (notes.length > 10000) notes.length = 10000;
         localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
         // Update badge count
         updateStickyNotesBadge();
@@ -4828,7 +4828,6 @@ function setupStickyNotes() {
                         const color = STICKY_COLORS[idx % STICKY_COLORS.length];
                         const date = new Date(note.createdAt);
                         const timeStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) + ' ' + date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                        const truncText = note.text.length > 300 ? note.text.substring(0, 300) + '...' : note.text;
                         return `
                         <div class="sticky-note-card" data-note-id="${note.id}" data-searchable="${note.text.toLowerCase()} ${(note.source || '').toLowerCase()}"
                             style="background: ${color.bg}; border: 1px solid ${color.border}; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 2px 2px 8px rgba(0,0,0,0.06); transition: transform 0.15s; cursor: default;">
@@ -4845,7 +4844,7 @@ function setupStickyNotes() {
                                     </button>
                                 </div>
                             </div>
-                            <div class="sticky-note-text" style="font-size: 0.85rem; color: #1e293b; line-height: 1.5; white-space: pre-wrap; word-break: break-word;">${escapeHtml(truncText)}</div>
+                            <div class="sticky-note-text" style="font-size: 0.85rem; color: #1e293b; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto;">${escapeHtml(note.text)}</div>
                             ${note.source ? `
                                 <div style="margin-top: 0.5rem; font-size: 0.7rem; color: ${color.accent}; opacity: 0.7; display: flex; align-items: center; gap: 3px;">
                                     <span class="material-symbols-rounded" style="font-size: 0.8rem;">description</span>
@@ -5925,10 +5924,23 @@ function renderInfographic(data) {
         `;
     }
 
-    // Category Color Badge - determine chapter from title or stored chapterId
+    // Category Color Badge - determine chapter from library (source of truth) > data > auto-detect
     let categoryBadgeHtml = '';
     const title = data.title || '';
-    let chapterId = data.chapterId || autoDetectChapter(title);
+    // Priority: 1) library item's chapterId (user may have changed it), 2) data.chapterId, 3) auto-detect
+    let chapterId = data.chapterId || 'uncategorized';
+    try {
+        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const libItem = lib.find(i => i.title === title);
+        if (libItem && libItem.chapterId && libItem.chapterId !== 'uncategorized') {
+            chapterId = libItem.chapterId;
+            // Sync back into data so it persists
+            data.chapterId = chapterId;
+        }
+    } catch { /* ignore */ }
+    if (chapterId === 'uncategorized') {
+        chapterId = autoDetectChapter(title);
+    }
     if (chapterId && chapterId !== 'uncategorized') {
         const chapter = DEFAULT_CHAPTERS.find(c => c.id === chapterId);
         if (chapter) {
@@ -9120,31 +9132,118 @@ function setupKanskiPics() {
     const kanskiInput = document.getElementById('kanski-pdf-input');
     if (!kanskiBtn || !kanskiInput) return;
 
-    // Cache: store extracted page data per session to avoid re-processing
+    // Session cache: PDF doc and page texts
     let kanskiPdfDoc = null;
     let kanskiPageTexts = []; // [{pageNum, text}]
     let kanskiFileName = '';
+    let kanskiAutoMode = false; // Whether auto mode is enabled
 
-    kanskiBtn.addEventListener('click', () => {
+    // ═══════════════════════════════════════════════════════════════
+    // IndexedDB cache for Kanski page texts (persist across sessions)
+    // Stores only text index — not the PDF itself or images.
+    // ═══════════════════════════════════════════════════════════════
+    const KANSKI_INDEX_DB = 'KanskiIndexDB';
+
+    function openKanskiIndexDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(KANSKI_INDEX_DB, 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('pageTexts')) {
+                    db.createObjectStore('pageTexts', { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function saveCachedIndex(pageTexts) {
+        try {
+            const db = await openKanskiIndexDB();
+            const tx = db.transaction('pageTexts', 'readwrite');
+            tx.objectStore('pageTexts').put({ id: 'kanski_index', pages: pageTexts, savedAt: Date.now() });
+            await new Promise(r => { tx.oncomplete = r; });
+            db.close();
+            console.log('[Kanski] Page index cached in IndexedDB');
+        } catch (err) { console.warn('[Kanski] Failed to cache index:', err); }
+    }
+
+    async function loadCachedIndex() {
+        try {
+            const db = await openKanskiIndexDB();
+            const tx = db.transaction('pageTexts', 'readonly');
+            const result = await new Promise((resolve, reject) => {
+                const req = tx.objectStore('pageTexts').get('kanski_index');
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            db.close();
+            if (result && result.pages && result.pages.length > 0) {
+                console.log(`[Kanski] Loaded cached index: ${result.pages.length} pages`);
+                return result.pages;
+            }
+        } catch (err) { console.warn('[Kanski] No cached index:', err); }
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Button click — offers Manual or Auto mode
+    // ═══════════════════════════════════════════════════════════════
+    kanskiBtn.addEventListener('click', async () => {
         if (!currentInfographicData) {
             alert('Please generate or load an infographic first, then use Kanski Pics to find matching clinical photos.');
             return;
         }
 
-        if (kanskiPdfDoc) {
-            // PDF already loaded — go straight to matching
-            matchAndDisplayKanskiPages();
+        if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
+            // PDF loaded this session — offer manual vs auto
+            const useAuto = confirm(
+                'Kanski PDF is loaded.\n\n' +
+                'OK = Auto Mode (auto-select & insert best images)\n' +
+                'Cancel = Manual Mode (preview & select images)'
+            );
+            if (useAuto) {
+                await autoMatchAndInsert();
+            } else {
+                await matchAndDisplayKanskiPages();
+            }
         } else {
-            kanskiInput.click();
+            // Check if we have a cached text index
+            const cached = await loadCachedIndex();
+            if (cached && cached.length > 0) {
+                kanskiPageTexts = cached;
+                kanskiFileName = 'Kanski (cached)';
+
+                const useAuto = confirm(
+                    `Kanski page index found (${cached.length} pages cached).\n\n` +
+                    'OK = Auto Mode (auto-select & insert best images)\n' +
+                    'Cancel = Manual Mode (preview & select images)\n\n' +
+                    '(Note: images are rendered from the PDF — you\'ll be asked to select the file.)'
+                );
+
+                if (useAuto) {
+                    kanskiAutoMode = true;
+                }
+                // Need the actual PDF for rendering images
+                kanskiInput.click();
+            } else {
+                // No cache at all — prompt for file
+                kanskiInput.click();
+            }
         }
     });
 
     kanskiInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {
+            kanskiAutoMode = false;
+            return;
+        }
 
         if (!file.name.toLowerCase().endsWith('.pdf')) {
             alert('Please select a PDF file.');
+            kanskiAutoMode = false;
             return;
         }
 
@@ -9164,32 +9263,45 @@ function setupKanskiPics() {
             const arrayBuffer = await file.arrayBuffer();
             kanskiPdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
-            // Extract text from all pages for keyword matching
-            kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Indexing pages...</span>';
+            // If we already have cached text index, skip re-indexing
+            if (kanskiPageTexts.length > 0) {
+                console.log(`[Kanski] Using cached index (${kanskiPageTexts.length} pages), skipping re-index`);
+            } else {
+                // Extract text from all pages for keyword matching
+                kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Indexing pages...</span>';
 
-            kanskiPageTexts = [];
-            const totalPages = kanskiPdfDoc.numPages;
+                kanskiPageTexts = [];
+                const totalPages = kanskiPdfDoc.numPages;
 
-            for (let i = 1; i <= totalPages; i++) {
-                try {
-                    const page = await kanskiPdfDoc.getPage(i);
-                    const textContent = await page.getTextContent();
-                    const text = textContent.items.map(item => item.str).join(' ');
-                    kanskiPageTexts.push({ pageNum: i, text: text.toLowerCase() });
-                } catch {
-                    kanskiPageTexts.push({ pageNum: i, text: '' });
+                for (let i = 1; i <= totalPages; i++) {
+                    try {
+                        const page = await kanskiPdfDoc.getPage(i);
+                        const textContent = await page.getTextContent();
+                        const text = textContent.items.map(item => item.str).join(' ');
+                        kanskiPageTexts.push({ pageNum: i, text: text.toLowerCase() });
+                    } catch {
+                        kanskiPageTexts.push({ pageNum: i, text: '' });
+                    }
+
+                    // Update progress every 50 pages
+                    if (i % 50 === 0) {
+                        kanskiBtn.querySelector('.tool-label').textContent = `Indexing ${i}/${totalPages}...`;
+                    }
                 }
 
-                // Update progress every 50 pages
-                if (i % 50 === 0) {
-                    kanskiBtn.querySelector('.tool-label').textContent = `Indexing ${i}/${totalPages}...`;
-                }
+                console.log(`[Kanski] Indexed ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
+
+                // Cache the text index for future sessions
+                await saveCachedIndex(kanskiPageTexts);
             }
 
-            console.log(`[Kanski] Indexed ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
-
             // Now match pages to current infographic
-            await matchAndDisplayKanskiPages();
+            if (kanskiAutoMode) {
+                kanskiAutoMode = false;
+                await autoMatchAndInsert();
+            } else {
+                await matchAndDisplayKanskiPages();
+            }
 
         } catch (err) {
             console.error('Kanski PDF error:', err);
@@ -9198,8 +9310,99 @@ function setupKanskiPics() {
             kanskiBtn.disabled = false;
             kanskiBtn.innerHTML = originalHTML;
             kanskiInput.value = ''; // Reset file input
+            kanskiAutoMode = false;
         }
     });
+
+    // ═══════════════════════════════════════════════════════════════
+    // AUTO MODE — match, render, and insert automatically (no modal)
+    // ═══════════════════════════════════════════════════════════════
+    async function autoMatchAndInsert() {
+        if (!kanskiPdfDoc || !currentInfographicData) return;
+
+        kanskiBtn.disabled = true;
+        const originalHTML = kanskiBtn.innerHTML;
+        kanskiBtn.innerHTML = '<span class="material-symbols-rounded">auto_awesome</span><span class="tool-label">Auto matching...</span>';
+
+        try {
+            const weightedKeywords = extractInfographicKeywordsWeighted(currentInfographicData);
+            console.log(`[Kanski Auto] Keywords:`, weightedKeywords.filter(k => k.weight >= 20).map(k => k.term));
+
+            // Score pages
+            const scoredPages = [];
+            kanskiPageTexts.forEach(({ pageNum, text }) => {
+                if (!text || text.length < 50) return;
+                let score = 0;
+                let primaryHits = 0;
+                const matchedKeywords = [];
+                weightedKeywords.forEach(({ term, weight }) => {
+                    const kwLower = term.toLowerCase();
+                    const escaped = kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = kwLower.length < 5
+                        ? new RegExp(`\\b${escaped}\\b`, 'gi')
+                        : new RegExp(`\\b${escaped}`, 'gi');
+                    const matches = text.match(regex);
+                    if (matches) {
+                        score += matches.length * weight;
+                        if (weight >= 20) primaryHits += matches.length;
+                        if (!matchedKeywords.includes(term)) matchedKeywords.push(term);
+                    }
+                });
+                if (score > 0) scoredPages.push({ pageNum, score, primaryHits, matchedKeywords });
+            });
+
+            scoredPages.sort((a, b) => {
+                if (b.primaryHits !== a.primaryHits) return b.primaryHits - a.primaryHits;
+                return b.score - a.score;
+            });
+
+            // Auto-select: take top 6 pages (focused selection for auto mode)
+            const topPages = scoredPages.slice(0, 6);
+
+            if (topPages.length === 0) {
+                alert(`[Auto Mode] No matching pages found for "${currentInfographicData.title}".`);
+                return;
+            }
+
+            kanskiBtn.innerHTML = '<span class="material-symbols-rounded">auto_awesome</span><span class="tool-label">Rendering images...</span>';
+
+            // Render images for top pages
+            const images = [];
+            for (let idx = 0; idx < topPages.length; idx++) {
+                const p = topPages[idx];
+                kanskiBtn.querySelector('.tool-label').textContent = `Rendering ${idx + 1}/${topPages.length}...`;
+                try {
+                    const page = await kanskiPdfDoc.getPage(p.pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    const ctx = canvas.getContext('2d');
+                    await page.render({ canvasContext: ctx, viewport }).promise;
+                    images.push({
+                        pageNum: p.pageNum,
+                        imgUrl: canvas.toDataURL('image/jpeg', 0.85),
+                        keywords: p.matchedKeywords || []
+                    });
+                } catch (err) {
+                    console.warn(`[Kanski Auto] Failed to render page ${p.pageNum}:`, err);
+                }
+            }
+
+            if (images.length > 0) {
+                insertKanskiImages(images);
+            } else {
+                alert('[Auto Mode] Failed to render any matching pages.');
+            }
+
+        } catch (err) {
+            console.error('[Kanski Auto] Error:', err);
+            alert('Auto mode error: ' + err.message);
+        } finally {
+            kanskiBtn.disabled = false;
+            kanskiBtn.innerHTML = originalHTML;
+        }
+    }
 
     async function matchAndDisplayKanskiPages() {
         if (!kanskiPdfDoc || !currentInfographicData) return;
