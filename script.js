@@ -1545,21 +1545,35 @@ function setupKnowledgeBase() {
     // Each filter scans section titles and content for matching keywords
     const CONTENT_TYPE_FILTERS = [
         { id: 'all', name: 'All Content', icon: 'apps' },
-        { id: 'tables', name: 'Tables', icon: 'table_chart',
-          keywords: ['table', 'comparison', 'versus', 'vs', 'differential', 'grading', 'staging', 'classification', 'scoring'],
-          sectionTypes: ['table'] },
-        { id: 'causes', name: 'Causes', icon: 'help_outline',
-          keywords: ['cause', 'aetiology', 'etiology', 'pathogenesis', 'pathophysiology', 'mechanism', 'risk factor', 'predisposing', 'associated with', 'due to'] },
-        { id: 'clinical', name: 'Clinical Presentations', icon: 'medical_information',
-          keywords: ['clinical', 'presentation', 'symptom', 'sign', 'feature', 'manifestation', 'finding', 'examination', 'history', 'complaint', 'onset'] },
-        { id: 'complications', name: 'Complications', icon: 'warning',
-          keywords: ['complication', 'adverse', 'side effect', 'sequelae', 'prognosis', 'outcome', 'morbidity', 'risk', 'deterioration', 'progression'] },
-        { id: 'workup', name: 'Workup', icon: 'assignment',
-          keywords: ['workup', 'work-up', 'work up', 'assessment', 'evaluation', 'approach', 'algorithm', 'protocol', 'guideline', 'screening', 'triage'] },
-        { id: 'investigations', name: 'Investigations', icon: 'biotech',
-          keywords: ['investigation', 'imaging', 'test', 'laboratory', 'lab', 'diagnostic', 'scan', 'oct', 'angiography', 'ultrasound', 'biopsy', 'blood test', 'xray', 'mri', 'ct'] },
-        { id: 'treatment', name: 'Treatment', icon: 'medication',
-          keywords: ['treatment', 'management', 'therapy', 'drug', 'medication', 'surgical', 'operation', 'procedure', 'intervention', 'dose', 'dosage', 'regimen', 'protocol', 'conservative', 'medical', 'pharmacological', 'anti-vegf', 'laser', 'injection'] },
+        {
+            id: 'tables', name: 'Tables', icon: 'table_chart',
+            keywords: ['table', 'comparison', 'versus', 'vs', 'differential', 'grading', 'staging', 'classification', 'scoring'],
+            sectionTypes: ['table']
+        },
+        {
+            id: 'causes', name: 'Causes', icon: 'help_outline',
+            keywords: ['cause', 'aetiology', 'etiology', 'pathogenesis', 'pathophysiology', 'mechanism', 'risk factor', 'predisposing', 'associated with', 'due to']
+        },
+        {
+            id: 'clinical', name: 'Clinical Presentations', icon: 'medical_information',
+            keywords: ['clinical', 'presentation', 'symptom', 'sign', 'feature', 'manifestation', 'finding', 'examination', 'history', 'complaint', 'onset']
+        },
+        {
+            id: 'complications', name: 'Complications', icon: 'warning',
+            keywords: ['complication', 'adverse', 'side effect', 'sequelae', 'prognosis', 'outcome', 'morbidity', 'risk', 'deterioration', 'progression']
+        },
+        {
+            id: 'workup', name: 'Workup', icon: 'assignment',
+            keywords: ['workup', 'work-up', 'work up', 'assessment', 'evaluation', 'approach', 'algorithm', 'protocol', 'guideline', 'screening', 'triage']
+        },
+        {
+            id: 'investigations', name: 'Investigations', icon: 'biotech',
+            keywords: ['investigation', 'imaging', 'test', 'laboratory', 'lab', 'diagnostic', 'scan', 'oct', 'angiography', 'ultrasound', 'biopsy', 'blood test', 'xray', 'mri', 'ct']
+        },
+        {
+            id: 'treatment', name: 'Treatment', icon: 'medication',
+            keywords: ['treatment', 'management', 'therapy', 'drug', 'medication', 'surgical', 'operation', 'procedure', 'intervention', 'dose', 'dosage', 'regimen', 'protocol', 'conservative', 'medical', 'pharmacological', 'anti-vegf', 'laser', 'injection']
+        },
     ];
 
     // Toggle Export Button
@@ -2703,11 +2717,11 @@ function setupKnowledgeBase() {
                 Found ${totalSections} matching section(s) across ${matchingItems.length} infographic(s):
             </p>
             ${matchingItems.map(item => {
-                const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
-                const catBadge = ch && item.chapterId !== 'uncategorized'
-                    ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
-                    : '';
-                return `
+            const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
+            const catBadge = ch && item.chapterId !== 'uncategorized'
+                ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
+                : '';
+            return `
                 <div class="cf-card" data-chapter="${item.chapterId}" style="background: ${theme.bg}; border: 1px solid ${theme.border}; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
                     <h3 style="color: ${theme.accent}; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                         <span class="material-symbols-rounded" style="font-size: 1.2rem;">${filterDef.icon}</span>
@@ -3658,12 +3672,12 @@ function setupKnowledgeBase() {
                 </p>
                 <div id="cat-suggestions-list">
                     ${mismatches.map((m, i) => {
-                        const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
-                        const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
-                        const suggestedColor = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.color || '#64748b';
-                        const confidenceIcon = m.confidence === 'high' ? '🟢' : m.confidence === 'medium' ? '🟡' : '🔴';
-                        const checked = m.confidence !== 'low' ? 'checked' : '';
-                        return `
+                const currentName = DEFAULT_CHAPTERS.find(c => c.id === m.current)?.name || m.current;
+                const suggestedName = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.name || m.suggested;
+                const suggestedColor = DEFAULT_CHAPTERS.find(c => c.id === m.suggested)?.color || '#64748b';
+                const confidenceIcon = m.confidence === 'high' ? '🟢' : m.confidence === 'medium' ? '🟡' : '🔴';
+                const checked = m.confidence !== 'low' ? 'checked' : '';
+                return `
                         <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; margin-bottom: 0.5rem; background: ${m.confidence === 'high' ? '#f0fdf4' : m.confidence === 'medium' ? '#fefce8' : '#fef2f2'}; border: 1px solid ${m.confidence === 'high' ? '#bbf7d0' : m.confidence === 'medium' ? '#fef08a' : '#fecaca'}; border-radius: 8px; cursor: pointer; transition: background 0.15s;">
                             <input type="checkbox" class="cat-suggestion-check" data-index="${i}" ${checked}
                                 style="margin-top: 3px; width: 18px; height: 18px; accent-color: #7c3aed; cursor: pointer; flex-shrink: 0;">
@@ -3864,11 +3878,11 @@ function setupKnowledgeBase() {
                     Showing ${redFlagItems.length} infographic(s) with red flag warnings:
                 </p>
                 ${redFlagItems.map(item => {
-                    const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
-                    const catBadge = ch && item.chapterId !== 'uncategorized'
-                        ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
-                        : '';
-                    return `
+                const ch = DEFAULT_CHAPTERS.find(c => c.id === item.chapterId);
+                const catBadge = ch && item.chapterId !== 'uncategorized'
+                    ? `<span style="display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; color: white; background: ${ch.color}; margin-left: 6px;"><span class="material-symbols-rounded" style="font-size: 11px;">folder</span>${ch.name}</span>`
+                    : '';
+                return `
                     <div class="red-flag-card" data-chapter="${item.chapterId}" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
                         <h3 style="color: #dc2626; margin: 0 0 0.5rem 0; font-size: 1rem; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <span class="material-symbols-rounded" style="font-size: 1.2rem;">warning</span>
@@ -4828,10 +4842,10 @@ function setupStickyNotes() {
                 </div>
                 <div id="sticky-notes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
                     ${notes.map((note, idx) => {
-                        const color = STICKY_COLORS[idx % STICKY_COLORS.length];
-                        const date = new Date(note.createdAt);
-                        const timeStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) + ' ' + date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-                        return `
+                const color = STICKY_COLORS[idx % STICKY_COLORS.length];
+                const date = new Date(note.createdAt);
+                const timeStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) + ' ' + date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                return `
                         <div class="sticky-note-card" data-note-id="${note.id}" data-searchable="${note.text.toLowerCase()} ${(note.source || '').toLowerCase()}"
                             style="background: ${color.bg}; border: 1px solid ${color.border}; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 2px 2px 8px rgba(0,0,0,0.06); transition: transform 0.15s; cursor: default;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
@@ -9348,21 +9362,51 @@ function setupKanskiPics() {
         );
         kanskiAutoMode = useAuto;
 
-        // Try to load from cache first
-        const ready = await ensureKanskiReady();
-
-        if (ready) {
-            // PDF and index available — run chosen mode immediately
+        // ── FAST PATH: PDF already loaded this session ──
+        if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
             if (useAuto) {
                 await autoMatchAndInsert();
             } else {
                 await matchAndDisplayKanskiPages();
             }
-        } else {
-            // Need user to pick the PDF file
-            alert('Please select the Kanski PDF file.\n\nYou only need to do this once — the file will be cached for future use.');
-            kanskiInput.click();
+            return;
         }
+
+        // ── We must trigger the file picker SYNCHRONOUSLY ──
+        // Browsers block programmatic input.click() after any await /
+        // alert / setTimeout because the user-gesture context expires.
+        // So we click the file input NOW, then attempt to load from
+        // IndexedDB cache in the background.  If the cache succeeds
+        // we'll cancel the file-picker flow; if it doesn't, the user
+        // is already looking at the OS file dialog.
+
+        // Show a non-blocking toast message
+        const toast = document.createElement('div');
+        toast.textContent = 'Select the Kanski PDF — you only need to do this once.';
+        toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f1f5f9;padding:14px 28px;border-radius:12px;z-index:100000;font-size:0.95rem;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:90vw;text-align:center;';
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000);
+
+        // Trigger file picker immediately (user gesture is still alive)
+        kanskiInput.click();
+
+        // Meanwhile, also try loading from IndexedDB cache in background
+        // If we succeed, we'll process directly when ensureKanskiReady resolves
+        ensureKanskiReady().then(async (ready) => {
+            if (ready) {
+                // Cache loaded successfully — dismiss toast early
+                toast.remove();
+                // Only proceed if the user hasn't already picked a file
+                // (the change handler will take care of that case)
+                if (!kanskiInput.files || kanskiInput.files.length === 0) {
+                    if (useAuto) {
+                        await autoMatchAndInsert();
+                    } else {
+                        await matchAndDisplayKanskiPages();
+                    }
+                }
+            }
+        });
     });
 
     kanskiInput.addEventListener('change', async (e) => {
