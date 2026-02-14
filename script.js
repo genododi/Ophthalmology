@@ -2523,47 +2523,100 @@ function setupKnowledgeBase() {
         if (!filterDef || !filterDef.keywords) return;
 
         // Helper: safely extract text from section content
+        // Handles ALL section types: key_point, process, red_flag, mindmap,
+        // remember, chart, table, and unknown structures via deep extraction.
         function extractSectionText(section) {
-            if (!section || !section.content) return [];
+            if (!section || section.content === undefined || section.content === null) return [];
             const lines = [];
             try {
-                if (typeof section.content === 'string') {
-                    lines.push(section.content);
-                } else if (Array.isArray(section.content)) {
-                    section.content.forEach(c => {
-                        if (typeof c === 'string') lines.push(c);
-                        else if (c && c.label) lines.push(`${c.label}${c.value !== undefined ? ': ' + c.value : ''}`);
-                        else if (c && typeof c === 'object') {
-                            // Table rows, mindmap nodes, etc.
-                            const parts = Object.entries(c).map(([k, v]) => `${k}: ${v}`);
-                            lines.push(parts.join(' | '));
+                const content = section.content;
+
+                // 1) Plain string content (default section type)
+                if (typeof content === 'string') {
+                    if (content.trim()) lines.push(content);
+                }
+                // 2) Array content (key_point, process, red_flag, etc.)
+                else if (Array.isArray(content)) {
+                    content.forEach(c => {
+                        if (typeof c === 'string') {
+                            if (c.trim()) lines.push(c);
+                        } else if (c && typeof c === 'object') {
+                            // Objects with label/value (chart data items, etc.)
+                            if (c.label) lines.push(`${c.label}${c.value !== undefined ? ': ' + c.value : ''}`);
+                            else if (c.text) lines.push(c.text);
+                            else if (c.name) lines.push(c.name);
+                            else if (c.title) lines.push(c.title);
+                            else {
+                                // Generic object: collect all string values
+                                const vals = Object.values(c).filter(v => typeof v === 'string' && v.trim());
+                                if (vals.length > 0) lines.push(vals.join(' — '));
+                            }
                         }
                     });
-                } else if (typeof section.content === 'object') {
-                    // Chart data, mindmap, etc.
-                    if (section.content.data && Array.isArray(section.content.data)) {
-                        section.content.data.forEach(d => {
+                }
+                // 3) Object content (chart, remember, mindmap, table, etc.)
+                else if (typeof content === 'object') {
+                    // Mindmap: center + branches
+                    if (content.center) lines.push(content.center);
+                    if (content.branches && Array.isArray(content.branches)) {
+                        content.branches.forEach(b => {
+                            if (typeof b === 'string') lines.push(b);
+                            else if (b && b.label) lines.push(b.label);
+                            else if (b && b.text) lines.push(b.text);
+                        });
+                    }
+
+                    // Remember/mnemonic
+                    if (content.mnemonic) lines.push(content.mnemonic);
+                    if (content.explanation) lines.push(content.explanation);
+
+                    // Chart data
+                    if (content.data && Array.isArray(content.data)) {
+                        content.data.forEach(d => {
                             if (d.label) lines.push(`${d.label}${d.value !== undefined ? ': ' + d.value : ''}`);
                         });
                     }
-                    if (section.content.explanation) lines.push(section.content.explanation);
-                    if (section.content.mnemonic) lines.push(section.content.mnemonic);
-                    if (section.content.items && Array.isArray(section.content.items)) {
-                        section.content.items.forEach(it => {
+
+                    // Items array (generic)
+                    if (content.items && Array.isArray(content.items)) {
+                        content.items.forEach(it => {
                             if (typeof it === 'string') lines.push(it);
                             else if (it && it.text) lines.push(it.text);
                             else if (it && it.label) lines.push(it.label);
+                            else if (it && it.name) lines.push(it.name);
                         });
                     }
-                    // Table: rows
-                    if (section.content.headers && section.content.rows) {
-                        lines.push(section.content.headers.join(' | '));
-                        section.content.rows.forEach(row => {
+
+                    // Table: headers + rows
+                    if (content.headers && content.rows) {
+                        lines.push(content.headers.join(' | '));
+                        content.rows.forEach(row => {
                             if (Array.isArray(row)) lines.push(row.join(' | '));
+                            else if (typeof row === 'string') lines.push(row);
                         });
+                    }
+
+                    // Generic text-bearing keys
+                    if (content.description) lines.push(content.description);
+                    if (content.summary) lines.push(content.summary);
+                    if (content.text) lines.push(content.text);
+
+                    // Fallback: if nothing was extracted, do a deep walk
+                    if (lines.length === 0) {
+                        const deepExtract = (obj, depth) => {
+                            if (depth > 4) return; // prevent infinite recursion
+                            if (typeof obj === 'string' && obj.trim()) {
+                                lines.push(obj);
+                            } else if (Array.isArray(obj)) {
+                                obj.forEach(item => deepExtract(item, depth + 1));
+                            } else if (obj && typeof obj === 'object') {
+                                Object.values(obj).forEach(val => deepExtract(val, depth + 1));
+                            }
+                        };
+                        deepExtract(content, 0);
                     }
                 }
-            } catch { /* ignore */ }
+            } catch { /* ignore extraction errors */ }
             return lines;
         }
 
@@ -9375,26 +9428,50 @@ function setupKanskiPics() {
             return;
         }
 
-        // ── Try loading from IndexedDB cache FIRST ──
-        // We do this BEFORE any confirm/alert to preserve the user gesture
-        // in case we need to fall back to the file picker.
+        // ── Detect mobile devices ──
+        // On iOS/Android, ANY await before input.click() kills the user gesture,
+        // so we must trigger the file picker FIRST, then check cache in background.
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            || ('ontouchstart' in window && window.innerWidth < 1024);
+
+        if (isMobile) {
+            // MOBILE PATH: trigger file picker synchronously FIRST
+            const toast = document.createElement('div');
+            toast.textContent = 'Select the Kanski PDF file — you only need to do this once.';
+            toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f1f5f9;padding:14px 28px;border-radius:12px;z-index:100000;font-size:0.95rem;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:90vw;text-align:center;';
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000);
+
+            // Click file input immediately — user gesture is still alive
+            kanskiInput.click();
+
+            // Meanwhile, also try loading from IndexedDB cache in background
+            ensureKanskiReady().then(async (ready) => {
+                if (ready) {
+                    toast.remove();
+                    // Only use cache if user hasn't picked a file yet
+                    if (!kanskiInput.files || kanskiInput.files.length === 0) {
+                        await promptAndRunKanskiMode();
+                    }
+                }
+            });
+            return;
+        }
+
+        // ── DESKTOP PATH: try cache first, fall back to file picker ──
         const cachedReady = await ensureKanskiReady();
         if (cachedReady) {
-            // PDF loaded from cache — now safe to show mode prompt
             await promptAndRunKanskiMode();
             return;
         }
 
-        // ── No cache available — trigger file picker ──
-        // The user gesture is still alive because we haven't shown
-        // any alert/confirm yet, so kanskiInput.click() will work.
+        // No cache — trigger file picker (gesture should still be alive on desktop)
         const toast = document.createElement('div');
         toast.textContent = 'Please select the Kanski PDF file — you only need to do this once.';
         toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f1f5f9;padding:14px 28px;border-radius:12px;z-index:100000;font-size:0.95rem;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:90vw;text-align:center;';
         document.body.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000);
 
-        // Trigger file picker immediately (user gesture is still alive)
         kanskiInput.click();
     });
 
