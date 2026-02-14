@@ -9507,16 +9507,15 @@ function setupKanskiPics() {
             // Click file input immediately — user gesture is still alive
             kanskiInput.click();
 
-            // Meanwhile, also try loading from IndexedDB cache in background
-            ensureKanskiReady().then(async (ready) => {
-                if (ready) {
-                    toast.remove();
-                    // Only use cache if user hasn't picked a file yet
-                    if (!kanskiInput.files || kanskiInput.files.length === 0) {
-                        await promptAndRunKanskiMode();
-                    }
+            // On MOBILE: only try loading the lightweight TEXT INDEX from cache
+            // (NOT the PDF binary, which is too large for iOS memory)
+            loadCachedIndex().then(async (cachedIndex) => {
+                if (cachedIndex && cachedIndex.length > 0) {
+                    kanskiPageTexts = cachedIndex;
+                    console.log(`[Kanski Mobile] Using cached text index (${cachedIndex.length} pages)`);
+                    toast.textContent = `✅ Text index loaded (${cachedIndex.length} pages). Select the PDF to render images.`;
                 }
-            });
+            }).catch(err => console.warn('[Kanski Mobile] No cached index:', err));
             return;
         }
 
@@ -9559,9 +9558,15 @@ function setupKanskiPics() {
         try {
             const arrayBuffer = await file.arrayBuffer();
 
-            // Cache the PDF binary for future sessions
-            kanskiBtn.querySelector('.tool-label').textContent = 'Caching PDF...';
-            await saveCachedPdf(arrayBuffer);
+            // Detect mobile to skip heavy operations
+            const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+                || ('ontouchstart' in window && window.innerWidth < 1024);
+
+            // Cache the PDF binary for future sessions (skip on mobile to avoid memory crash)
+            if (!isMobileDevice) {
+                kanskiBtn.querySelector('.tool-label').textContent = 'Caching PDF...';
+                await saveCachedPdf(arrayBuffer);
+            }
 
             // Load the PDF document
             kanskiPdfDoc = await loadPdfFromBuffer(arrayBuffer);
@@ -9648,7 +9653,11 @@ function setupKanskiPics() {
                 kanskiBtn.querySelector('.tool-label').textContent = `Rendering ${idx + 1}/${topPages.length}...`;
                 try {
                     const page = await kanskiPdfDoc.getPage(p.pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    // Lower scale on mobile to prevent memory crash
+                    const isMobileRender = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+                        || ('ontouchstart' in window && window.innerWidth < 1024);
+                    const renderScale = isMobileRender ? 1.0 : 1.5;
+                    const viewport = page.getViewport({ scale: renderScale });
                     const canvas = document.createElement('canvas');
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
@@ -10057,7 +10066,11 @@ function setupKanskiPics() {
         for (const p of topPages) {
             try {
                 const page = await kanskiPdfDoc.getPage(p.pageNum);
-                const viewport = page.getViewport({ scale: 1.5 });
+                // Lower scale on mobile to prevent memory crash
+                const isMobileRender = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+                    || ('ontouchstart' in window && window.innerWidth < 1024);
+                const renderScale = isMobileRender ? 1.0 : 1.5;
+                const viewport = page.getViewport({ scale: renderScale });
                 const canvas = document.createElement('canvas');
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
