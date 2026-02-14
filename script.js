@@ -2553,7 +2553,29 @@ function setupKnowledgeBase() {
             return lines;
         }
 
-        // Scan library for matching content
+        // ═══════════════════════════════════════════════════════════════
+        // PRECISE CONTENT MATCHING — title-first, strict keyword match
+        // Only shows sections whose TITLE directly indicates the filter
+        // type (e.g. "Causes", "Aetiology") or whose section type matches.
+        // Content-body keywords are only used as a secondary signal and
+        // require the keyword to appear prominently (not just once in
+        // passing). This prevents "treatment" sections from appearing
+        // under "causes" just because they mention "mechanism" once.
+        // ═══════════════════════════════════════════════════════════════
+
+        // Primary title keywords — the section title must contain one of these
+        const titlePrimary = {
+            causes: ['cause', 'aetiology', 'etiology', 'pathogenesis', 'pathophysiology', 'risk factor', 'predisposing', 'etiolog'],
+            clinical: ['clinical', 'presentation', 'symptom', 'sign', 'feature', 'manifestation', 'examination', 'finding'],
+            complications: ['complication', 'adverse', 'side effect', 'sequelae', 'prognosis', 'outcome'],
+            workup: ['workup', 'work-up', 'work up', 'assessment', 'evaluation', 'approach', 'algorithm', 'protocol'],
+            investigations: ['investigation', 'imaging', 'diagnostic', 'test', 'laboratory', 'scan', 'oct', 'angiography'],
+            treatment: ['treatment', 'management', 'therapy', 'medication', 'surgical', 'procedure', 'intervention', 'pharmacolog'],
+            tables: ['table', 'comparison', 'differential', 'classification', 'staging', 'grading', 'scoring'],
+        };
+
+        const primaryKws = titlePrimary[filterType] || filterDef.keywords;
+
         const matchingItems = [];
         library.forEach(item => {
             try {
@@ -2564,19 +2586,20 @@ function setupKnowledgeBase() {
                 sections.forEach(section => {
                     if (!section) return;
                     const sTitle = (section.title || '').toLowerCase();
-                    let sContentText = '';
-                    try {
-                        const lines = extractSectionText(section);
-                        sContentText = lines.join(' ').toLowerCase();
-                    } catch { sContentText = ''; }
-                    const combined = sTitle + ' ' + sContentText;
 
-                    // Check if matches by type or keywords
-                    let matches = false;
-                    if (filterDef.sectionTypes && filterDef.sectionTypes.includes(section.type)) matches = true;
-                    if (!matches) matches = filterDef.keywords.some(kw => combined.includes(kw));
+                    let matched = false;
 
-                    if (matches) {
+                    // 1) Section type match (e.g. type === 'table')
+                    if (filterDef.sectionTypes && filterDef.sectionTypes.includes(section.type)) {
+                        matched = true;
+                    }
+
+                    // 2) PRIMARY: section title must contain a primary keyword
+                    if (!matched) {
+                        matched = primaryKws.some(kw => sTitle.includes(kw));
+                    }
+
+                    if (matched) {
                         const textLines = extractSectionText(section);
                         matchedSections.push({
                             title: section.title || 'Untitled Section',
@@ -4641,27 +4664,16 @@ function setupCopyToNotes() {
             // Try clipboard first
             await navigator.clipboard.writeText(noteContent);
 
+            // ── Auto-save to Sticky Notes ──
+            saveStickyNote(currentSelection);
+
             // Change button to show success
             const originalHTML = floatingBtn.innerHTML;
             floatingBtn.innerHTML = `
                 <span class="material-symbols-rounded">check</span>
-                <span class="btn-label">Copied!</span>
+                <span class="btn-label">Copied & Saved!</span>
             `;
             floatingBtn.classList.add('success');
-
-            // Attempt to open Notes app on macOS using URL scheme
-            // This will prompt user to open Notes app
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            if (isMac) {
-                // Show instruction for macOS users
-                setTimeout(() => {
-                    const openNotes = confirm('Text copied to clipboard!\\n\\nWould you like to open Notes app to paste it?\\n\\n(Look for or create a note called "FRCS picky notes")');
-                    if (openNotes) {
-                        // macOS Notes URL scheme
-                        window.open('notes://');
-                    }
-                }, 500);
-            }
 
             setTimeout(() => {
                 floatingBtn.innerHTML = originalHTML;
@@ -4672,10 +4684,279 @@ function setupCopyToNotes() {
         } catch (err) {
             console.error('Copy failed:', err);
 
+            // Still save to sticky notes even if clipboard fails
+            saveStickyNote(currentSelection);
+
             // Fallback: show text in prompt for manual copy
-            prompt('Copy this text manually:', currentSelection);
+            prompt('Copy this text manually (also saved to Sticky Notes):', currentSelection);
         }
     });
+}
+
+/* ========================================
+   STICKY NOTES — auto-saves copied text
+   from infographics for later review
+   ======================================== */
+
+const STICKY_NOTES_KEY = 'ophthalmic_sticky_notes';
+
+function saveStickyNote(text) {
+    if (!text || text.trim().length < 3) return;
+    try {
+        const notes = JSON.parse(localStorage.getItem(STICKY_NOTES_KEY) || '[]');
+        const infographicTitle = currentInfographicData ? currentInfographicData.title : 'Unknown';
+        notes.unshift({
+            id: Date.now(),
+            text: text.trim(),
+            source: infographicTitle,
+            createdAt: new Date().toISOString()
+        });
+        // Keep max 200 notes
+        if (notes.length > 200) notes.length = 200;
+        localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
+        // Update badge count
+        updateStickyNotesBadge();
+    } catch (err) {
+        console.error('Failed to save sticky note:', err);
+    }
+}
+
+function updateStickyNotesBadge() {
+    const btn = document.getElementById('sticky-notes-btn');
+    if (!btn) return;
+    try {
+        const notes = JSON.parse(localStorage.getItem(STICKY_NOTES_KEY) || '[]');
+        let badge = btn.querySelector('.sticky-badge');
+        if (notes.length > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'sticky-badge';
+                badge.style.cssText = 'position: absolute; top: 2px; right: 2px; background: #ef4444; color: white; font-size: 0.6rem; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px;';
+                btn.style.position = 'relative';
+                btn.appendChild(badge);
+            }
+            badge.textContent = notes.length > 99 ? '99+' : notes.length;
+        } else if (badge) {
+            badge.remove();
+        }
+    } catch { /* ignore */ }
+}
+
+function setupStickyNotes() {
+    const stickyBtn = document.getElementById('sticky-notes-btn');
+    if (!stickyBtn) return;
+
+    // Show badge on load
+    updateStickyNotesBadge();
+
+    // Sticky notes colors for visual variety
+    const STICKY_COLORS = [
+        { bg: '#fef9c3', border: '#fde047', accent: '#854d0e' },
+        { bg: '#dbeafe', border: '#93c5fd', accent: '#1e40af' },
+        { bg: '#dcfce7', border: '#86efac', accent: '#166534' },
+        { bg: '#fce7f3', border: '#f9a8d4', accent: '#9d174d' },
+        { bg: '#e0e7ff', border: '#a5b4fc', accent: '#3730a3' },
+        { bg: '#fef3c7', border: '#fcd34d', accent: '#92400e' },
+        { bg: '#f3e8ff', border: '#d8b4fe', accent: '#6b21a8' },
+        { bg: '#ecfeff', border: '#67e8f9', accent: '#155e75' },
+    ];
+
+    stickyBtn.addEventListener('click', () => {
+        const notes = JSON.parse(localStorage.getItem(STICKY_NOTES_KEY) || '[]');
+
+        // Create or reuse modal
+        let modal = document.getElementById('sticky-notes-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'sticky-notes-modal';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content modal-lg" style="border: 2px solid #fbbf24; max-width: 800px;">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+                        <h2 style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-rounded">sticky_note_2</span>
+                            Sticky Notes
+                        </h2>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button id="sticky-clear-all-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Delete all sticky notes">
+                                <span class="material-symbols-rounded" style="font-size: 1rem;">delete_sweep</span>
+                                Clear All
+                            </button>
+                            <button id="sticky-export-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Copy all notes to clipboard">
+                                <span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>
+                                Copy All
+                            </button>
+                            <button id="close-sticky-modal" class="icon-btn-ghost" style="color: white;">
+                                <span class="material-symbols-rounded">close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-body" id="sticky-modal-body" style="max-height: 75vh; overflow-y: auto; padding: 1rem; background: #fffbeb;"></div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.querySelector('#close-sticky-modal').addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        }
+
+        const body = modal.querySelector('#sticky-modal-body');
+
+        if (notes.length === 0) {
+            body.innerHTML = `
+                <div style="text-align: center; padding: 3rem 1rem; color: #92400e;">
+                    <span class="material-symbols-rounded" style="font-size: 4rem; opacity: 0.4;">sticky_note_2</span>
+                    <h3 style="margin: 1rem 0 0.5rem;">No Sticky Notes Yet</h3>
+                    <p style="color: #a16207; font-size: 0.9rem;">Select and copy text from any infographic — it will automatically appear here for review.</p>
+                </div>
+            `;
+        } else {
+            body.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <p style="margin: 0; font-weight: 600; color: #92400e;">
+                        ${notes.length} note${notes.length !== 1 ? 's' : ''} saved
+                    </p>
+                    <input id="sticky-search" type="text" placeholder="Search notes..." 
+                        style="padding: 6px 12px; border: 1px solid #fde047; border-radius: 6px; font-size: 0.85rem; min-width: 200px; background: white;">
+                </div>
+                <div id="sticky-notes-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.75rem;">
+                    ${notes.map((note, idx) => {
+                        const color = STICKY_COLORS[idx % STICKY_COLORS.length];
+                        const date = new Date(note.createdAt);
+                        const timeStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }) + ' ' + date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        const truncText = note.text.length > 300 ? note.text.substring(0, 300) + '...' : note.text;
+                        return `
+                        <div class="sticky-note-card" data-note-id="${note.id}" data-searchable="${note.text.toLowerCase()} ${(note.source || '').toLowerCase()}"
+                            style="background: ${color.bg}; border: 1px solid ${color.border}; border-radius: 8px; padding: 0.75rem; position: relative; box-shadow: 2px 2px 8px rgba(0,0,0,0.06); transition: transform 0.15s; cursor: default;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+                                <span style="font-size: 0.7rem; color: ${color.accent}; font-weight: 600; opacity: 0.7;">${timeStr}</span>
+                                <div style="display: flex; gap: 2px;">
+                                    <button class="sticky-copy-btn" data-note-id="${note.id}" title="Copy to clipboard"
+                                        style="background: none; border: none; cursor: pointer; padding: 2px; color: ${color.accent}; opacity: 0.6; transition: opacity 0.15s;">
+                                        <span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>
+                                    </button>
+                                    <button class="sticky-delete-btn" data-note-id="${note.id}" title="Delete note"
+                                        style="background: none; border: none; cursor: pointer; padding: 2px; color: #ef4444; opacity: 0.6; transition: opacity 0.15s;">
+                                        <span class="material-symbols-rounded" style="font-size: 1rem;">close</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="sticky-note-text" style="font-size: 0.85rem; color: #1e293b; line-height: 1.5; white-space: pre-wrap; word-break: break-word;">${escapeHtml(truncText)}</div>
+                            ${note.source ? `
+                                <div style="margin-top: 0.5rem; font-size: 0.7rem; color: ${color.accent}; opacity: 0.7; display: flex; align-items: center; gap: 3px;">
+                                    <span class="material-symbols-rounded" style="font-size: 0.8rem;">description</span>
+                                    ${escapeHtml(note.source.substring(0, 50))}${note.source.length > 50 ? '...' : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `}).join('')}
+                </div>
+            `;
+
+            // Search filter
+            const searchInput = body.querySelector('#sticky-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const q = e.target.value.toLowerCase().trim();
+                    body.querySelectorAll('.sticky-note-card').forEach(card => {
+                        if (!q || card.dataset.searchable.includes(q)) {
+                            card.style.display = '';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Individual copy buttons
+            body.querySelectorAll('.sticky-copy-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const noteId = parseInt(btn.dataset.noteId);
+                    const note = notes.find(n => n.id === noteId);
+                    if (note) {
+                        try {
+                            await navigator.clipboard.writeText(note.text);
+                            btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">check</span>';
+                            setTimeout(() => {
+                                btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>';
+                            }, 1500);
+                        } catch { /* ignore */ }
+                    }
+                });
+            });
+
+            // Individual delete buttons
+            body.querySelectorAll('.sticky-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const noteId = parseInt(btn.dataset.noteId);
+                    const updatedNotes = notes.filter(n => n.id !== noteId);
+                    localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(updatedNotes));
+                    updateStickyNotesBadge();
+                    // Remove the card from DOM
+                    const card = btn.closest('.sticky-note-card');
+                    if (card) {
+                        card.style.transition = 'opacity 0.3s, transform 0.3s';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                    // Update count
+                    const countEl = body.querySelector('p');
+                    if (countEl) {
+                        countEl.textContent = `${updatedNotes.length} note${updatedNotes.length !== 1 ? 's' : ''} saved`;
+                    }
+                });
+            });
+        }
+
+        // Clear All button
+        const clearBtn = modal.querySelector('#sticky-clear-all-btn');
+        clearBtn.onclick = () => {
+            if (notes.length === 0) return;
+            if (!confirm(`Delete all ${notes.length} sticky notes? This cannot be undone.`)) return;
+            localStorage.setItem(STICKY_NOTES_KEY, '[]');
+            updateStickyNotesBadge();
+            body.innerHTML = `
+                <div style="text-align: center; padding: 3rem 1rem; color: #92400e;">
+                    <span class="material-symbols-rounded" style="font-size: 4rem; opacity: 0.4;">sticky_note_2</span>
+                    <h3 style="margin: 1rem 0 0.5rem;">All Notes Cleared</h3>
+                </div>
+            `;
+        };
+
+        // Copy All button
+        const exportBtn = modal.querySelector('#sticky-export-btn');
+        exportBtn.onclick = async () => {
+            if (notes.length === 0) return;
+            const allText = notes.map((n, i) => {
+                const date = new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                return `--- Note ${i + 1} (${date}) ---\nSource: ${n.source || 'Unknown'}\n\n${n.text}`;
+            }).join('\n\n');
+            try {
+                await navigator.clipboard.writeText(`📚 FRCS Picky Sticky Notes\nExported: ${new Date().toLocaleDateString()}\n${notes.length} notes\n\n${allText}`);
+                exportBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">check</span> Copied!';
+                setTimeout(() => {
+                    exportBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span> Copy All';
+                }, 2000);
+            } catch {
+                alert('Failed to copy. Please try again.');
+            }
+        };
+
+        modal.classList.add('active');
+    });
+
+    // Sticky notes button does NOT require an infographic to be loaded
+    // Override the disabled state for this button
+    stickyBtn.disabled = false;
+
+    console.log('Sticky Notes initialized.');
 }
 
 function setLoading(isLoading) {
@@ -5836,7 +6117,11 @@ function disableStudioTools() {
     if (studioPanel) {
         studioPanel.classList.remove('studio-panel-enabled');
         const buttons = studioPanel.querySelectorAll('.studio-tool-btn');
-        buttons.forEach(btn => btn.disabled = true);
+        buttons.forEach(btn => {
+            // Keep Sticky Notes always accessible (it's a review tool, not generation)
+            if (btn.id === 'sticky-notes-btn') return;
+            btn.disabled = true;
+        });
     }
 }
 
@@ -9559,6 +9844,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupQuiz();
     setupSlideDeck();
     setupKanskiPics();
+    setupStickyNotes();
 
     // Initialize Community Hub
     setupCommunityHub();
