@@ -744,6 +744,26 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
             newItem.data.chapterId = newItem.chapterId;
         }
 
+        // Restore adhered Kanski images from submission data if present
+        if (submission.data.kanskiImages && submission.data.kanskiImages.length > 0) {
+            try {
+                // saveKanskiToIDB is defined in script.js and available globally
+                if (typeof saveKanskiToIDB === 'function') {
+                    await saveKanskiToIDB(newItem.title, submission.data.kanskiImages);
+                    console.log(`[Download] Restored ${submission.data.kanskiImages.length} Kanski image(s) for "${newItem.title}"`);
+                }
+                // Set lightweight kanskiMeta on the library item
+                newItem.kanskiMeta = submission.data.kanskiImages.map(img => ({
+                    pageNum: img.pageNum,
+                    keywords: img.keywords || []
+                }));
+                // Remove heavy images from localStorage copy (they're in IndexedDB)
+                delete newItem.data.kanskiImages;
+            } catch (kanskiErr) {
+                console.warn('[Download] Failed to restore Kanski images:', kanskiErr);
+            }
+        }
+
         library.unshift(newItem);
         localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
 

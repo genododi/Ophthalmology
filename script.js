@@ -1647,6 +1647,18 @@ function setupKnowledgeBase() {
                         if (typeof CommunitySubmissions === 'undefined') {
                             throw new Error('Community module not loaded');
                         }
+                        // Attach adhered Kanski images to each item before batch submission
+                        for (const item of itemsToExport) {
+                            if (item.kanskiMeta && item.kanskiMeta.length > 0) {
+                                const kanskiImgs = await loadKanskiFromIDB(item.title);
+                                if (kanskiImgs && kanskiImgs.length > 0) {
+                                    const itemData = item.data || item;
+                                    itemData.kanskiImages = kanskiImgs;
+                                    console.log(`[ExportSubmit] Attaching ${kanskiImgs.length} Kanski image(s) to "${item.title}"`);
+                                }
+                            }
+                        }
+
                         const result = await CommunitySubmissions.submitMultiple(itemsToExport, userName.trim());
 
                         clearInterval(progressInterval);
@@ -3283,6 +3295,18 @@ function setupKnowledgeBase() {
                 // Show progress
                 const originalContent = submitCommunityBtn.innerHTML;
                 try {
+                    // Attach adhered Kanski images to each item before batch submission
+                    for (const item of itemsToSubmit) {
+                        if (item.kanskiMeta && item.kanskiMeta.length > 0) {
+                            const kanskiImgs = await loadKanskiFromIDB(item.title);
+                            if (kanskiImgs && kanskiImgs.length > 0) {
+                                const itemData = item.data || item;
+                                itemData.kanskiImages = kanskiImgs;
+                                console.log(`[BatchSubmit] Attaching ${kanskiImgs.length} Kanski image(s) to "${item.title}"`);
+                            }
+                        }
+                    }
+
                     // Use new batch submit function
                     const result = await CommunitySubmissions.submitMultiple(itemsToSubmit, userName.trim());
 
@@ -4454,6 +4478,18 @@ function setupSyncStatus() {
             updateProgress();
 
             try {
+                // Attach adhered Kanski images to each item before submission
+                for (const item of itemsToExport) {
+                    if (item.kanskiMeta && item.kanskiMeta.length > 0) {
+                        const kanskiImgs = await loadKanskiFromIDB(item.title);
+                        if (kanskiImgs && kanskiImgs.length > 0) {
+                            const itemData = item.data || item;
+                            itemData.kanskiImages = kanskiImgs;
+                            console.log(`[PublishBatch] Attaching ${kanskiImgs.length} Kanski image(s) to "${item.title}"`);
+                        }
+                    }
+                }
+
                 const itemDataList = itemsToExport.map(item => item.data || item);
 
                 // For large batches, process in chunks to avoid timeouts
@@ -8389,6 +8425,13 @@ function setupCommunityHub() {
         confirmSubmitBtn.disabled = true;
 
         try {
+            // Attach adhered Kanski images if present
+            const kanskiImages = await loadKanskiFromIDB(currentInfographicData.title);
+            if (kanskiImages && kanskiImages.length > 0) {
+                currentInfographicData.kanskiImages = kanskiImages;
+                console.log(`[Submit] Attaching ${kanskiImages.length} Kanski image(s) to submission`);
+            }
+
             const result = await CommunitySubmissions.submit(currentInfographicData, userName);
 
             if (result.success) {
@@ -9099,6 +9142,11 @@ async function deleteKanskiFromIDB(infographicTitle) {
     }
 }
 
+// Expose Kanski IDB functions globally so community-submissions.js can access them
+// (script.js is loaded as type="module", scoping its functions)
+window.saveKanskiToIDB = saveKanskiToIDB;
+window.loadKanskiFromIDB = loadKanskiFromIDB;
+
 /* ========================================
    KANSKI CLINICAL PHOTOS — ADHERED IMAGE LOADER
    Restores permanently saved Kanski images
@@ -9132,6 +9180,15 @@ function loadAdheredKanskiImages(data) {
         const existing = posterGrid.querySelector('#kanski-images-section');
         if (existing) existing.remove();
 
+        // Inject Kanski image toggle CSS once
+        if (!document.getElementById('kanski-img-toggle-style')) {
+            const s = document.createElement('style');
+            s.id = 'kanski-img-toggle-style';
+            s.textContent = `.kanski-img-toggle { max-height: 300px; object-fit: cover; cursor: pointer; transition: max-height 0.3s ease; width: 100%; display: block; }
+            .kanski-img-toggle.kanski-img-expanded { max-height: none; object-fit: contain; }`;
+            document.head.appendChild(s);
+        }
+
         // Create the Kanski section
         const kanskiSection = document.createElement('div');
         kanskiSection.id = 'kanski-images-section';
@@ -9159,9 +9216,8 @@ function loadAdheredKanskiImages(data) {
             <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
                 ${kanskiImages.map(img => `
                     <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
-                        <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
+                        <img src="${img.imgUrl}" class="kanski-img-toggle"
                             alt="Kanski p.${img.pageNum}" 
-                            onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
                             title="Click to expand/collapse">
                         <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
                             <strong>p.${img.pageNum}</strong>${img.keywords && img.keywords.length > 0 ? ' · ' + img.keywords.slice(0, 3).join(', ') : ''}
@@ -9172,6 +9228,12 @@ function loadAdheredKanskiImages(data) {
         `;
 
         posterGrid.appendChild(kanskiSection);
+
+        // Delegated click handler for image expand/collapse (iOS-safe)
+        kanskiSection.addEventListener('click', (e) => {
+            const img = e.target.closest('.kanski-img-toggle');
+            if (img) img.classList.toggle('kanski-img-expanded');
+        });
 
         // Remove button handler
         const removeBtn = kanskiSection.querySelector('#kanski-adhered-remove-btn');
@@ -9569,8 +9631,8 @@ function setupKanskiPics() {
                 return b.score - a.score;
             });
 
-            // Auto-select: take top 6 pages (focused selection for auto mode)
-            const topPages = scoredPages.slice(0, 6);
+            // Auto-select: take top 10 pages (focused selection for auto mode)
+            const topPages = scoredPages.slice(0, 10);
 
             if (topPages.length === 0) {
                 alert(`[Auto Mode] No matching pages found for "${currentInfographicData.title}".`);
@@ -10118,9 +10180,8 @@ function setupKanskiPics() {
             <div class="kanski-images-display" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; margin-top: 0.5rem;">
                 ${images.map(img => `
                     <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: white;">
-                        <img src="${img.imgUrl}" style="width: 100%; display: block; cursor: pointer;" 
+                        <img src="${img.imgUrl}" class="kanski-img-toggle"
                             alt="Kanski p.${img.pageNum}" 
-                            onclick="this.style.maxHeight = this.style.maxHeight === 'none' ? '300px' : 'none'; this.style.objectFit = this.style.maxHeight === 'none' ? 'contain' : 'cover';"
                             title="Click to expand/collapse">
                         <div style="padding: 4px 8px; font-size: 0.7rem; color: #64748b; background: #f8fafc; border-top: 1px solid #e2e8f0;">
                             <strong>p.${img.pageNum}</strong> · ${img.keywords.slice(0, 3).join(', ')}
@@ -10222,6 +10283,12 @@ function setupKanskiPics() {
 
             // Remove from DOM
             kanskiSection.remove();
+        });
+
+        // Delegated click handler for image expand/collapse (iOS-safe)
+        kanskiSection.addEventListener('click', (e) => {
+            const img = e.target.closest('.kanski-img-toggle');
+            if (img) img.classList.toggle('kanski-img-expanded');
         });
 
         // Scroll to the new section
