@@ -9345,13 +9345,8 @@ function setupKanskiPics() {
     // ═══════════════════════════════════════════════════════════════
     // Button click — Auto vs Manual, with seamless caching
     // ═══════════════════════════════════════════════════════════════
-    kanskiBtn.addEventListener('click', async () => {
-        if (!currentInfographicData) {
-            alert('Please generate or load an infographic first, then use Kanski Pics to find matching clinical photos.');
-            return;
-        }
-
-        // Always ask: Auto or Manual?
+    // Helper: prompt for Auto/Manual mode and run
+    async function promptAndRunKanskiMode() {
         const useAuto = confirm(
             'Kanski Clinical Photos\n\n' +
             'Choose a mode:\n\n' +
@@ -9361,52 +9356,46 @@ function setupKanskiPics() {
             '  Preview all matches, pick which to insert'
         );
         kanskiAutoMode = useAuto;
+        if (useAuto) {
+            await autoMatchAndInsert();
+        } else {
+            await matchAndDisplayKanskiPages();
+        }
+    }
 
-        // ── FAST PATH: PDF already loaded this session ──
-        if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
-            if (useAuto) {
-                await autoMatchAndInsert();
-            } else {
-                await matchAndDisplayKanskiPages();
-            }
+    kanskiBtn.addEventListener('click', async () => {
+        if (!currentInfographicData) {
+            alert('Please generate or load an infographic first, then use Kanski Pics to find matching clinical photos.');
             return;
         }
 
-        // ── We must trigger the file picker SYNCHRONOUSLY ──
-        // Browsers block programmatic input.click() after any await /
-        // alert / setTimeout because the user-gesture context expires.
-        // So we click the file input NOW, then attempt to load from
-        // IndexedDB cache in the background.  If the cache succeeds
-        // we'll cancel the file-picker flow; if it doesn't, the user
-        // is already looking at the OS file dialog.
+        // ── FAST PATH: PDF already loaded this session ──
+        if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
+            await promptAndRunKanskiMode();
+            return;
+        }
 
-        // Show a non-blocking toast message
+        // ── Try loading from IndexedDB cache FIRST ──
+        // We do this BEFORE any confirm/alert to preserve the user gesture
+        // in case we need to fall back to the file picker.
+        const cachedReady = await ensureKanskiReady();
+        if (cachedReady) {
+            // PDF loaded from cache — now safe to show mode prompt
+            await promptAndRunKanskiMode();
+            return;
+        }
+
+        // ── No cache available — trigger file picker ──
+        // The user gesture is still alive because we haven't shown
+        // any alert/confirm yet, so kanskiInput.click() will work.
         const toast = document.createElement('div');
-        toast.textContent = 'Select the Kanski PDF — you only need to do this once.';
+        toast.textContent = 'Please select the Kanski PDF file — you only need to do this once.';
         toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f1f5f9;padding:14px 28px;border-radius:12px;z-index:100000;font-size:0.95rem;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-width:90vw;text-align:center;';
         document.body.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.5s'; setTimeout(() => toast.remove(), 500); }, 4000);
 
         // Trigger file picker immediately (user gesture is still alive)
         kanskiInput.click();
-
-        // Meanwhile, also try loading from IndexedDB cache in background
-        // If we succeed, we'll process directly when ensureKanskiReady resolves
-        ensureKanskiReady().then(async (ready) => {
-            if (ready) {
-                // Cache loaded successfully — dismiss toast early
-                toast.remove();
-                // Only proceed if the user hasn't already picked a file
-                // (the change handler will take care of that case)
-                if (!kanskiInput.files || kanskiInput.files.length === 0) {
-                    if (useAuto) {
-                        await autoMatchAndInsert();
-                    } else {
-                        await matchAndDisplayKanskiPages();
-                    }
-                }
-            }
-        });
     });
 
     kanskiInput.addEventListener('change', async (e) => {
@@ -9447,12 +9436,8 @@ function setupKanskiPics() {
 
             console.log(`[Kanski] Ready: ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
 
-            // Run chosen mode
-            if (kanskiAutoMode) {
-                await autoMatchAndInsert();
-            } else {
-                await matchAndDisplayKanskiPages();
-            }
+            // Ask Auto/Manual mode now that PDF is ready
+            await promptAndRunKanskiMode();
 
         } catch (err) {
             console.error('Kanski PDF error:', err);
