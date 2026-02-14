@@ -3069,12 +3069,14 @@ function setupKnowledgeBase() {
             });
         }
 
-        // Sort Handler
+        // Sort Handler — deferred render to prevent DOM destruction during event
         const sortSelect = toolbar.querySelector('#sort-select');
         if (sortSelect) {
             sortSelect.addEventListener('change', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 currentSortMode = e.target.value;
-                renderLibraryList();
+                setTimeout(() => { renderLibraryList(); }, 0);
             });
         }
 
@@ -3418,7 +3420,9 @@ function setupKnowledgeBase() {
             listContainer.querySelectorAll('.btn-load').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const id = parseInt(e.target.dataset.id);
-                    const targetItem = library.find(i => i.id === id);
+                    // Always read fresh from localStorage to get latest chapterId
+                    const freshLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const targetItem = freshLibrary.find(i => i.id === id);
                     if (targetItem) {
                         if (!targetItem.data || (typeof targetItem.data === 'object' && !targetItem.data.sections)) {
                             // Data is missing or corrupt - show resubmission prompt
@@ -3430,9 +3434,8 @@ function setupKnowledgeBase() {
                                 `The infographic data is missing or corrupted and cannot be displayed.${authorInfo}\n\n` +
                                 `Please contact the original uploader and ask them to resubmit this infographic to the Community Hub.`
                             );
-                            // Still attempt to render (will show the in-page error with resubmission notice)
                         }
-                        // Sync the library's chapterId into data so the tag renders correctly
+                        // Force-sync the library's chapterId into data so the tag renders correctly
                         if (targetItem.data && targetItem.chapterId) {
                             targetItem.data.chapterId = targetItem.chapterId;
                         }
@@ -5927,17 +5930,30 @@ function renderInfographic(data) {
     // Category Color Badge - determine chapter from library (source of truth) > data > auto-detect
     let categoryBadgeHtml = '';
     const title = data.title || '';
-    // Priority: 1) library item's chapterId (user may have changed it), 2) data.chapterId, 3) auto-detect
-    let chapterId = data.chapterId || 'uncategorized';
+    // Priority: 1) library item's chapterId (user's local override), 2) data.chapterId, 3) auto-detect
+    let chapterId = 'uncategorized';
     try {
         const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
-        const libItem = lib.find(i => i.title === title);
+        // Try exact title match first, then normalised match
+        let libItem = lib.find(i => i.title === title);
+        if (!libItem) {
+            const norm = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            const titleNorm = norm(title);
+            if (titleNorm) libItem = lib.find(i => norm(i.title) === titleNorm);
+        }
         if (libItem && libItem.chapterId && libItem.chapterId !== 'uncategorized') {
             chapterId = libItem.chapterId;
-            // Sync back into data so it persists
+            // Sync back into data so it persists everywhere
             data.chapterId = chapterId;
         }
-    } catch { /* ignore */ }
+    } catch (err) {
+        console.warn('[renderInfographic] Library lookup failed:', err);
+    }
+    // If library didn't have a category, use data.chapterId
+    if (chapterId === 'uncategorized' && data.chapterId && data.chapterId !== 'uncategorized') {
+        chapterId = data.chapterId;
+    }
+    // Last resort: auto-detect from title
     if (chapterId === 'uncategorized') {
         chapterId = autoDetectChapter(title);
     }
@@ -8391,6 +8407,14 @@ function setupCommunityHub() {
 
         if (submission && submission.data) {
             if (confirm(`Load "${submission.title}"? This will replace your current workspace content.`)) {
+                // Check local library for user's chapterId override
+                try {
+                    const localLib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const localItem = localLib.find(i => i.title === submission.title);
+                    if (localItem && localItem.chapterId) {
+                        submission.data.chapterId = localItem.chapterId;
+                    }
+                } catch { /* ignore */ }
                 currentInfographicData = submission.data;
                 renderInfographic(submission.data);
                 communityModal.classList.remove('active');
@@ -9139,18 +9163,22 @@ function setupKanskiPics() {
     let kanskiAutoMode = false; // Whether auto mode is enabled
 
     // ═══════════════════════════════════════════════════════════════
-    // IndexedDB cache for Kanski page texts (persist across sessions)
-    // Stores only text index — not the PDF itself or images.
+    // IndexedDB cache — stores page text index AND PDF binary
+    // so the user only needs to select the file ONCE ever.
     // ═══════════════════════════════════════════════════════════════
     const KANSKI_INDEX_DB = 'KanskiIndexDB';
+    const KANSKI_INDEX_VERSION = 2; // Bumped to add pdfData store
 
     function openKanskiIndexDB() {
         return new Promise((resolve, reject) => {
-            const req = indexedDB.open(KANSKI_INDEX_DB, 1);
+            const req = indexedDB.open(KANSKI_INDEX_DB, KANSKI_INDEX_VERSION);
             req.onupgradeneeded = (e) => {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains('pageTexts')) {
                     db.createObjectStore('pageTexts', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('pdfData')) {
+                    db.createObjectStore('pdfData', { keyPath: 'id' });
                 }
             };
             req.onsuccess = () => resolve(req.result);
@@ -9180,15 +9208,128 @@ function setupKanskiPics() {
             });
             db.close();
             if (result && result.pages && result.pages.length > 0) {
-                console.log(`[Kanski] Loaded cached index: ${result.pages.length} pages`);
                 return result.pages;
             }
         } catch (err) { console.warn('[Kanski] No cached index:', err); }
         return null;
     }
 
+    async function saveCachedPdf(arrayBuffer) {
+        try {
+            const db = await openKanskiIndexDB();
+            const tx = db.transaction('pdfData', 'readwrite');
+            tx.objectStore('pdfData').put({ id: 'kanski_pdf', data: arrayBuffer, savedAt: Date.now() });
+            await new Promise(r => { tx.oncomplete = r; });
+            db.close();
+            console.log('[Kanski] PDF binary cached in IndexedDB');
+        } catch (err) { console.warn('[Kanski] Failed to cache PDF:', err); }
+    }
+
+    async function loadCachedPdf() {
+        try {
+            const db = await openKanskiIndexDB();
+            const tx = db.transaction('pdfData', 'readonly');
+            const result = await new Promise((resolve, reject) => {
+                const req = tx.objectStore('pdfData').get('kanski_pdf');
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            db.close();
+            if (result && result.data) {
+                console.log('[Kanski] Loaded cached PDF binary from IndexedDB');
+                return result.data;
+            }
+        } catch (err) { console.warn('[Kanski] No cached PDF:', err); }
+        return null;
+    }
+
+    // Helper: Load PDF doc from ArrayBuffer
+    async function loadPdfFromBuffer(arrayBuffer) {
+        if (typeof pdfjsLib === 'undefined') {
+            throw new Error('PDF.js library not loaded. Please refresh the page.');
+        }
+        return await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+    }
+
+    // Helper: Index all pages of a loaded PDF doc
+    async function indexPdfPages(pdfDoc) {
+        const texts = [];
+        const totalPages = pdfDoc.numPages;
+        for (let i = 1; i <= totalPages; i++) {
+            try {
+                const page = await pdfDoc.getPage(i);
+                const textContent = await page.getTextContent();
+                const text = textContent.items.map(item => item.str).join(' ');
+                texts.push({ pageNum: i, text: text.toLowerCase() });
+            } catch {
+                texts.push({ pageNum: i, text: '' });
+            }
+            if (i % 50 === 0) {
+                const label = kanskiBtn.querySelector('.tool-label');
+                if (label) label.textContent = `Indexing ${i}/${totalPages}...`;
+            }
+        }
+        return texts;
+    }
+
+    // Main: Ensure PDF doc and page texts are ready
+    async function ensureKanskiReady() {
+        // 1. Already loaded this session
+        if (kanskiPdfDoc && kanskiPageTexts.length > 0) return true;
+
+        kanskiBtn.disabled = true;
+        const originalHTML = kanskiBtn.innerHTML;
+        kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Loading...</span>';
+
+        try {
+            // 2. Try cached PDF from IndexedDB
+            if (!kanskiPdfDoc) {
+                const cachedPdf = await loadCachedPdf();
+                if (cachedPdf) {
+                    kanskiBtn.querySelector('.tool-label').textContent = 'Opening cached PDF...';
+                    kanskiPdfDoc = await loadPdfFromBuffer(cachedPdf);
+                    kanskiFileName = 'Kanski (cached)';
+                }
+            }
+
+            // 3. Try cached page text index
+            if (kanskiPageTexts.length === 0) {
+                const cachedIndex = await loadCachedIndex();
+                if (cachedIndex && cachedIndex.length > 0) {
+                    kanskiPageTexts = cachedIndex;
+                    console.log(`[Kanski] Using cached page index (${cachedIndex.length} pages)`);
+                }
+            }
+
+            // 4. If we have PDF doc but no index, build the index
+            if (kanskiPdfDoc && kanskiPageTexts.length === 0) {
+                kanskiBtn.querySelector('.tool-label').textContent = 'Indexing pages...';
+                kanskiPageTexts = await indexPdfPages(kanskiPdfDoc);
+                await saveCachedIndex(kanskiPageTexts);
+            }
+
+            // 5. If still no PDF doc, need user to pick the file
+            if (!kanskiPdfDoc) {
+                kanskiBtn.disabled = false;
+                kanskiBtn.innerHTML = originalHTML;
+                return false; // Signal that we need file input
+            }
+
+            kanskiBtn.disabled = false;
+            kanskiBtn.innerHTML = originalHTML;
+            return true;
+
+        } catch (err) {
+            console.error('[Kanski] Setup error:', err);
+            alert('Error loading Kanski PDF: ' + err.message);
+            kanskiBtn.disabled = false;
+            kanskiBtn.innerHTML = originalHTML;
+            return false;
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════
-    // Button click — ALWAYS offers Auto vs Manual choice first
+    // Button click — Auto vs Manual, with seamless caching
     // ═══════════════════════════════════════════════════════════════
     kanskiBtn.addEventListener('click', async () => {
         if (!currentInfographicData) {
@@ -9197,40 +9338,31 @@ function setupKanskiPics() {
         }
 
         // Always ask: Auto or Manual?
-        const pdfStatus = kanskiPdfDoc ? ' (PDF loaded)' : '';
         const useAuto = confirm(
-            `Kanski Clinical Photos${pdfStatus}\n\n` +
+            'Kanski Clinical Photos\n\n' +
             'Choose a mode:\n\n' +
             '  OK  =  AUTO MODE\n' +
             '  Auto-select & insert best matching images\n\n' +
             '  Cancel  =  MANUAL MODE\n' +
             '  Preview all matches, pick which to insert'
         );
-
         kanskiAutoMode = useAuto;
 
-        // If PDF already loaded this session, proceed immediately
-        if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
+        // Try to load from cache first
+        const ready = await ensureKanskiReady();
+
+        if (ready) {
+            // PDF and index available — run chosen mode immediately
             if (useAuto) {
                 await autoMatchAndInsert();
             } else {
                 await matchAndDisplayKanskiPages();
             }
-            return;
+        } else {
+            // Need user to pick the PDF file
+            alert('Please select the Kanski PDF file.\n\nYou only need to do this once — the file will be cached for future use.');
+            kanskiInput.click();
         }
-
-        // Try to load cached index (to skip indexing step)
-        if (kanskiPageTexts.length === 0) {
-            const cached = await loadCachedIndex();
-            if (cached && cached.length > 0) {
-                kanskiPageTexts = cached;
-                kanskiFileName = 'Kanski (cached)';
-                console.log(`[Kanski] Loaded cached index: ${cached.length} pages`);
-            }
-        }
-
-        // Need the PDF file for rendering images
-        kanskiInput.click();
     });
 
     kanskiInput.addEventListener('change', async (e) => {
@@ -9248,53 +9380,30 @@ function setupKanskiPics() {
 
         kanskiFileName = file.name;
 
-        // Show loading state
         kanskiBtn.disabled = true;
         const originalHTML = kanskiBtn.innerHTML;
         kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Loading PDF...</span>';
 
         try {
-            if (typeof pdfjsLib === 'undefined') {
-                alert('PDF.js library not loaded. Please refresh the page.');
-                return;
-            }
-
             const arrayBuffer = await file.arrayBuffer();
-            kanskiPdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
 
-            // If we already have cached text index, skip re-indexing
-            if (kanskiPageTexts.length > 0) {
-                console.log(`[Kanski] Using cached index (${kanskiPageTexts.length} pages), skipping re-index`);
-            } else {
-                // Extract text from all pages for keyword matching
-                kanskiBtn.innerHTML = '<span class="material-symbols-rounded">hourglass_top</span><span class="tool-label">Indexing pages...</span>';
+            // Cache the PDF binary for future sessions
+            kanskiBtn.querySelector('.tool-label').textContent = 'Caching PDF...';
+            await saveCachedPdf(arrayBuffer);
 
-                kanskiPageTexts = [];
-                const totalPages = kanskiPdfDoc.numPages;
+            // Load the PDF document
+            kanskiPdfDoc = await loadPdfFromBuffer(arrayBuffer);
 
-                for (let i = 1; i <= totalPages; i++) {
-                    try {
-                        const page = await kanskiPdfDoc.getPage(i);
-                        const textContent = await page.getTextContent();
-                        const text = textContent.items.map(item => item.str).join(' ');
-                        kanskiPageTexts.push({ pageNum: i, text: text.toLowerCase() });
-                    } catch {
-                        kanskiPageTexts.push({ pageNum: i, text: '' });
-                    }
-
-                    // Update progress every 50 pages
-                    if (i % 50 === 0) {
-                        kanskiBtn.querySelector('.tool-label').textContent = `Indexing ${i}/${totalPages}...`;
-                    }
-                }
-
-                console.log(`[Kanski] Indexed ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
-
-                // Cache the text index for future sessions
+            // Index pages if not already cached
+            if (kanskiPageTexts.length === 0) {
+                kanskiBtn.querySelector('.tool-label').textContent = 'Indexing pages...';
+                kanskiPageTexts = await indexPdfPages(kanskiPdfDoc);
                 await saveCachedIndex(kanskiPageTexts);
             }
 
-            // Now match pages to current infographic using chosen mode
+            console.log(`[Kanski] Ready: ${kanskiPageTexts.length} pages from "${kanskiFileName}"`);
+
+            // Run chosen mode
             if (kanskiAutoMode) {
                 await autoMatchAndInsert();
             } else {
@@ -9307,7 +9416,7 @@ function setupKanskiPics() {
         } finally {
             kanskiBtn.disabled = false;
             kanskiBtn.innerHTML = originalHTML;
-            kanskiInput.value = ''; // Reset file input
+            kanskiInput.value = '';
             kanskiAutoMode = false;
         }
     });
