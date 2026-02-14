@@ -9188,7 +9188,7 @@ function setupKanskiPics() {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Button click — offers Manual or Auto mode
+    // Button click — ALWAYS offers Auto vs Manual choice first
     // ═══════════════════════════════════════════════════════════════
     kanskiBtn.addEventListener('click', async () => {
         if (!currentInfographicData) {
@@ -9196,42 +9196,41 @@ function setupKanskiPics() {
             return;
         }
 
+        // Always ask: Auto or Manual?
+        const pdfStatus = kanskiPdfDoc ? ' (PDF loaded)' : '';
+        const useAuto = confirm(
+            `Kanski Clinical Photos${pdfStatus}\n\n` +
+            'Choose a mode:\n\n' +
+            '  OK  =  AUTO MODE\n' +
+            '  Auto-select & insert best matching images\n\n' +
+            '  Cancel  =  MANUAL MODE\n' +
+            '  Preview all matches, pick which to insert'
+        );
+
+        kanskiAutoMode = useAuto;
+
+        // If PDF already loaded this session, proceed immediately
         if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
-            // PDF loaded this session — offer manual vs auto
-            const useAuto = confirm(
-                'Kanski PDF is loaded.\n\n' +
-                'OK = Auto Mode (auto-select & insert best images)\n' +
-                'Cancel = Manual Mode (preview & select images)'
-            );
             if (useAuto) {
                 await autoMatchAndInsert();
             } else {
                 await matchAndDisplayKanskiPages();
             }
-        } else {
-            // Check if we have a cached text index
+            return;
+        }
+
+        // Try to load cached index (to skip indexing step)
+        if (kanskiPageTexts.length === 0) {
             const cached = await loadCachedIndex();
             if (cached && cached.length > 0) {
                 kanskiPageTexts = cached;
                 kanskiFileName = 'Kanski (cached)';
-
-                const useAuto = confirm(
-                    `Kanski page index found (${cached.length} pages cached).\n\n` +
-                    'OK = Auto Mode (auto-select & insert best images)\n' +
-                    'Cancel = Manual Mode (preview & select images)\n\n' +
-                    '(Note: images are rendered from the PDF — you\'ll be asked to select the file.)'
-                );
-
-                if (useAuto) {
-                    kanskiAutoMode = true;
-                }
-                // Need the actual PDF for rendering images
-                kanskiInput.click();
-            } else {
-                // No cache at all — prompt for file
-                kanskiInput.click();
+                console.log(`[Kanski] Loaded cached index: ${cached.length} pages`);
             }
         }
+
+        // Need the PDF file for rendering images
+        kanskiInput.click();
     });
 
     kanskiInput.addEventListener('change', async (e) => {
@@ -9295,9 +9294,8 @@ function setupKanskiPics() {
                 await saveCachedIndex(kanskiPageTexts);
             }
 
-            // Now match pages to current infographic
+            // Now match pages to current infographic using chosen mode
             if (kanskiAutoMode) {
-                kanskiAutoMode = false;
                 await autoMatchAndInsert();
             } else {
                 await matchAndDisplayKanskiPages();

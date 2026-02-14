@@ -667,6 +667,10 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
             (normalizeTitle(item.title) === submissionTitleNorm && submissionTitleNorm.length > 0)
         );
 
+        // Preserve user-customized chapterId if overwriting an existing item
+        let preservedChapterId = null;
+        let preservedKanskiMeta = null;
+
         if (existingIndex !== -1) {
             if (!overwrite) {
                 // Return specific status for UI to prompt user
@@ -675,6 +679,15 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
                     status: 'duplicate',
                     message: `An infographic with a similar title "${submission.title}" already exists in your library.`
                 };
+            }
+
+            // Preserve user's local customisations before removing
+            const existingItem = library[existingIndex];
+            if (existingItem.chapterId && existingItem.chapterId !== 'uncategorized') {
+                preservedChapterId = existingItem.chapterId;
+            }
+            if (existingItem.kanskiMeta) {
+                preservedKanskiMeta = existingItem.kanskiMeta;
             }
 
             // If overwriting, remove the old one first
@@ -718,10 +731,17 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
             communityDate: submission.submittedAt
         };
 
-        // Ensure date consistency
-        // If data has chapterId, make sure it's updated with our decision
+        // If user previously customized the category, preserve it (don't revert)
+        if (preservedChapterId) {
+            newItem.chapterId = preservedChapterId;
+        }
+        if (preservedKanskiMeta) {
+            newItem.kanskiMeta = preservedKanskiMeta;
+        }
+
+        // Ensure data.chapterId matches the final decision
         if (newItem.data) {
-            newItem.data.chapterId = chapterId;
+            newItem.data.chapterId = newItem.chapterId;
         }
 
         library.unshift(newItem);
