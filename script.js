@@ -4704,7 +4704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupCopyToNotes();
 });
 
-/* Copy Highlighted Text to Notes App */
+/* Copy Highlighted Text to Notes App (with iOS Safari support) */
 function setupCopyToNotes() {
     const outputContainer = document.getElementById('output-container');
     if (!outputContainer) return;
@@ -4721,19 +4721,65 @@ function setupCopyToNotes() {
     document.body.appendChild(floatingBtn);
 
     let currentSelection = '';
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // Track text selection
-    document.addEventListener('mouseup', (e) => {
-        // Only track selection in the infographic area
-        if (!outputContainer.contains(e.target)) {
-            floatingBtn.style.display = 'none';
-            return;
+    /**
+     * iOS-compatible clipboard write.
+     * navigator.clipboard.writeText() often fails on iOS Safari because
+     * it requires the call to be within a direct user-gesture stack frame.
+     * This fallback uses a temporary textarea + execCommand('copy').
+     */
+    function copyToClipboardFallback(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+        document.body.appendChild(textarea);
+
+        if (isIOS) {
+            // iOS requires setSelectionRange, not select()
+            textarea.contentEditable = true;
+            textarea.readOnly = false;
+            const range = document.createRange();
+            range.selectNodeContents(textarea);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            textarea.setSelectionRange(0, text.length);
+        } else {
+            textarea.select();
         }
 
+        let success = false;
+        try {
+            success = document.execCommand('copy');
+        } catch (e) {
+            console.warn('[CopyToNotes] execCommand fallback failed:', e);
+        }
+        document.body.removeChild(textarea);
+        return success;
+    }
+
+    /**
+     * Show the floating "Copy to Notes" button near the current selection.
+     */
+    function showButtonForSelection() {
         const selection = window.getSelection();
-        const selectedText = selection.toString().trim();
+        const selectedText = selection ? selection.toString().trim() : '';
 
         if (selectedText.length > 5) {
+            // Check if selection is within the output container
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const container = range.commonAncestorContainer;
+                const node = container.nodeType === 3 ? container.parentNode : container;
+                if (!outputContainer.contains(node)) {
+                    floatingBtn.style.display = 'none';
+                    return;
+                }
+            }
+
             currentSelection = selectedText;
 
             // Position the button near the selection
@@ -4741,62 +4787,98 @@ function setupCopyToNotes() {
             const rect = range.getBoundingClientRect();
 
             floatingBtn.style.top = (rect.bottom + window.scrollY + 10) + 'px';
-            floatingBtn.style.left = (rect.left + window.scrollX + (rect.width / 2) - 70) + 'px';
+            floatingBtn.style.left = Math.max(10,
+                rect.left + window.scrollX + (rect.width / 2) - 70
+            ) + 'px';
             floatingBtn.style.display = 'flex';
         } else {
             floatingBtn.style.display = 'none';
         }
+    }
+
+    // ── Desktop: mouseup ──
+    document.addEventListener('mouseup', (e) => {
+        if (!outputContainer.contains(e.target)) {
+            floatingBtn.style.display = 'none';
+            return;
+        }
+        // Small delay for the selection to settle
+        setTimeout(showButtonForSelection, 50);
     });
 
-    // Hide button when clicking elsewhere
+    // ── iOS/Mobile: selectionchange (debounced) ──
+    // This event fires when the text selection changes on iOS Safari
+    let selectionChangeTimer = null;
+    document.addEventListener('selectionchange', () => {
+        clearTimeout(selectionChangeTimer);
+        selectionChangeTimer = setTimeout(showButtonForSelection, 300);
+    });
+
+    // ── Mobile: touchend — detect when a touch selection finishes ──
+    document.addEventListener('touchend', (e) => {
+        // Give iOS time to finalize the selection after touch
+        setTimeout(showButtonForSelection, 400);
+    });
+
+    // Hide button when clicking/tapping elsewhere
     document.addEventListener('mousedown', (e) => {
         if (!floatingBtn.contains(e.target)) {
-            // Short delay to allow button click to register
             setTimeout(() => {
                 if (!floatingBtn.matches(':hover')) {
                     floatingBtn.style.display = 'none';
                 }
-            }, 100);
+            }, 200);
         }
     });
 
-    // Copy to Notes button click
-    floatingBtn.addEventListener('click', async () => {
+    // ── Handle button tap: use BOTH click and touchstart for iOS reliability ──
+    function handleCopyAction(e) {
+        e.preventDefault();
+        e.stopPropagation();
         if (!currentSelection) return;
 
         const noteContent = `📚 FRCS Picky Notes\n${new Date().toLocaleString()}\n\n${currentSelection}`;
 
-        try {
-            // Try clipboard first
-            await navigator.clipboard.writeText(noteContent);
+        // ── Auto-save to Sticky Notes (always works, no permission needed) ──
+        saveStickyNote(currentSelection);
 
-            // ── Auto-save to Sticky Notes ──
-            saveStickyNote(currentSelection);
+        // ── Try clipboard copy ──
+        let copied = false;
 
-            // Change button to show success
-            const originalHTML = floatingBtn.innerHTML;
-            floatingBtn.innerHTML = `
-                <span class="material-symbols-rounded">check</span>
-                <span class="btn-label">Copied & Saved!</span>
-            `;
-            floatingBtn.classList.add('success');
-
-            setTimeout(() => {
-                floatingBtn.innerHTML = originalHTML;
-                floatingBtn.classList.remove('success');
-                floatingBtn.style.display = 'none';
-            }, 2000);
-
-        } catch (err) {
-            console.error('Copy failed:', err);
-
-            // Still save to sticky notes even if clipboard fails
-            saveStickyNote(currentSelection);
-
-            // Fallback: show text in prompt for manual copy
-            prompt('Copy this text manually (also saved to Sticky Notes):', currentSelection);
+        // Attempt 1: Modern Clipboard API (works on desktop, sometimes iOS)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(noteContent).then(() => {
+                showCopySuccess();
+            }).catch(() => {
+                // Attempt 2: execCommand fallback (reliable on iOS Safari)
+                copied = copyToClipboardFallback(noteContent);
+                showCopySuccess(copied);
+            });
+            return; // async path
         }
-    });
+
+        // Attempt 2: execCommand fallback directly
+        copied = copyToClipboardFallback(noteContent);
+        showCopySuccess(copied);
+    }
+
+    function showCopySuccess(clipboardOk = true) {
+        const originalHTML = floatingBtn.innerHTML;
+        floatingBtn.innerHTML = `
+            <span class="material-symbols-rounded">check</span>
+            <span class="btn-label">${clipboardOk !== false ? 'Copied & Saved!' : 'Saved to Notes!'}</span>
+        `;
+        floatingBtn.classList.add('success');
+
+        setTimeout(() => {
+            floatingBtn.innerHTML = originalHTML;
+            floatingBtn.classList.remove('success');
+            floatingBtn.style.display = 'none';
+        }, 2000);
+    }
+
+    floatingBtn.addEventListener('click', handleCopyAction);
+    floatingBtn.addEventListener('touchstart', handleCopyAction, { passive: false });
 }
 
 /* ========================================
@@ -9605,13 +9687,26 @@ function setupKanskiPics() {
         kanskiBtn.innerHTML = '<span class="material-symbols-rounded">auto_awesome</span><span class="tool-label">Auto matching...</span>';
 
         try {
-            const weightedKeywords = extractInfographicKeywordsWeighted(currentInfographicData);
+            const { keywords: weightedKeywords, primaryTopicTerms } = extractInfographicKeywordsWeighted(currentInfographicData);
+            console.log(`[Kanski Auto] Primary topic terms:`, primaryTopicTerms);
             console.log(`[Kanski Auto] Keywords:`, weightedKeywords.filter(k => k.weight >= 20).map(k => k.term));
 
-            // Score pages
+            // Score pages — require primary topic presence
             const scoredPages = [];
             kanskiPageTexts.forEach(({ pageNum, text }) => {
                 if (!text || text.length < 50) return;
+                const textLower = text.toLowerCase();
+
+                // Topic-scope gate: page must mention at least one primary topic term
+                let hasPrimaryTopic = false;
+                for (const pt of primaryTopicTerms) {
+                    if (textLower.includes(pt.toLowerCase())) {
+                        hasPrimaryTopic = true;
+                        break;
+                    }
+                }
+                if (primaryTopicTerms.length > 0 && !hasPrimaryTopic) return; // Skip off-topic pages
+
                 let score = 0;
                 let primaryHits = 0;
                 const matchedKeywords = [];
@@ -9697,14 +9792,27 @@ function setupKanskiPics() {
 
         try {
             // Extract weighted keywords from the current infographic
-            const weightedKeywords = extractInfographicKeywordsWeighted(currentInfographicData);
-            console.log(`[Kanski] Primary topic keywords:`, weightedKeywords.filter(k => k.weight >= 20).map(k => k.term));
+            const { keywords: weightedKeywords, primaryTopicTerms } = extractInfographicKeywordsWeighted(currentInfographicData);
+            console.log(`[Kanski] Primary topic terms:`, primaryTopicTerms);
             console.log(`[Kanski] Total keywords:`, weightedKeywords.length);
 
             // Score each page by weighted keyword matches
+            // Topic-scope gate: pages must mention at least one primary topic term
             const scoredPages = [];
             kanskiPageTexts.forEach(({ pageNum, text }) => {
                 if (!text || text.length < 50) return; // Skip nearly empty pages
+                const textLower = text.toLowerCase();
+
+                // Topic-scope gate: page must mention the primary topic
+                let hasPrimaryTopic = false;
+                for (const pt of primaryTopicTerms) {
+                    if (textLower.includes(pt.toLowerCase())) {
+                        hasPrimaryTopic = true;
+                        break;
+                    }
+                }
+                if (primaryTopicTerms.length > 0 && !hasPrimaryTopic) return; // Skip off-topic pages
+
                 let score = 0;
                 let primaryHits = 0; // Hits from headline/topic keywords
                 const matchedKeywords = [];
@@ -9768,6 +9876,7 @@ function setupKanskiPics() {
     function extractInfographicKeywordsWeighted(data) {
         const weighted = []; // [{term, weight}]
         const seen = new Set();
+        const primaryTopicTerms = []; // The exact topic name terms for scoping
 
         const stopWords = new Set([
             'the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'was', 'were',
@@ -9787,102 +9896,161 @@ function setupKanskiPics() {
 
         // ═══════════════════════════════════════════════════════
         // OPHTHALMIC TOPIC DICTIONARY — headline diagnostic terms
-        // These are the primary clinical terms that should match
-        // Kanski chapters, conditions, and figure captions.
+        // Organized by DISEASE CATEGORY so we can scope
+        // keywords to the relevant category only.
         // ═══════════════════════════════════════════════════════
-        const OPHTHALMIC_TOPIC_TERMS = [
-            // Retina & Vitreous
-            'retinoblastoma', 'retinal detachment', 'retinitis pigmentosa', 'retinopathy',
-            'diabetic retinopathy', 'retinopathy of prematurity', 'rop', 'macular degeneration',
-            'macular hole', 'epiretinal membrane', 'central serous', 'csr', 'cscr',
-            'vein occlusion', 'artery occlusion', 'rvo', 'crvo', 'brvo', 'crao', 'brao',
-            'proliferative vitreoretinopathy', 'pvr', 'vitreous hemorrhage', 'vitrectomy',
-            'scleral buckle', 'pneumatic retinopexy', 'anti-vegf', 'intravitreal',
-            'choroidal neovascularization', 'cnv', 'polypoidal', 'pcv',
-            'coats disease', 'eales disease', 'familial exudative vitreoretinopathy', 'fevr',
-            'stargardt', 'best disease', 'pattern dystrophy', 'choroideremia',
-            // Glaucoma
-            'glaucoma', 'neovascular glaucoma', 'nvg', 'poag', 'pacg', 'angle closure',
-            'normal tension glaucoma', 'ntg', 'trabeculectomy', 'tube shunt', 'ahmed valve',
-            'migs', 'istent', 'xen gel', 'cyclophotocoagulation', 'goniotomy',
-            'pseudoexfoliation', 'pxf', 'pigment dispersion', 'ocular hypertension',
-            'congenital glaucoma', 'buphthalmos', 'iridocorneal endothelial', 'ice syndrome',
-            // Cornea
-            'keratitis', 'keratoconus', 'corneal ulcer', 'corneal dystrophy', 'fuchs',
-            'acanthamoeba', 'herpes simplex keratitis', 'herpetic', 'dendrit',
-            'pterygium', 'pinguecula', 'band keratopathy', 'pellucid',
-            'corneal transplant', 'keratoplasty', 'dsaek', 'dmek', 'dalk',
-            'cross-linking', 'cxl', 'corneal graft', 'graft rejection',
-            'dry eye', 'meibomian', 'blepharitis', 'sjogren',
-            'mooren ulcer', 'terrien', 'salzmann', 'corneal ectasia',
-            // Uvea
-            'uveitis', 'iritis', 'iridocyclitis', 'panuveitis', 'intermediate uveitis',
-            'anterior uveitis', 'posterior uveitis', 'vkh', 'vogt-koyanagi-harada',
-            'behcet', 'sarcoidosis', 'sympathetic ophthalmia', 'birdshot',
-            'toxoplasmosis', 'toxocara', 'cmv retinitis', 'endophthalmitis',
-            'multifocal choroiditis', 'serpiginous', 'white dot syndrome',
-            'acute retinal necrosis', 'arn', 'presumed ocular histoplasmosis', 'pohs',
-            'fuchs heterochromic', 'posner-schlossman', 'hla-b27',
-            // Lens & Cataract
-            'cataract', 'phacoemulsification', 'phaco', 'intraocular lens', 'iol',
-            'posterior capsule opacification', 'pco', 'yag capsulotomy',
-            'ectopia lentis', 'subluxation', 'lens dislocation', 'marfan',
-            // Lids
-            'ptosis', 'entropion', 'ectropion', 'trichiasis', 'blepharospasm',
-            'chalazion', 'meibomian cyst', 'hordeolum', 'stye',
-            'basal cell carcinoma', 'bcc', 'squamous cell carcinoma', 'scc',
-            'sebaceous gland carcinoma', 'merkel cell', 'lid retraction',
-            'dermatochalasis', 'blepharoplasty', 'lagophthalmos', 'floppy eyelid',
-            // Orbit
-            'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'proptosis', 'exophthalmos',
-            'orbital cellulitis', 'preseptal cellulitis', 'orbital fracture', 'blow-out',
-            'orbital tumor', 'orbital tumour', 'cavernous hemangioma', 'lymphoma',
-            'optic nerve glioma', 'meningioma', 'rhabdomyosarcoma', 'lacrimal gland tumour',
-            'dacryoadenitis', 'orbital pseudotumor', 'idiopathic orbital inflammation',
-            // Lacrimal
-            'dacryocystitis', 'nasolacrimal duct', 'nld obstruction', 'dacryocystorhinostomy',
-            'dcr', 'lacrimal obstruction', 'epiphora', 'punctal stenosis',
-            'canaliculitis', 'lacrimal sac', 'congenital nld',
-            // Neuro-ophthalmology
-            'optic neuritis', 'papilledema', 'papilloedema', 'optic neuropathy',
-            'optic atrophy', 'ischaemic optic neuropathy', 'aion', 'naion',
-            'nystagmus', 'cranial nerve palsy', 'third nerve palsy', 'sixth nerve palsy',
-            'fourth nerve palsy', 'horner syndrome', 'myasthenia gravis',
-            'internuclear ophthalmoplegia', 'ino', 'anisocoria', 'argyll robertson',
-            'adie pupil', 'marcus gunn', 'relative afferent pupillary defect', 'rapd',
-            'chiasmal', 'hemianopia', 'homonymous', 'bitemporal',
-            'idiopathic intracranial hypertension', 'iih', 'pseudotumor cerebri',
-            'leber hereditary', 'lhon', 'optic disc drusen',
-            // Strabismus
-            'strabismus', 'esotropia', 'exotropia', 'hypertropia', 'amblyopia',
-            'duane syndrome', 'brown syndrome', 'moebius', 'squint',
-            'convergence insufficiency', 'divergence excess', 'accommodative esotropia',
-            'infantile esotropia', 'sensory exotropia', 'consecutive exotropia',
-            // Paediatric
-            'retinopathy of prematurity', 'congenital cataract', 'congenital glaucoma',
-            'persistent fetal vasculature', 'pfv', 'leukocoria', 'aniridia',
-            'microphthalmos', 'coloboma', 'peter anomaly', 'axenfeld-rieger',
-            // Tumours
-            'retinoblastoma', 'uveal melanoma', 'choroidal melanoma', 'iris melanoma',
-            'ciliary body melanoma', 'metastatic', 'choroidal metastasis',
-            'choroidal hemangioma', 'choroidal osteoma', 'nevus', 'naevus',
-            'melanocytoma', 'astrocytic hamartoma', 'lymphoma intraocular',
-            // Sclera
-            'scleritis', 'episcleritis', 'necrotizing scleritis', 'scleromalacia',
-            'posterior scleritis',
-            // Refractive
-            'lasik', 'prk', 'smile', 'refractive surgery', 'myopia', 'hyperopia',
-            'astigmatism', 'presbyopia', 'phakic iol', 'icl',
-            // Lasers
-            'laser photocoagulation', 'panretinal', 'prp', 'yag laser', 'slt',
-            'argon laser', 'diode laser', 'micropulse', 'pascal',
-            // Investigations
-            'oct', 'fluorescein angiography', 'ffa', 'icg', 'indocyanine green',
-            'ultrasound', 'b-scan', 'visual field', 'perimetry', 'humphrey',
-            'goldmann', 'gonioscopy', 'pachymetry', 'topography', 'pentacam',
-            'specular microscopy', 'electrophysiology', 'erg', 'vep',
-            'optical coherence tomography angiography', 'octa'
-        ];
+        const OPHTHALMIC_TOPIC_CATEGORIES = {
+            'retina_vitreous': [
+                'retinoblastoma', 'retinal detachment', 'retinitis pigmentosa', 'retinopathy',
+                'diabetic retinopathy', 'retinopathy of prematurity', 'rop', 'macular degeneration',
+                'macular hole', 'epiretinal membrane', 'central serous', 'csr', 'cscr',
+                'vein occlusion', 'artery occlusion', 'rvo', 'crvo', 'brvo', 'crao', 'brao',
+                'proliferative vitreoretinopathy', 'pvr', 'vitreous hemorrhage', 'vitrectomy',
+                'scleral buckle', 'pneumatic retinopexy', 'anti-vegf', 'intravitreal',
+                'choroidal neovascularization', 'cnv', 'polypoidal', 'pcv',
+                'coats disease', 'eales disease', 'familial exudative vitreoretinopathy', 'fevr',
+                'stargardt', 'best disease', 'pattern dystrophy', 'choroideremia'
+            ],
+            'glaucoma': [
+                'glaucoma', 'neovascular glaucoma', 'nvg', 'poag', 'pacg', 'angle closure',
+                'normal tension glaucoma', 'ntg', 'trabeculectomy', 'tube shunt', 'ahmed valve',
+                'migs', 'istent', 'xen gel', 'cyclophotocoagulation', 'goniotomy',
+                'pseudoexfoliation', 'pxf', 'pigment dispersion', 'ocular hypertension',
+                'congenital glaucoma', 'buphthalmos', 'iridocorneal endothelial', 'ice syndrome',
+                'primary open angle', 'primary angle closure', 'secondary glaucoma',
+                'steroid glaucoma', 'phacomorphic glaucoma', 'phacolytic glaucoma',
+                'uveitic glaucoma', 'traumatic glaucoma', 'juvenile glaucoma'
+            ],
+            'cornea': [
+                'keratitis', 'keratoconus', 'corneal ulcer', 'corneal dystrophy', 'fuchs',
+                'acanthamoeba', 'herpes simplex keratitis', 'herpetic', 'dendrit',
+                'pterygium', 'pinguecula', 'band keratopathy', 'pellucid',
+                'corneal transplant', 'keratoplasty', 'dsaek', 'dmek', 'dalk',
+                'cross-linking', 'cxl', 'corneal graft', 'graft rejection',
+                'dry eye', 'meibomian', 'blepharitis', 'sjogren',
+                'mooren ulcer', 'terrien', 'salzmann', 'corneal ectasia'
+            ],
+            'uvea': [
+                'uveitis', 'iritis', 'iridocyclitis', 'panuveitis', 'intermediate uveitis',
+                'anterior uveitis', 'posterior uveitis', 'vkh', 'vogt-koyanagi-harada',
+                'behcet', 'sarcoidosis', 'sympathetic ophthalmia', 'birdshot',
+                'toxoplasmosis', 'toxocara', 'cmv retinitis', 'endophthalmitis',
+                'multifocal choroiditis', 'serpiginous', 'white dot syndrome',
+                'acute retinal necrosis', 'arn', 'presumed ocular histoplasmosis', 'pohs',
+                'fuchs heterochromic', 'posner-schlossman', 'hla-b27'
+            ],
+            'lens_cataract': [
+                'cataract', 'phacoemulsification', 'phaco', 'intraocular lens', 'iol',
+                'posterior capsule opacification', 'pco', 'yag capsulotomy',
+                'ectopia lentis', 'subluxation', 'lens dislocation', 'marfan'
+            ],
+            'lids': [
+                'ptosis', 'entropion', 'ectropion', 'trichiasis', 'blepharospasm',
+                'chalazion', 'meibomian cyst', 'hordeolum', 'stye',
+                'basal cell carcinoma', 'bcc', 'squamous cell carcinoma', 'scc',
+                'sebaceous gland carcinoma', 'merkel cell', 'lid retraction',
+                'dermatochalasis', 'blepharoplasty', 'lagophthalmos', 'floppy eyelid'
+            ],
+            'orbit': [
+                'thyroid eye disease', 'ted', 'graves ophthalmopathy', 'proptosis', 'exophthalmos',
+                'orbital cellulitis', 'preseptal cellulitis', 'orbital fracture', 'blow-out',
+                'orbital tumor', 'orbital tumour', 'cavernous hemangioma', 'lymphoma',
+                'optic nerve glioma', 'meningioma', 'rhabdomyosarcoma', 'lacrimal gland tumour',
+                'dacryoadenitis', 'orbital pseudotumor', 'idiopathic orbital inflammation'
+            ],
+            'lacrimal': [
+                'dacryocystitis', 'nasolacrimal duct', 'nld obstruction', 'dacryocystorhinostomy',
+                'dcr', 'lacrimal obstruction', 'epiphora', 'punctal stenosis',
+                'canaliculitis', 'lacrimal sac', 'congenital nld'
+            ],
+            'neuro_ophthalmology': [
+                'optic neuritis', 'papilledema', 'papilloedema', 'optic neuropathy',
+                'optic atrophy', 'ischaemic optic neuropathy', 'aion', 'naion',
+                'nystagmus', 'cranial nerve palsy', 'third nerve palsy', 'sixth nerve palsy',
+                'fourth nerve palsy', 'horner syndrome', 'myasthenia gravis',
+                'internuclear ophthalmoplegia', 'ino', 'anisocoria', 'argyll robertson',
+                'adie pupil', 'marcus gunn', 'relative afferent pupillary defect', 'rapd',
+                'chiasmal', 'hemianopia', 'homonymous', 'bitemporal',
+                'idiopathic intracranial hypertension', 'iih', 'pseudotumor cerebri',
+                'leber hereditary', 'lhon', 'optic disc drusen'
+            ],
+            'strabismus': [
+                'strabismus', 'esotropia', 'exotropia', 'hypertropia', 'amblyopia',
+                'duane syndrome', 'brown syndrome', 'moebius', 'squint',
+                'convergence insufficiency', 'divergence excess', 'accommodative esotropia',
+                'infantile esotropia', 'sensory exotropia', 'consecutive exotropia'
+            ],
+            'paediatric': [
+                'retinopathy of prematurity', 'congenital cataract', 'congenital glaucoma',
+                'persistent fetal vasculature', 'pfv', 'leukocoria', 'aniridia',
+                'microphthalmos', 'coloboma', 'peter anomaly', 'axenfeld-rieger'
+            ],
+            'tumours': [
+                'retinoblastoma', 'uveal melanoma', 'choroidal melanoma', 'iris melanoma',
+                'ciliary body melanoma', 'metastatic', 'choroidal metastasis',
+                'choroidal hemangioma', 'choroidal osteoma', 'nevus', 'naevus',
+                'melanocytoma', 'astrocytic hamartoma', 'lymphoma intraocular'
+            ],
+            'sclera': [
+                'scleritis', 'episcleritis', 'necrotizing scleritis', 'scleromalacia',
+                'posterior scleritis'
+            ],
+            'refractive': [
+                'lasik', 'prk', 'smile', 'refractive surgery', 'myopia', 'hyperopia',
+                'astigmatism', 'presbyopia', 'phakic iol', 'icl'
+            ],
+            'lasers': [
+                'laser photocoagulation', 'panretinal', 'prp', 'yag laser', 'slt',
+                'argon laser', 'diode laser', 'micropulse', 'pascal'
+            ],
+            'investigations': [
+                'oct', 'fluorescein angiography', 'ffa', 'icg', 'indocyanine green',
+                'ultrasound', 'b-scan', 'visual field', 'perimetry', 'humphrey',
+                'goldmann', 'gonioscopy', 'pachymetry', 'topography', 'pentacam',
+                'specular microscopy', 'electrophysiology', 'erg', 'vep',
+                'optical coherence tomography angiography', 'octa'
+            ]
+        };
+
+        // Build flat list for backward compat
+        const OPHTHALMIC_TOPIC_TERMS = Object.values(OPHTHALMIC_TOPIC_CATEGORIES).flat();
+
+        // ═══════════════════════════════════════════════════════
+        // TOPIC SCOPING — identify the primary disease category
+        // from the infographic title so we can penalize off-topic
+        // keywords from other categories.
+        // ═══════════════════════════════════════════════════════
+        const titleLower = (data.title || '').toLowerCase();
+
+        // Find the LONGEST matching ophthalmic term in the title
+        // ("neovascular glaucoma" should match over just "glaucoma")
+        let bestTitleMatch = '';
+        let primaryCategory = null;
+        for (const [category, terms] of Object.entries(OPHTHALMIC_TOPIC_CATEGORIES)) {
+            for (const term of terms) {
+                if (titleLower.includes(term.toLowerCase()) && term.length > bestTitleMatch.length) {
+                    bestTitleMatch = term;
+                    primaryCategory = category;
+                }
+            }
+        }
+
+        // Build the primary topic terms set — the specific disease name(s)
+        // These are used as a GATE: Kanski pages must mention at least one
+        if (bestTitleMatch) {
+            primaryTopicTerms.push(bestTitleMatch);
+            // Also add any abbreviation/alias that shares the same category
+            // and appears in the title
+            const categoryTerms = OPHTHALMIC_TOPIC_CATEGORIES[primaryCategory] || [];
+            for (const t of categoryTerms) {
+                if (t !== bestTitleMatch && titleLower.includes(t.toLowerCase()) && t.length >= 2) {
+                    primaryTopicTerms.push(t);
+                }
+            }
+        }
+
+        console.log(`[Kanski Keywords] Primary topic: "${bestTitleMatch}" (category: ${primaryCategory})`);
+        console.log(`[Kanski Keywords] Topic scope terms:`, primaryTopicTerms);
 
         function addTerm(term, weight) {
             const key = term.toLowerCase().trim();
@@ -9891,13 +10059,33 @@ function setupKanskiPics() {
             weighted.push({ term: key, weight });
         }
 
+        /**
+         * Check if a term belongs to a DIFFERENT disease category than the primary topic.
+         * Off-topic terms get heavily penalized — they are noise, not signal.
+         */
+        function isOffTopic(term) {
+            if (!primaryCategory) return false; // No topic identified, don't penalize
+            const termLower = term.toLowerCase();
+            // Check if this term is in the primary category
+            const primaryTerms = OPHTHALMIC_TOPIC_CATEGORIES[primaryCategory] || [];
+            if (primaryTerms.some(t => t.toLowerCase() === termLower)) return false;
+            // Check if it's in a different category
+            for (const [cat, terms] of Object.entries(OPHTHALMIC_TOPIC_CATEGORIES)) {
+                if (cat === primaryCategory) continue;
+                if (terms.some(t => t.toLowerCase() === termLower)) return true;
+            }
+            return false;
+        }
+
         // ── Pass 1: Extract primary topic from title ──
         // The infographic title is THE most important signal.
         // Match known ophthalmic terms in the title with weight 50
-        const titleLower = (data.title || '').toLowerCase();
         OPHTHALMIC_TOPIC_TERMS.forEach(term => {
             if (titleLower.includes(term.toLowerCase())) {
-                addTerm(term, 50);
+                // Primary topic terms from title get full weight;
+                // other-category terms found in title get reduced weight
+                const off = isOffTopic(term);
+                addTerm(term, off ? 5 : 50);
             }
         });
 
@@ -9915,16 +10103,17 @@ function setupKanskiPics() {
             });
         }
 
-        // ── Pass 2: Section titles (weight 5-15) ──
+        // ── Pass 2: Section titles (weight 5-15, penalized if off-topic) ──
         if (data.sections && Array.isArray(data.sections)) {
             data.sections.forEach(s => {
                 if (!s || !s.title) return;
                 const secTitleLower = s.title.toLowerCase();
 
-                // Check for known ophthalmic terms in section titles (weight 15)
+                // Check for known ophthalmic terms in section titles
                 OPHTHALMIC_TOPIC_TERMS.forEach(term => {
                     if (secTitleLower.includes(term.toLowerCase())) {
-                        addTerm(term, 15);
+                        const off = isOffTopic(term);
+                        addTerm(term, off ? 1 : 15); // Heavily penalize off-topic section terms
                     }
                 });
 
@@ -9936,7 +10125,7 @@ function setupKanskiPics() {
             });
         }
 
-        // ── Pass 3: Section content — extract deep terms (weight 1-3) ──
+        // ── Pass 3: Section content — only add on-topic terms (weight 1-3) ──
         if (data.sections && Array.isArray(data.sections)) {
             data.sections.forEach(s => {
                 if (!s || !s.content) return;
@@ -9951,10 +10140,13 @@ function setupKanskiPics() {
 
                 if (textBlob.length > 10) {
                     const contentLower = textBlob.toLowerCase();
-                    // Check for known ophthalmic terms in content (weight 3)
+                    // Only add on-topic ophthalmic terms from content (skip off-topic entirely)
                     OPHTHALMIC_TOPIC_TERMS.forEach(term => {
                         if (contentLower.includes(term.toLowerCase())) {
-                            addTerm(term, 3);
+                            if (!isOffTopic(term)) {
+                                addTerm(term, 3);
+                            }
+                            // Off-topic content terms are completely skipped
                         }
                     });
                 }
@@ -9976,7 +10168,7 @@ function setupKanskiPics() {
         // Sort: highest weight first
         weighted.sort((a, b) => b.weight - a.weight);
 
-        return weighted;
+        return { keywords: weighted, primaryTopicTerms };
     }
 
     async function showKanskiModal(topPages) {
