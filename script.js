@@ -4959,7 +4959,7 @@ function setupStickyNotes() {
             modal.id = 'sticky-notes-modal';
             modal.className = 'modal-overlay';
             modal.innerHTML = `
-                <div class="modal-content modal-lg" style="border: 2px solid #fbbf24; max-width: 800px;">
+                <div class="modal-content modal-lg" style="border: 2px solid #fbbf24; max-width: 95%; width: 1200px;">
                     <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
                         <h2 style="display: flex; align-items: center; gap: 8px;">
                             <span class="material-symbols-rounded">sticky_note_2</span>
@@ -5042,6 +5042,10 @@ function setupStickyNotes() {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
                                 <span style="font-size: 0.7rem; color: ${color.accent}; font-weight: 600; opacity: 0.7;">${timeStr}</span>
                                 <div style="display: flex; gap: 2px;">
+                                    <button class="sticky-edit-btn" data-note-id="${note.id}" title="Edit note"
+                                        style="background: none; border: none; cursor: pointer; padding: 2px; color: #10b981; opacity: 0.8; transition: opacity 0.15s;">
+                                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">edit</span>
+                                    </button>
                                     <button class="sticky-generate-btn" data-note-id="${note.id}" title="Generate Infographic from this note"
                                         style="background: none; border: none; cursor: pointer; padding: 2px; color: #2563eb; opacity: 0.8; transition: opacity 0.15s;">
                                         <span class="material-symbols-rounded" style="font-size: 1.1rem;">auto_awesome</span>
@@ -5097,6 +5101,44 @@ function setupStickyNotes() {
                                 btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>';
                             }, 1500);
                         } catch { /* ignore */ }
+                    }
+                });
+            });
+
+            // Individual edit buttons
+            body.querySelectorAll('.sticky-edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const noteId = btn.dataset.noteId;
+                    const card = btn.closest('.sticky-note-card');
+                    const textEl = card.querySelector('.sticky-note-text');
+                    const isEditing = textEl.isContentEditable;
+
+                    if (!isEditing) {
+                        textEl.contentEditable = "true";
+                        textEl.style.border = "1px solid #fbbf24";
+                        textEl.style.padding = "4px";
+                        textEl.style.borderRadius = "4px";
+                        textEl.style.backgroundColor = "rgba(255, 255, 255, 0.5)";
+                        textEl.focus();
+                        btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1.1rem;">save</span>';
+                        btn.title = "Save note";
+                    } else {
+                        textEl.contentEditable = "false";
+                        textEl.style.border = "none";
+                        textEl.style.padding = "0";
+                        textEl.style.backgroundColor = "transparent";
+                        btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1.1rem;">edit</span>';
+                        btn.title = "Edit note";
+
+                        // Save the changes
+                        const updatedText = textEl.textContent || textEl.innerText;
+
+                        const noteIndex = notes.findIndex(n => n.id == noteId);
+                        if (noteIndex !== -1) {
+                            notes[noteIndex].text = updatedText;
+                            localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
+                        }
                     }
                 });
             });
