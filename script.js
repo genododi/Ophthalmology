@@ -8285,8 +8285,29 @@ function renderSlide() {
                     </li>
                 `).join('')}
             </ul>`;
-        } else if (typeof slide.content === 'object') {
-            if (slide.content.mnemonic) {
+        } else if (typeof slide.content === 'object' && slide.content !== null) {
+            // Check for table structure
+            if (slide.content.headers && slide.content.rows) {
+                const headers = slide.content.headers || [];
+                const rows = slide.content.rows || [];
+                contentHtml = `
+                <div style="overflow-x: auto; margin-top: 1rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 1.25rem;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                                ${headers.map(h => `<th style="padding: 1.2rem; font-weight: 700; color: #1e293b; border-right: 1px solid #e2e8f0;">${h}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((row, idx) => `
+                                <tr style="background: ${idx % 2 === 0 ? 'white' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
+                                    ${row.map(cell => `<td style="padding: 1.2rem; color: #475569; border-right: 1px solid #e2e8f0;">${cell}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+            } else if (slide.content.mnemonic) {
                 // Enhanced Mnemonic Graphical Style
                 contentHtml = `
                     <div style="background: #f8fafc; padding: 2rem; border-left: 6px solid #8b5cf6; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
