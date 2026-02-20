@@ -10908,6 +10908,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const notebooklmToggleBtn = document.getElementById('notebooklm-toggle-btn');
     const closeNotebooklmBtn = document.getElementById('close-notebooklm-btn');
     const appContainer = document.querySelector('.app-container');
+    const launchNotebooklmPopupBtn = document.getElementById('launch-notebooklm-popup');
 
     if (notebooklmToggleBtn && appContainer) {
         notebooklmToggleBtn.addEventListener('click', () => {
@@ -10918,6 +10919,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (closeNotebooklmBtn && appContainer) {
         closeNotebooklmBtn.addEventListener('click', () => {
             appContainer.classList.remove('notebooklm-open');
+        });
+    }
+
+    if (launchNotebooklmPopupBtn) {
+        launchNotebooklmPopupBtn.addEventListener('click', () => {
+            const width = 450;
+            const height = window.screen.availHeight;
+            const left = window.screen.availWidth - width;
+
+            window.open(
+                'https://notebooklm.google.com/notebook/07d17136-d624-417d-8b82-6977f9674f71?pli=1&authuser=0&pageId=none',
+                'NotebookLMPopup',
+                `width=${width},height=${height},left=${left},top=0,menubar=no,toolbar=no,location=no,status=no,resizable=yes`
+            );
+
+            // Optionally close the side panel after launching
+            if (appContainer) {
+                appContainer.classList.remove('notebooklm-open');
+            }
         });
     }
 });
