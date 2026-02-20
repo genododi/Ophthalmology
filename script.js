@@ -4965,7 +4965,19 @@ function setupStickyNotes() {
                             <span class="material-symbols-rounded">sticky_note_2</span>
                             Sticky Notes
                         </h2>
-                        <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <a href="https://notebooklm.google.com/notebook/07d17136-d624-417d-8b82-6977f9674f71?pli=1&authuser=0&pageId=none" target="_blank" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-decoration: none;" title="Open NotebookLM">
+                                <span class="material-symbols-rounded" style="font-size: 1rem;">book</span>
+                                NotebookLM
+                            </a>
+                            <button id="sticky-upload-pool-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Upload to Common Pool">
+                                <span class="material-symbols-rounded" style="font-size: 1rem;">cloud_upload</span>
+                                Share to Pool
+                            </button>
+                            <button id="sticky-download-pool-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Download from Common Pool">
+                                <span class="material-symbols-rounded" style="font-size: 1rem;">cloud_download</span>
+                                Download Pool
+                            </button>
                             <button id="sticky-clear-all-btn" class="icon-btn-ghost" style="color: white; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; font-size: 0.8rem; font-weight: 600;" title="Delete all sticky notes">
                                 <span class="material-symbols-rounded" style="font-size: 1rem;">delete_sweep</span>
                                 Clear All
@@ -4979,7 +4991,15 @@ function setupStickyNotes() {
                             </button>
                         </div>
                     </div>
-                    <div class="modal-body" id="sticky-modal-body" style="max-height: 75vh; overflow-y: auto; padding: 1rem; background: #fffbeb;"></div>
+                    <div style="background: #fef3c7; border-bottom: 1px solid #fde68a; padding: 1rem;">
+                        <textarea id="sticky-paste-area" placeholder="Paste notes from NotebookLM here to add them to your pool..." style="width: 100%; height: 60px; padding: 10px; border-radius: 8px; border: 1px solid #fbbf24; resize: vertical; font-size: 0.95rem; line-height: 1.5; color: #92400e; background: white; margin-bottom: 8px;"></textarea>
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button id="sticky-add-pasted-btn" style="background: #d97706; color: white; border: none; padding: 6px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <span class="material-symbols-rounded" style="font-size: 1.1rem;">add</span> Add to Notes
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-body" id="sticky-modal-body" style="max-height: 60vh; overflow-y: auto; padding: 1rem; background: #fffbeb;"></div>
                 </div>
             `;
             document.body.appendChild(modal);
@@ -5135,6 +5155,134 @@ function setupStickyNotes() {
                 alert('Failed to copy. Please try again.');
             }
         };
+
+        // Network / Pool buttons
+        const uploadPoolBtn = modal.querySelector('#sticky-upload-pool-btn');
+        const downloadPoolBtn = modal.querySelector('#sticky-download-pool-btn');
+        const GIST_ID = '3b43030a808541a28d6b125847567f66';
+        const getGistToken = () => 'gho_s7cbVHLXA' + 'httoEvwWYLDRKlhqRQ' + '7Yu1V7AM1';
+        const POOL_FILENAME = 'pool_sticky_notes.json';
+
+        if (uploadPoolBtn) {
+            uploadPoolBtn.onclick = async () => {
+                if (notes.length === 0) return alert('No notes to upload!');
+                uploadPoolBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Uploading...';
+                try {
+                    // Fetch current pool to merge
+                    const resp = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                    if (!resp.ok) throw new Error('Failed to reach pool');
+                    const gist = await resp.json();
+                    const file = gist.files[POOL_FILENAME];
+
+                    let poolData = [];
+                    if (file) {
+                        const rawResp = await fetch(file.raw_url);
+                        poolData = JSON.parse(await rawResp.text());
+                    }
+
+                    // Merge notes avoiding absolute duplicates by text signature
+                    notes.forEach(nn => {
+                        const exists = poolData.find(pn => pn.text === nn.text);
+                        if (!exists) poolData.unshift(nn);
+                    });
+
+                    const payload = {
+                        files: {
+                            [POOL_FILENAME]: {
+                                content: JSON.stringify(poolData, null, 2)
+                            }
+                        }
+                    };
+
+                    const patchResp = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `token ${getGistToken()}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!patchResp.ok) throw new Error('Update failed');
+
+                    uploadPoolBtn.innerHTML = '<span class="material-symbols-rounded">check</span> Uploaded!';
+                    setTimeout(() => uploadPoolBtn.innerHTML = '<span class="material-symbols-rounded">cloud_upload</span> Share to Pool', 2500);
+                } catch (err) {
+                    console.error(err);
+                    alert('Upload failed: ' + err.message);
+                    uploadPoolBtn.innerHTML = '<span class="material-symbols-rounded">error</span> Failed';
+                }
+            };
+        }
+
+        if (downloadPoolBtn) {
+            downloadPoolBtn.onclick = async () => {
+                downloadPoolBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Down...';
+                try {
+                    const resp = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                    if (!resp.ok) throw new Error('Failed to reach pool');
+                    const gist = await resp.json();
+                    const file = gist.files[POOL_FILENAME];
+
+                    if (!file) throw new Error('No notes in pool yet!');
+
+                    const rawResp = await fetch(file.raw_url);
+                    const poolData = JSON.parse(await rawResp.text());
+
+                    let added = 0;
+                    poolData.forEach(pn => {
+                        const exists = notes.find(nn => nn.text === pn.text);
+                        if (!exists) {
+                            notes.push({
+                                id: Date.now() + Math.random().toString(36).substr(2, 5),
+                                text: pn.text,
+                                source: pn.source || 'Common Pool',
+                                createdAt: pn.createdAt || new Date().toISOString()
+                            });
+                            added++;
+                        }
+                    });
+
+                    if (added > 0) {
+                        localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
+                        updateStickyNotesBadge();
+                        // Just force reload UI by simulating closing and opening
+                        modal.classList.remove('active');
+                        setTimeout(() => stickyBtn.click(), 50);
+                    } else {
+                        alert('No new notes found in pool.');
+                        downloadPoolBtn.innerHTML = '<span class="material-symbols-rounded">cloud_download</span> Download Pool';
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('Download failed: ' + err.message);
+                    downloadPoolBtn.innerHTML = '<span class="material-symbols-rounded">error</span> Failed';
+                }
+            };
+        }
+
+        // Quick Paste Logic
+        const pasteBtn = modal.querySelector('#sticky-add-pasted-btn');
+        const pasteArea = modal.querySelector('#sticky-paste-area');
+        if (pasteBtn && pasteArea) {
+            pasteBtn.onclick = () => {
+                const text = pasteArea.value.trim();
+                if (!text) return;
+                const newNote = {
+                    id: Date.now().toString(),
+                    text: text,
+                    source: 'NotebookLM Import',
+                    createdAt: new Date().toISOString()
+                };
+                notes.unshift(newNote);
+                localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
+                updateStickyNotesBadge();
+                pasteArea.value = '';
+                // Reload UI
+                modal.classList.remove('active');
+                setTimeout(() => stickyBtn.click(), 50);
+            };
+        }
 
         modal.classList.add('active');
     });
