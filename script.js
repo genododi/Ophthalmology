@@ -8199,18 +8199,32 @@ function generateSlides() {
         subtitle: data.summary
     });
 
+    // Helper to recursively remove citation brackets like [1] or [1, 2]
+    function stripReferences(val) {
+        if (typeof val === 'string') {
+            return val.replace(/\[\d+(?:\s*,\s*\d+)*\]/g, '').trim();
+        } else if (Array.isArray(val)) {
+            return val.map(stripReferences);
+        } else if (typeof val === 'object' && val !== null) {
+            const cleaned = {};
+            for (let k in val) cleaned[k] = stripReferences(val[k]);
+            return cleaned;
+        }
+        return val;
+    }
+
     // Content slides from sections
     if (data.sections) {
         data.sections.forEach(section => {
             slides.push({
                 type: 'section',
-                title: section.title
+                title: stripReferences(section.title)
             });
 
             slides.push({
                 type: 'content',
-                title: section.title,
-                content: section.content,
+                title: stripReferences(section.title),
+                content: stripReferences(section.content),
                 contentType: section.type
             });
         });
@@ -8262,26 +8276,66 @@ function renderSlide() {
         let contentHtml = '';
 
         if (Array.isArray(slide.content)) {
-            contentHtml = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
+            // Enhanced List Graphical Style
+            contentHtml = `<ul style="list-style: none; padding-left: 0;">
+                ${slide.content.map(c => `
+                    <li style="margin-bottom: 0.8rem; display: flex; align-items: flex-start; gap: 12px; font-size: 1.4rem;">
+                        <span class="material-symbols-rounded" style="color: #2563eb; flex-shrink: 0; margin-top: 4px;">arrow_forward_ios</span>
+                        <span>${c}</span>
+                    </li>
+                `).join('')}
+            </ul>`;
         } else if (typeof slide.content === 'object') {
             if (slide.content.mnemonic) {
-                contentHtml = `<p><strong style="font-size: 2rem; color: #8b5cf6;">${slide.content.mnemonic}</strong></p>
-                    <p>${slide.content.explanation}</p>`;
+                // Enhanced Mnemonic Graphical Style
+                contentHtml = `
+                    <div style="background: #f8fafc; padding: 2rem; border-left: 6px solid #8b5cf6; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <p><strong style="font-size: 3rem; color: #8b5cf6; display: block; margin-bottom: 1rem; letter-spacing: 3px;">${slide.content.mnemonic}</strong></p>
+                        <p style="font-size: 1.5rem; color: #475569; line-height: 1.6;">${slide.content.explanation}</p>
+                    </div>`;
             } else if (slide.content.center) {
-                contentHtml = `<p><strong>${slide.content.center}</strong></p>`;
+                // Enhanced Mindmap Graphical Style
+                contentHtml = `
+                    <div style="text-align: center; margin-bottom: 2.5rem;">
+                        <span style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">${slide.content.center}</span>
+                    </div>`;
                 if (slide.content.branches) {
-                    contentHtml += `<ul>${slide.content.branches.map(b => `<li>${b}</li>`).join('')}</ul>`;
+                    contentHtml += `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+                            ${slide.content.branches.map(b => `<div style="background: #eff6ff; padding: 1.2rem; border-radius: 10px; border: 2px solid #bfdbfe; text-align: center; font-size: 1.2rem; font-weight: 500; color: #1e3a8a;">${b}</div>`).join('')}
+                        </div>`;
                 }
             } else if (slide.content.data) {
-                contentHtml = `<ul>${slide.content.data.map(d => `<li>${d.label}: ${d.value}%</li>`).join('')}</ul>`;
+                // Enhanced Chart Graphical Style
+                contentHtml = `
+                    <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                        ${slide.content.data.map(d => `
+                            <div style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid #e2e8f0; flex: 1; min-width: 180px; text-align: center;">
+                                <div style="font-size: 3rem; font-weight: 800; color: #10b981; margin-bottom: 0.5rem; line-height: 1;">${d.value}%</div>
+                                <div style="color: #64748b; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">${d.label}</div>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            } else {
+                // Fallback for unexpected object structure
+                contentHtml = `<p style="font-size: 1.4rem; line-height: 1.8; color: #334155; white-space: pre-wrap;">${JSON.stringify(slide.content, null, 2)}</p>`;
             }
         } else {
-            contentHtml = `<p>${slide.content}</p>`;
+            // Enhanced Plain Text Graphical Style
+            contentHtml = `
+                <div style="background: #f8fafc; padding: 2rem; border-radius: 12px; border-left: 6px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                    <p style="font-size: 1.4rem; line-height: 1.8; color: #334155;">${slide.content}</p>
+                </div>`;
         }
 
         slideContent.innerHTML = `
-            <h3>${slide.title}</h3>
-            ${contentHtml}
+            <h3 style="display: flex; align-items: center; gap: 12px; border-bottom: none; padding-bottom: 0.5rem; font-size: 2.2rem; color: #0f172a; margin-bottom: 2rem;">
+                <span class="material-symbols-rounded" style="color: #2563eb; font-size: 2.2rem;">auto_awesome</span>
+                ${slide.title}
+            </h3>
+            <div style="margin-top: 1rem;">
+                ${contentHtml}
+            </div>
         `;
     }
 
