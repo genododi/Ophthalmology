@@ -5042,6 +5042,10 @@ function setupStickyNotes() {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
                                 <span style="font-size: 0.7rem; color: ${color.accent}; font-weight: 600; opacity: 0.7;">${timeStr}</span>
                                 <div style="display: flex; gap: 2px;">
+                                    <button class="sticky-generate-btn" data-note-id="${note.id}" title="Generate Infographic from this note"
+                                        style="background: none; border: none; cursor: pointer; padding: 2px; color: #2563eb; opacity: 0.8; transition: opacity 0.15s;">
+                                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">auto_awesome</span>
+                                    </button>
                                     <button class="sticky-copy-btn" data-note-id="${note.id}" title="Copy to clipboard"
                                         style="background: none; border: none; cursor: pointer; padding: 2px; color: ${color.accent}; opacity: 0.6; transition: opacity 0.15s;">
                                         <span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>
@@ -5083,8 +5087,8 @@ function setupStickyNotes() {
             body.querySelectorAll('.sticky-copy-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const noteId = parseInt(btn.dataset.noteId);
-                    const note = notes.find(n => n.id === noteId);
+                    const noteId = btn.dataset.noteId; // could be string or num
+                    const note = notes.find(n => n.id == noteId);
                     if (note) {
                         try {
                             await navigator.clipboard.writeText(note.text);
@@ -5093,6 +5097,24 @@ function setupStickyNotes() {
                                 btn.innerHTML = '<span class="material-symbols-rounded" style="font-size: 1rem;">content_copy</span>';
                             }, 1500);
                         } catch { /* ignore */ }
+                    }
+                });
+            });
+
+            // Individual generate buttons
+            body.querySelectorAll('.sticky-generate-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const noteId = btn.dataset.noteId;
+                    const note = notes.find(n => n.id == noteId);
+                    if (note) {
+                        const inputArea = document.getElementById('text-input');
+                        if (inputArea) {
+                            inputArea.value = note.text;
+                            modal.classList.remove('active');
+                            const generateBtn = document.getElementById('generate-btn');
+                            if (generateBtn) generateBtn.click();
+                        }
                     }
                 });
             });
