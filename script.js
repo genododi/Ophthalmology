@@ -5108,7 +5108,7 @@ function setupStickyNotes() {
                     const noteId = btn.dataset.noteId;
                     const note = notes.find(n => n.id == noteId);
                     if (note) {
-                        const inputArea = document.getElementById('text-input');
+                        const inputArea = document.getElementById('topic-input');
                         if (inputArea) {
                             inputArea.value = note.text;
                             modal.classList.remove('active');
@@ -5123,8 +5123,8 @@ function setupStickyNotes() {
             body.querySelectorAll('.sticky-delete-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const noteId = parseInt(btn.dataset.noteId);
-                    const updatedNotes = notes.filter(n => n.id !== noteId);
+                    const noteId = btn.dataset.noteId;
+                    const updatedNotes = notes.filter(n => n.id != noteId);
                     localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(updatedNotes));
                     updateStickyNotesBadge();
                     // Remove the card from DOM
@@ -10900,3 +10900,24 @@ function setupNarrator() {
         readBtn.innerHTML = '<span class="material-symbols-rounded">stop_circle</span>';
     });
 }
+
+// ==========================================
+// NOTEBOOKLM PORTAL TOGGLE LOGIC
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const notebooklmToggleBtn = document.getElementById('notebooklm-toggle-btn');
+    const closeNotebooklmBtn = document.getElementById('close-notebooklm-btn');
+    const appContainer = document.querySelector('.app-container');
+
+    if (notebooklmToggleBtn && appContainer) {
+        notebooklmToggleBtn.addEventListener('click', () => {
+            appContainer.classList.toggle('notebooklm-open');
+        });
+    }
+
+    if (closeNotebooklmBtn && appContainer) {
+        closeNotebooklmBtn.addEventListener('click', () => {
+            appContainer.classList.remove('notebooklm-open');
+        });
+    }
+});

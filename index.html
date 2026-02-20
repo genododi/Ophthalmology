@@ -197,6 +197,10 @@
                     <button class="icon-btn" id="library-btn" title="Open Knowledge Base">
                         <span class="material-symbols-rounded">inventory_2</span>
                     </button>
+                    <button class="icon-btn" id="notebooklm-toggle-btn" title="Toggle NotebookLM Portal"
+                        style="color: #6366f1;">
+                        <span class="material-symbols-rounded">dock_to_right</span>
+                    </button>
                 </div>
             </div>
 
@@ -219,6 +223,24 @@
             <!-- Hidden container for Text Report Printing -->
             <div id="text-report-container" class="text-report-wrapper" style="display: none;"></div>
         </main>
+
+        <!-- NotebookLM Portal Panel -->
+        <aside class="notebooklm-panel" id="notebooklm-panel">
+            <div class="panel-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; background: #f8f9fa;">
+                <h2
+                    style="font-size: 1.1rem; color: #4f46e5; display: flex; gap: 0.5rem; align-items: center; margin: 0;">
+                    <span class="material-symbols-rounded" style="vertical-align: middle;">book</span> NotebookLM
+                </h2>
+                <button class="icon-btn-ghost" id="close-notebooklm-btn" title="Close Portal"
+                    style="background: none; border: none; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px;">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+            <iframe
+                src="https://notebooklm.google.com/notebook/07d17136-d624-417d-8b82-6977f9674f71?pli=1&authuser=0&pageId=none"
+                frameborder="0" style="width: 100%; flex: 1; border: none;"></iframe>
+        </aside>
     </div>
 
     <!-- Library Modal -->

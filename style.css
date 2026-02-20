@@ -4264,3 +4264,31 @@ textarea:focus {
         transform: rotate(360deg);
     }
 }
+
+/* NotebookLM Portal Panel */
+.notebooklm-panel {
+    width: 400px;
+    background: #fff;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-right: -400px;
+    /* Hidden by default */
+}
+
+.app-container.notebooklm-open .notebooklm-panel {
+    margin-right: 0;
+}
+
+@media (max-width: 800px) {
+    .notebooklm-panel {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        height: 100%;
+        box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+    }
+}
