@@ -1535,7 +1535,7 @@ function setupKnowledgeBase() {
 
     let currentChapterFilter = 'all';
     let currentSearchTerm = ''; // NEW: Search state
-    let currentSortMode = 'created_date'; // 'date', 'name', 'chapter', 'created_date'
+    let currentSortMode = 'vip'; // 'date', 'name', 'chapter', 'vip'
     let showBookmarkedOnly = false; // NEW: Bookmark filter state
     let currentContentFilter = 'all'; // Content-type filter: tables, causes, etc.
     let selectionMode = false;
@@ -1549,6 +1549,10 @@ function setupKnowledgeBase() {
             id: 'tables', name: 'Tables', icon: 'table_chart',
             keywords: ['table', 'comparison', 'versus', 'vs', 'differential', 'grading', 'staging', 'classification', 'scoring'],
             sectionTypes: ['table']
+        },
+        {
+            id: 'differential', name: 'Differential Diagnosis', icon: 'account_tree',
+            keywords: ['differential', 'diagnosis', 'ddx', 'vs', 'versus', 'distinguish', 'differentiate']
         },
         {
             id: 'causes', name: 'Causes', icon: 'help_outline',
@@ -2997,12 +3001,42 @@ function setupKnowledgeBase() {
                 // Secondary sort by date
                 return new Date(b.date) - new Date(a.date);
             });
-            filteredLibrary.sort((a, b) => {
-                const aNew = a._newlyImported || 0;
-                const bNew = b._newlyImported || 0;
-                if (aNew !== bNew) return bNew - aNew; // Newly imported first
-                return new Date(b.date) - new Date(a.date); // Then by date
-            });
+        } else if (currentSortMode === 'vip') {
+            // Sort by VIP: Priority to infographics most related to sticky notes
+            try {
+                const notes = JSON.parse(localStorage.getItem(STICKY_NOTES_KEY) || '[]');
+                if (notes.length > 0) {
+                    // Extract words from sticky notes over 3 chars
+                    const stickyWordsText = notes.map(n => n.text).join(' ').toLowerCase();
+                    const words = stickyWordsText.split(/\\W+/).filter(w => w.length > 3);
+                    const stickyWordsSet = new Set(words);
+
+                    filteredLibrary.forEach(item => {
+                        let score = 0;
+                        const contentText = ((item.title || '') + ' ' + (item.summary || '') + ' ' + JSON.stringify(item.data || '')).toLowerCase();
+                        const contentWords = contentText.split(/\\W+/);
+                        contentWords.forEach(w => {
+                            if (stickyWordsSet.has(w)) score++;
+                        });
+                        item._vipScore = score;
+                    });
+
+                    filteredLibrary.sort((a, b) => {
+                        const scoreA = a._vipScore || 0;
+                        const scoreB = b._vipScore || 0;
+                        if (scoreB !== scoreA) {
+                            return scoreB - scoreA; // Highest score first
+                        }
+                        return new Date(b.date) - new Date(a.date); // Fallback to date
+                    });
+                } else {
+                    // Fallback to date if no sticky notes
+                    filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
+                }
+            } catch (e) {
+                // Fallback to date on error
+                filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
+            }
         }
 
         // Update count badge to show filtered vs total count
@@ -3074,7 +3108,7 @@ function setupKnowledgeBase() {
                         <option value="date" ${currentSortMode === 'date' ? 'selected' : ''}>Sort by Date</option>
                         <option value="name" ${currentSortMode === 'name' ? 'selected' : ''}>Sort by Name</option>
                         <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
-                        <option value="created_date" ${currentSortMode === 'created_date' ? 'selected' : ''}>Sort by Created Date</option>
+                        <option value="vip" ${currentSortMode === 'vip' ? 'selected' : ''}>Sort by VIP</option>
                     </select>
                 </div>
                 <div class="content-filter-wrapper">
