@@ -5568,11 +5568,11 @@ async function generateInfographicData(apiKey, topic) {
     const genAI = new GoogleGenerativeAI(apiKey);
 
     const modelsToTry = [
+        "gemini-3.1-flash-lite-preview",
         "gemini-3-flash-preview",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-001",
-        "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash"
     ];
 
     let lastError = null;
@@ -6832,10 +6832,10 @@ async function callGeminiForStudioTool(prompt, fallbackFn = null) {
 
         // Try Gemini 2.0 Flash first, then fallbacks
         const modelsToTry = [
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-exp",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-latest"
+            "gemini-2.5-flash",
+            "gemini-3-flash-preview",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash"
         ];
 
         let lastError = null;
