@@ -5566,7 +5566,7 @@ HOWEVER: You MAY supplement the user's text with additional medical/ophthalmolog
 
 function getSelectedGeminiModel() {
     const checked = document.querySelector('input[name="gemini-model"]:checked');
-    return checked ? checked.value : 'gemini-2.5-pro';
+    return checked ? checked.value : 'gemini-3-flash-preview';
 }
 
 async function generateInfographicData(apiKey, topic) {
