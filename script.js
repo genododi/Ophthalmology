@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const generateBtn = document.getElementById('generate-btn');
 const apiKeyInput = document.getElementById('api-key');
+const openaiKeyInput = document.getElementById('openai-api-key');
 const topicInput = document.getElementById('topic-input');
 const outputContainer = document.getElementById('output-container');
 
@@ -5437,11 +5438,12 @@ function setLoading(isLoading) {
 }
 
 generateBtn.addEventListener('click', async () => {
-    const apiKey = apiKeyInput.value.trim();
+    const geminiKey = apiKeyInput.value.trim();
+    const openaiKey = openaiKeyInput.value.trim();
     const topic = topicInput.value.trim();
 
-    if (!apiKey) {
-        alert('Please enter your Gemini API Key');
+    if (!geminiKey && !openaiKey) {
+        alert('Please enter either a Gemini or OpenAI API Key');
         return;
     }
 
@@ -5450,7 +5452,6 @@ generateBtn.addEventListener('click', async () => {
         return;
     }
 
-    // Combine topic with uploaded resources text
     const resourcesText = getUploadedResourcesText();
     let combinedInput = topic;
 
@@ -5465,7 +5466,12 @@ generateBtn.addEventListener('click', async () => {
     setLoading(true);
 
     try {
-        const data = await generateInfographicData(apiKey, combinedInput);
+        let data;
+        if (openaiKey) {
+            data = await generateInfographicDataOpenAI(openaiKey, combinedInput);
+        } else {
+            data = await generateInfographicData(geminiKey, combinedInput);
+        }
         currentInfographicData = data;
         renderInfographic(data);
     } catch (error) {
@@ -5597,6 +5603,106 @@ async function generateInfographicData(apiKey, topic) {
         }
     }
     throw lastError || new Error("All models failed.");
+}
+
+async function generateInfographicDataOpenAI(apiKey, topic) {
+    const modelsToTry = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"];
+    let lastError = null;
+
+    const systemPrompt = `You are a world-class Ophthalmic Content Strategist and Information Designer.
+You transform topics into VIBRANT, COLORFUL, VISUAL infographic posters.
+
+*** CRITICAL: ZERO OMISSION & EXACT PRESERVATION POLICY ***
+1. Include EVERY SINGLE WORD, SENTENCE, and statistic from the input text.
+2. Do NOT summarize, abbreviate, or omit ANY details. The output must be EXHAUSTIVE.
+3. This is a "Visual Reformatting" task, NOT a summarization task.
+4. If the input is long, create AS MANY SECTIONS AS NEEDED. Do not cut content to fit.
+5. Use "plain_text" blocks to preserve large chunks of text verbatim if they don't fit into charts/lists.
+6. **RESTRICTED SCOPE**: Do NOT add information not explicitly in the input. Do not hallucinate.
+7. **DIFFERENTIAL DIAGNOSIS**: If the input pertains to a disease/condition, format "Differential Diagnosis" prominently as a "table" or "mindmap".
+
+Guidelines:
+1. Visual Variety: Use charts, warning boxes, mindmaps, mnemonics, and lists.
+2. Poster Layout: Output arranged in a masonry grid. Important sections span full width.
+3. Tone: Educational yet highly engaging.
+4. Completeness: Cover 100% of the input text context.
+
+You MUST respond with ONLY valid JSON (no markdown fences). JSON Schema:
+{
+    "title": "A Punchy, Poster-Style Title",
+    "summary": "A 2-3 sentence engaging summary.",
+    "summary_illustration": "<svg ...> ... </svg>",
+    "sections": [
+        {
+            "title": "Section Title",
+            "icon": "valid_material_symbols_rounded_name",
+            "type": "layout_type",
+            "layout": "full_width" | "half_width",
+            "color_theme": "blue" | "red" | "green" | "yellow" | "purple",
+            "content": ...
+        }
+    ]
+}
+
+Layout Types & Content Rules:
+1. "chart": { "type": "bar", "data": [ {"label": "Label A", "value": 80} ] } (Values 0-100 relative)
+2. "red_flag": [ "Warning Sign 1" ] (Theme MUST be 'red')
+3. "remember": { "mnemonic": "ABCD", "explanation": "A for Age, B for..." }
+4. "mindmap": { "center": "Main Concept", "branches": ["Branch A", "Branch B"] }
+5. "key_point": [ "Point 1", "Point 2" ]
+6. "process": [ "Step 1: ...", "Step 2: ..." ]
+7. "plain_text": "Content string..."
+8. "table": { "headers": ["Col 1", "Col 2"], "rows": [ ["R1C1", "R1C2"] ] }
+
+summary_illustration: Generate a valid, minimal SVG (flat, modern, vector art, iconic, viewBox set, primary color hsl(215, 90%, 45%)).
+
+Design: Include ALL items from input. Use "mindmap" for hierarchy, "red_flag" for contraindications, charts for data.`;
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Attempting OpenAI generation with model: ${modelName}`);
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: modelName,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: `Create an ophthalmic infographic for the following topic/text:\n\n${topic}` }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 16000
+                })
+            });
+
+            if (!response.ok) {
+                const errBody = await response.json().catch(() => ({}));
+                const errMsg = errBody?.error?.message || `HTTP ${response.status}`;
+                if (response.status === 404 || errMsg.includes('does not exist')) {
+                    console.warn(`Model ${modelName} not available, trying next...`);
+                    lastError = new Error(errMsg);
+                    continue;
+                }
+                throw new Error(errMsg);
+            }
+
+            const result = await response.json();
+            let text = result.choices?.[0]?.message?.content || '';
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(text);
+
+        } catch (error) {
+            console.warn(`Failed with OpenAI model ${modelName}:`, error);
+            lastError = error;
+            if (error.message && !error.message.includes('404') && !error.message.includes('does not exist')) {
+                throw error;
+            }
+        }
+    }
+    throw lastError || new Error("All OpenAI models failed.");
 }
 
 // Helper to escape HTML characters

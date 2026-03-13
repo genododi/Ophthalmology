@@ -62,9 +62,17 @@
                 <label for="api-key">Gemini API Key</label>
                 <div class="input-wrapper">
                     <span class="material-symbols-rounded input-icon">key</span>
-                    <input type="password" id="api-key" placeholder="Enter your key here">
+                    <input type="password" id="api-key" placeholder="Enter your Gemini key here">
                 </div>
-                <small class="hint">Your key is not stored permanently.</small>
+            </div>
+
+            <div class="control-group">
+                <label for="openai-api-key">OpenAI API Key <span style="font-size: 0.75rem; color: #64748b; font-weight: 400;">(optional)</span></label>
+                <div class="input-wrapper">
+                    <span class="material-symbols-rounded input-icon">key</span>
+                    <input type="password" id="openai-api-key" placeholder="Enter your OpenAI key here">
+                </div>
+                <small class="hint">Provide either key. OpenAI key uses GPT-4o. Both keys are session-only.</small>
             </div>
 
             <div class="control-group">
