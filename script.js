@@ -5207,6 +5207,11 @@ function setupStickyNotes() {
                     const noteId = btn.dataset.noteId;
                     const idx = notes.findIndex(n => n.id == noteId);
                     if (idx !== -1) {
+                        // Add to tombstone so it never comes back via sync/pool import
+                        addToTombstone(notes[idx].text);
+                        // Also remove from NLM notes store
+                        const nlmNotes = loadNLMNotes().filter(n => n.text !== notes[idx].text);
+                        saveNLMNotes(nlmNotes);
                         notes.splice(idx, 1);
                         localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
                     }
@@ -5233,7 +5238,8 @@ function setupStickyNotes() {
         clearBtn.onclick = () => {
             if (notes.length === 0) return;
             if (!confirm(`Delete all ${notes.length} sticky notes? This will also remove them from NotebookLM Notes.`)) return;
-            // Delete notes from sticky notes completely (don't retain tombstone if user wants it gone forever from sticky notes pool)
+            // Tombstone all notes so they never come back via sync/pool import
+            notes.forEach(n => deleteNoteEverywhere(n.text));
             notes.length = 0;
             localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes));
             updateStickyNotesBadge();
