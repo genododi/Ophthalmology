@@ -4691,3 +4691,29 @@ textarea:focus {
         margin-right: 0;
     }
 }
+
+/* Model selector radio buttons */
+.model-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    user-select: none;
+}
+.model-radio:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+.model-radio:has(input:checked) {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1e40af;
+    font-weight: 600;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}

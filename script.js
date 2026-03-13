@@ -5564,16 +5564,23 @@ function buildPreservationBlock() {
 HOWEVER: You MAY supplement the user's text with additional medical/ophthalmology knowledge to enrich the infographic. Add relevant clinical pearls, differential diagnoses, investigation workups, management protocols, red flags, and mnemonics that are clinically accurate and pertinent to the topic, even if not explicitly stated in the input. The user's original text must still be preserved in full.`;
 }
 
+function getSelectedGeminiModel() {
+    const checked = document.querySelector('input[name="gemini-model"]:checked');
+    return checked ? checked.value : 'gemini-2.5-pro';
+}
+
 async function generateInfographicData(apiKey, topic) {
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const modelsToTry = [
+    const selectedModel = getSelectedGeminiModel();
+    const fallbacks = [
         "gemini-2.5-pro",
         "gemini-2.5-flash",
         "gemini-3-flash-preview",
         "gemini-3.1-flash-lite-preview",
         "gemini-2.0-flash"
-    ];
+    ].filter(m => m !== selectedModel);
+    const modelsToTry = [selectedModel, ...fallbacks];
 
     let lastError = null;
     const topicMode = isTopicMode(topic);

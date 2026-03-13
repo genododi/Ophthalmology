@@ -24,7 +24,7 @@
     <!-- Icons -->
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=2026031304">
     <!-- Import map for ES modules - works on hosted servers -->
     <script type="importmap">
       {
@@ -76,6 +76,22 @@
                     <input type="password" id="openai-api-key" placeholder="Enter your OpenAI key here">
                 </div>
                 <small class="hint">Provide either key. OpenAI key uses GPT-4o. Both keys are session-only.</small>
+            </div>
+
+            <div class="control-group">
+                <label>Gemini Model</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <label class="model-radio">
+                        <input type="radio" name="gemini-model" value="gemini-2.5-pro" checked style="accent-color:#2563eb;"> 2.5 Pro
+                    </label>
+                    <label class="model-radio">
+                        <input type="radio" name="gemini-model" value="gemini-2.5-flash" style="accent-color:#2563eb;"> 2.5 Flash
+                    </label>
+                    <label class="model-radio">
+                        <input type="radio" name="gemini-model" value="gemini-3-flash-preview" style="accent-color:#2563eb;"> 3.0 Flash
+                    </label>
+                </div>
+                <small class="hint">Pro = most detailed, Flash = faster generation</small>
             </div>
 
             <div class="control-group">
@@ -1007,8 +1023,8 @@
             console.warn('Running locally via file:// protocol. ES modules may not work. Please use a local server (e.g., npx serve) or access via GitHub Pages.');
         }
     </script>
-    <script type="module" src="script.js?v=2026031303"></script>
-    <div style="text-align:center;padding:8px;font-size:11px;color:#94a3b8;opacity:0.6;">v2026.03.13.03</div>
+    <script type="module" src="script.js?v=2026031304"></script>
+    <div style="text-align:center;padding:8px;font-size:11px;color:#94a3b8;opacity:0.6;">v2026.03.13.04</div>
 </body>
 
 </html>
