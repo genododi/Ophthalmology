@@ -5468,7 +5468,18 @@ generateBtn.addEventListener('click', async () => {
     try {
         let data;
         if (openaiKey) {
-            data = await generateInfographicDataOpenAI(openaiKey, combinedInput);
+            try {
+                data = await generateInfographicDataOpenAI(openaiKey, combinedInput);
+            } catch (openaiErr) {
+                console.warn('OpenAI generation failed:', openaiErr.message);
+                if (geminiKey) {
+                    console.log('Falling back to Gemini...');
+                    showToast('OpenAI failed (' + (openaiErr.message || 'error') + '). Falling back to Gemini...', 'warning');
+                    data = await generateInfographicData(geminiKey, combinedInput);
+                } else {
+                    throw openaiErr;
+                }
+            }
         } else {
             data = await generateInfographicData(geminiKey, combinedInput);
         }
@@ -5476,13 +5487,18 @@ generateBtn.addEventListener('click', async () => {
         renderInfographic(data);
     } catch (error) {
         console.error('Generation Error:', error);
+        const errMsg = error.message || 'Something went wrong.';
+        const isQuota = errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('rate_limit') || errMsg.includes('429');
+        const hint = isQuota
+            ? 'Your API key has exceeded its quota or billing is not active. Please check your plan at <a href="https://platform.openai.com/settings/organization/billing" target="_blank" style="color:#3b82f6;">OpenAI Billing</a>, or use a Gemini API key instead.'
+            : escapeHtml(errMsg);
         outputContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon-container" style="background: #fee2e2; color: #ef4444;">
                     <span class="material-symbols-rounded">error_outline</span>
                 </div>
                 <h2>Generation Failed</h2>
-                <p>${error.message || 'Something went wrong. Please check your API key and try again.'}</p>
+                <p>${hint}</p>
             </div>
         `;
     } finally {
@@ -5681,6 +5697,9 @@ Design: Include ALL items from input. Use "mindmap" for hierarchy, "red_flag" fo
             if (!response.ok) {
                 const errBody = await response.json().catch(() => ({}));
                 const errMsg = errBody?.error?.message || `HTTP ${response.status}`;
+                if (response.status === 429 || response.status === 402 || response.status === 401 || response.status === 403) {
+                    throw new Error(errMsg);
+                }
                 if (response.status === 404 || errMsg.includes('does not exist')) {
                     console.warn(`Model ${modelName} not available, trying next...`);
                     lastError = new Error(errMsg);
@@ -5697,7 +5716,10 @@ Design: Include ALL items from input. Use "mindmap" for hierarchy, "red_flag" fo
         } catch (error) {
             console.warn(`Failed with OpenAI model ${modelName}:`, error);
             lastError = error;
-            if (error.message && !error.message.includes('404') && !error.message.includes('does not exist')) {
+            const msg = error.message || '';
+            const isAccountError = msg.includes('quota') || msg.includes('billing') || msg.includes('rate_limit')
+                || msg.includes('Incorrect API key') || msg.includes('authentication') || msg.includes('unauthorized');
+            if (isAccountError || (msg && !msg.includes('404') && !msg.includes('does not exist'))) {
                 throw error;
             }
         }
