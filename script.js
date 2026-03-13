@@ -5514,6 +5514,56 @@ generateBtn.addEventListener('click', async () => {
 
 
 
+function isTopicMode(input) {
+    const wordCount = input.trim().split(/\s+/).length;
+    const lineCount = input.trim().split(/\n/).length;
+    return wordCount <= 80 && lineCount <= 6;
+}
+
+function buildKnowledgeExpansionBlock() {
+    return `
+*** EXPERT KNOWLEDGE EXPANSION MODE ***
+The user has entered a short topic or keyword. You are a board-certified ophthalmologist with fellowship training AND a medical educator. You MUST use your FULL medical and ophthalmological knowledge to produce the most COMPREHENSIVE, TEXTBOOK-QUALITY infographic possible.
+
+MANDATORY SECTIONS TO INCLUDE (where clinically applicable):
+1. **Definition & Overview** — Clear, precise clinical definition.
+2. **Epidemiology** — Incidence, prevalence, demographics, risk factors.
+3. **Etiology & Pathophysiology** — Underlying mechanisms, genetics if relevant.
+4. **Classification / Subtypes** — Use a table or mindmap for categorization.
+5. **Clinical Features & Symptoms** — Comprehensive list of signs and symptoms.
+6. **Ocular Examination Findings** — Slit-lamp, fundoscopy, gonioscopy, imaging findings.
+7. **Investigations & Diagnostic Workup** — Labs, imaging (OCT, FFA, USG, CT, MRI), ancillary tests.
+8. **Differential Diagnosis** — MUST be included as a table or mindmap. Be thorough.
+9. **Staging / Grading** — If a classification system exists (e.g., TNM, ETDRS, AREDS).
+10. **Management & Treatment** — Medical, surgical, laser; step-by-step protocols.
+11. **Surgical Techniques** — If applicable, describe approaches and steps.
+12. **Complications & Prognosis** — Expected outcomes, risk of recurrence.
+13. **Red Flags / Emergency Signs** — Use "red_flag" type. Critical warning signs.
+14. **Mnemonics & Memory Aids** — Use "remember" type. Include well-known mnemonics.
+15. **Key Clinical Pearls** — High-yield exam and practice points.
+16. **Recent Advances & Landmark Studies** — Latest evidence-based updates.
+17. **Pediatric / Special Population Considerations** — If relevant.
+
+DEPTH REQUIREMENT: For each section, provide the level of detail found in Kanski's Clinical Ophthalmology or the AAO BCSC series. Include specific drug names, dosages, surgical instrument names, classification criteria numbers, and statistical data where known. Do NOT be superficial — a resident or fellow should be able to study from this infographic.
+
+Create AT LEAST 12-20 sections for a thorough topic. Use ALL layout types (charts, tables, mindmaps, process flows, red flags, mnemonics, key points) for visual variety.`;
+}
+
+function buildPreservationBlock() {
+    return `
+*** CRITICAL: ZERO OMISSION & EXACT PRESERVATION POLICY ***
+1. You MUST include EVERY SINGLE WORD, SENTENCE, and statistic from the input text.
+2. Do NOT summarize, abbreviate, or omit ANY details. The output must be EXHAUSTIVE.
+3. This is a "Visual Reformatting" task, NOT a summarization task.
+4. If the input is long, create AS MANY SECTIONS AS NEEDED. Do not cut content to fit.
+5. Use "plain_text" blocks to preserve large chunks of text verbatim if they don't fit into charts/lists.
+6. **RESTRICTED SCOPE**: You must NOT add any information, facts, or context that is not explicitly present in the provided input text.
+7. **VERIFICATION**: Before outputting, verify that all of the input text is present in the output JSON.
+8. **DIFFERENTIAL DIAGNOSIS**: If the input pertains to a disease or condition, explicitly look for and format "Differential Diagnosis" prominently as a "table" or "mindmap".
+
+HOWEVER: You MAY supplement the user's text with additional medical/ophthalmology knowledge to enrich the infographic. Add relevant clinical pearls, differential diagnoses, investigation workups, management protocols, red flags, and mnemonics that are clinically accurate and pertinent to the topic, even if not explicitly stated in the input. The user's original text must still be preserved in full.`;
+}
+
 async function generateInfographicData(apiKey, topic) {
     const genAI = new GoogleGenerativeAI(apiKey);
 
@@ -5526,40 +5576,35 @@ async function generateInfographicData(apiKey, topic) {
     ];
 
     let lastError = null;
+    const topicMode = isTopicMode(topic);
 
     for (const modelName of modelsToTry) {
         try {
-            console.log(`Attempting to generate with model: ${modelName}`);
+            console.log(`Attempting to generate with model: ${modelName} (mode: ${topicMode ? 'TOPIC EXPANSION' : 'TEXT PRESERVATION'})`);
             const model = genAI.getGenerativeModel({ model: modelName });
 
+            const modeBlock = topicMode ? buildKnowledgeExpansionBlock() : buildPreservationBlock();
+
             const prompt = `
-                You are a world-class Ophthalmic Content Strategist and Information Designer.
+                You are a world-class Ophthalmic Content Strategist, board-certified Ophthalmologist, and Information Designer.
                 
-                Goal: Transform the user's input Topic ("${topic}") into a VIBRANT, COLORFUL, and VISUAL poster.
+                Goal: Transform the user's input into a VIBRANT, COLORFUL, and VISUAL poster.
                 
-                *** CRITICAL: ZERO OMISSION & EXACT PRESERVATION POLICY ***
-                1. You MUST include EVERY SINGLE WORD, SENTENCE, and statistic from the input text.
-                2. Do NOT summarize, abbreviate, or omit ANY details. The output must be EXHAUSTIVE.
-                3. This is a "Visual Reformatting" task, NOT a summarization task. 
-                4. If the input is long, create AS MANY SECTIONS AS NEEDED. Do not cut content to fit.
-                5. Use "plain_text" blocks to preserve large chunks of text verbatim if they don't fit into charts/lists.
-                6. **RESTRICTED SCOPE**: You must NOT add any information, facts, or context that is not explicitly present in the provided input text. Do not hallucinate or fetch outside knowledge.
-                7. **VERIFICATION**: Before outputting, verify that n% of the input text is present in the output JSON.
-                8. **DIFFERENTIAL DIAGNOSIS**: If the input pertains to a disease or condition, explicitly look for and format "Differential Diagnosis" prominently within the infographic output, preferably as a "table" or "mindmap".
+                ${modeBlock}
                 
                 Guidelines:
                 1. **Visual Variety**: Use charts, warning boxes, mindmaps, mnemonics, and lists.
                 2. **Poster Layout**: The output will be arranged in a masonry grid. Important sections should be marked to span across the poster.
-                3. **Tone**: Educational yet highly engaging.
-                4. **Completeness**: Create as many sections as needed to cover 100% of the input text context.
+                3. **Tone**: Educational yet highly engaging. Suitable for ophthalmology residents and fellows.
+                4. **Completeness**: Create as many sections as needed. ${topicMode ? 'Aim for 12-20+ sections for comprehensive coverage.' : 'Cover 100% of the input text.'}
+                5. **Medical Accuracy**: All medical content must be evidence-based and clinically accurate.
 
                 JSON Schema (Strict):
                 {
                     "title": "A Punchy, Poster-Style Title",
                     "summary": "A 2-3 sentence engaging summary.",
-                    "summary_illustration": "<svg ...> ... </svg>", // A simple, clean, iconic SVG illustration valid code.
+                    "summary_illustration": "<svg ...> ... </svg>",
                     "sections": [
-                        // Create as many sections as needed to cover ALL input text.
                         {
                             "title": "Section Title",
                             "icon": "valid_material_symbols_rounded_name", // MUST be a valid Google Material Symbols Rounded icon name e.g. "visibility", "biotech", "warning", "lightbulb", "medication", "psychology", "cardiology", "science", "menu_book", "analytics", "school", "healing", "fingerprint", "genetics"
@@ -5606,6 +5651,7 @@ async function generateInfographicData(apiKey, topic) {
                 - If the topic has stages or hierarchy, use "mindmap".
                 - If there are clear contraindications, use "red_flag".
                 - The Illustration should be high quality and relevant to Ophthalmology.
+                ${topicMode ? '- Include epidemiological data as "chart" sections where applicable.\n                - Include at least one "remember" mnemonic section.\n                - Include investigation/diagnostic workup as a "process" or "table".\n                - Include management algorithm as a "process" section.' : ''}
 
                 User Topic/Text: "${topic}"
             `;
@@ -5630,24 +5676,21 @@ async function generateInfographicData(apiKey, topic) {
 async function generateInfographicDataOpenAI(apiKey, topic) {
     const modelsToTry = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"];
     let lastError = null;
+    const topicMode = isTopicMode(topic);
 
-    const systemPrompt = `You are a world-class Ophthalmic Content Strategist and Information Designer.
+    const modeBlock = topicMode ? buildKnowledgeExpansionBlock() : buildPreservationBlock();
+
+    const systemPrompt = `You are a world-class Ophthalmic Content Strategist, board-certified Ophthalmologist, and Information Designer.
 You transform topics into VIBRANT, COLORFUL, VISUAL infographic posters.
 
-*** CRITICAL: ZERO OMISSION & EXACT PRESERVATION POLICY ***
-1. Include EVERY SINGLE WORD, SENTENCE, and statistic from the input text.
-2. Do NOT summarize, abbreviate, or omit ANY details. The output must be EXHAUSTIVE.
-3. This is a "Visual Reformatting" task, NOT a summarization task.
-4. If the input is long, create AS MANY SECTIONS AS NEEDED. Do not cut content to fit.
-5. Use "plain_text" blocks to preserve large chunks of text verbatim if they don't fit into charts/lists.
-6. **RESTRICTED SCOPE**: Do NOT add information not explicitly in the input. Do not hallucinate.
-7. **DIFFERENTIAL DIAGNOSIS**: If the input pertains to a disease/condition, format "Differential Diagnosis" prominently as a "table" or "mindmap".
+${modeBlock}
 
 Guidelines:
 1. Visual Variety: Use charts, warning boxes, mindmaps, mnemonics, and lists.
 2. Poster Layout: Output arranged in a masonry grid. Important sections span full width.
-3. Tone: Educational yet highly engaging.
-4. Completeness: Cover 100% of the input text context.
+3. Tone: Educational yet highly engaging. Suitable for ophthalmology residents and fellows.
+4. Completeness: ${topicMode ? 'Create 12-20+ sections for comprehensive coverage.' : 'Cover 100% of the input text context.'}
+5. Medical Accuracy: All content must be evidence-based and clinically accurate.
 
 You MUST respond with ONLY valid JSON (no markdown fences). JSON Schema:
 {
@@ -5678,7 +5721,9 @@ Layout Types & Content Rules:
 
 summary_illustration: Generate a valid, minimal SVG (flat, modern, vector art, iconic, viewBox set, primary color hsl(215, 90%, 45%)).
 
-Design: Include ALL items from input. Use "mindmap" for hierarchy, "red_flag" for contraindications, charts for data.`;
+Design: Use "mindmap" for hierarchy, "red_flag" for contraindications, charts for data.
+${topicMode ? 'Include epidemiological data as charts. Include at least one mnemonic. Include investigation workup as process/table. Include management algorithm as process.' : 'Include ALL items from input.'}`;
+
 
     for (const modelName of modelsToTry) {
         try {
