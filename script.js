@@ -713,6 +713,78 @@ async function exportToPDF(element) {
 const LIBRARY_KEY = 'ophthalmic_infographic_library';
 const CHAPTERS_KEY = 'ophthalmic_infographic_chapters';
 
+// ═══════════════════════════════════════════════════════════════════════
+// INDEXEDDB-BACKED LIBRARY STORAGE (unlimited size, replaces localStorage)
+// ═══════════════════════════════════════════════════════════════════════
+const LIBRARY_IDB_NAME = 'OphthalmoLibraryDB';
+const LIBRARY_IDB_VERSION = 1;
+const LIBRARY_IDB_STORE = 'library';
+let _libraryCache = null;
+
+function openLibraryIDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(LIBRARY_IDB_NAME, LIBRARY_IDB_VERSION);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(LIBRARY_IDB_STORE)) {
+                db.createObjectStore(LIBRARY_IDB_STORE, { keyPath: 'key' });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveLibraryToIDB(library) {
+    _libraryCache = library;
+    try {
+        const db = await openLibraryIDB();
+        const tx = db.transaction(LIBRARY_IDB_STORE, 'readwrite');
+        tx.objectStore(LIBRARY_IDB_STORE).put({ key: 'main', data: library });
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+        db.close();
+        try { localStorage.removeItem(LIBRARY_KEY); } catch(e) {}
+    } catch (err) {
+        console.error('Failed to save library to IndexedDB:', err);
+        try { saveLibraryToIDB(library); } catch(e2) {}
+    }
+}
+
+async function loadLibraryFromIDB() {
+    try {
+        const db = await openLibraryIDB();
+        const tx = db.transaction(LIBRARY_IDB_STORE, 'readonly');
+        const req = tx.objectStore(LIBRARY_IDB_STORE).get('main');
+        const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+        db.close();
+        if (result && result.data) {
+            _libraryCache = result.data;
+            try { localStorage.removeItem(LIBRARY_KEY); } catch(e) {}
+            return result.data;
+        }
+    } catch (err) {
+        console.error('Failed to load library from IndexedDB:', err);
+    }
+    const lsData = localStorage.getItem(LIBRARY_KEY);
+    if (lsData) {
+        try {
+            _libraryCache = JSON.parse(lsData);
+            saveLibraryToIDB(_libraryCache);
+            return _libraryCache;
+        } catch(e) {}
+    }
+    _libraryCache = [];
+    return [];
+}
+
+function getLibraryCache() {
+    return _libraryCache || [];
+}
+
+async function initLibraryCache() {
+    await loadLibraryFromIDB();
+}
+
 // Default ophthalmic chapters
 const DEFAULT_CHAPTERS = [
     { id: 'uncategorized', name: 'Uncategorized', color: '#64748b' },
@@ -1573,7 +1645,7 @@ async function syncLibraryToServer() {
     if (window.location.protocol === 'file:') {
         // Try to sync anyway via localhost API
     }
-    const libraryData = localStorage.getItem(LIBRARY_KEY) || '[]';
+    const libraryData = JSON.stringify(getLibraryCache());
     console.log("Syncing library to server...");
     try {
         const response = await safeFetch('api/library/upload', {
@@ -1664,7 +1736,7 @@ function setupKnowledgeBase() {
             // Check removed to allow attempt
             if (selectedItems.size === 0) return;
 
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
             const itemsToExport = library.filter(item => selectedItems.has(item.id));
 
             // REMOTE USER: Redirect to Community Pool instead of server
@@ -1831,7 +1903,7 @@ function setupKnowledgeBase() {
                         if (CommunitySubmissions.getDeletedItems) {
                             const deletedItems = await CommunitySubmissions.getDeletedItems();
                             if (deletedItems && deletedItems.length > 0) {
-                                let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                                let localLibrary = getLibraryCache();
                                 const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
                                 const originalLength = localLibrary.length;
 
@@ -1845,7 +1917,7 @@ function setupKnowledgeBase() {
                                 });
 
                                 if (localLibrary.length < originalLength) {
-                                    localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+                                    saveLibraryToIDB(localLibrary);
                                     if (!silent) alert('Some items were deleted by the admin and have been removed from your library.');
                                 }
                             }
@@ -1898,7 +1970,7 @@ function setupKnowledgeBase() {
             }
 
             if (serverItems.length > 0 || isGitHubPages()) {
-                let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                let localLibrary = getLibraryCache();
                 let addedCount = 0;
                 let updatedCount = 0;
                 let skippedDuplicates = 0;
@@ -1927,7 +1999,7 @@ function setupKnowledgeBase() {
                             deletedCount = originalLength - localLibrary.length;
                             if (deletedCount > 0) {
                                 console.log(`[Sync] Removed ${deletedCount} item(s) deleted by admin.`);
-                                localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+                                saveLibraryToIDB(localLibrary);
                             }
                         }
                     }
@@ -2100,7 +2172,7 @@ function setupKnowledgeBase() {
                 if (addedCount > 0 || updatedCount > 0 || assignSequentialIds(localLibrary)) {
                     // Sort by date desc
                     localLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+                    saveLibraryToIDB(localLibrary);
                     renderLibraryList();
                     if (!silent) {
                         const msg = [];
@@ -2229,7 +2301,7 @@ function setupKnowledgeBase() {
     // This removes any existing duplicates from localStorage without showing alerts
     (function silentDuplicateCleanup() {
         try {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
             if (library.length === 0) return;
 
             const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
@@ -2277,7 +2349,7 @@ function setupKnowledgeBase() {
                 // Reassign sequential IDs
                 reassignSequentialIds(cleanedLibrary);
 
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
+                saveLibraryToIDB(cleanedLibrary);
                 console.log(`[Startup] Silently removed ${indicesToRemove.size} duplicate(s) from library.`);
             }
         } catch (err) {
@@ -2312,7 +2384,7 @@ function setupKnowledgeBase() {
     const findDuplicatesBtn = document.getElementById('find-duplicates-btn');
     if (findDuplicatesBtn) {
         findDuplicatesBtn.addEventListener('click', () => {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
 
             if (library.length === 0) {
                 alert('Library is empty. No duplicates to find.');
@@ -2387,8 +2459,7 @@ function setupKnowledgeBase() {
                 // Reassign sequential IDs
                 reassignSequentialIds(cleanedLibrary);
 
-                // Save
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(cleanedLibrary));
+                saveLibraryToIDB(cleanedLibrary);
 
                 alert(`✅ Deleted ${duplicates.length} duplicate(s). Library now has ${cleanedLibrary.length} items.`);
 
@@ -2407,7 +2478,7 @@ function setupKnowledgeBase() {
         autoChapterBtn.addEventListener('click', () => {
 
 
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
 
             if (library.length === 0) {
                 alert('Library is empty. Nothing to chapterize.');
@@ -2452,7 +2523,7 @@ function setupKnowledgeBase() {
             msg += '\n\nApply these changes?';
 
             if (confirm(msg)) {
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                saveLibraryToIDB(library);
                 alert(`✅ ${changedCount} item(s) auto-chapterized!`);
                 renderLibraryList();
                 syncLibraryToServer();
@@ -2468,7 +2539,7 @@ function setupKnowledgeBase() {
                 return;
             }
 
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
 
             // Auto-detect chapter from title
             const itemTitle = currentInfographicData.title || "Untitled Infographic";
@@ -2494,7 +2565,7 @@ function setupKnowledgeBase() {
             // Reassign all sequential IDs (oldest = 1, newest = highest)
             reassignSequentialIds(library);
 
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+            saveLibraryToIDB(library);
 
             if (isGitHubPages()) {
                 const wantsShare = confirm('Share this infographic to the Community Hub now? It will be published instantly for all visitors.');
@@ -2515,14 +2586,14 @@ function setupKnowledgeBase() {
                                     alert(result.message || '✅ Published to the Community Hub!');
 
                                     // IMMEDIATE RECOGNITION: Update local item to reflect community status
-                                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                                    const library = getLibraryCache();
                                     // Find the item we just added (it's at the top, index 0)
                                     if (library.length > 0) {
                                         library[0].communitySource = true;
                                         library[0].author = userName.trim();
                                         library[0].citation = `Author: ${userName.trim()}`;
                                         library[0]._serverSynced = true; // Mark as synced since it's in the cloud
-                                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                                        saveLibraryToIDB(library);
                                         renderLibraryList(); // Refresh UI to show the "Author" tag
                                     }
                                 } else {
@@ -2559,7 +2630,7 @@ function setupKnowledgeBase() {
     // OPEN LIBRARY
     const openLibrary = () => {
         // Guest Access Fix: Auto-sync if library is empty
-        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const library = getLibraryCache();
         if (library.length === 0) {
             console.log("Library empty. Triggering auto-sync for guest access...");
             syncFromServer(true); // Silent sync
@@ -2919,7 +2990,7 @@ function setupKnowledgeBase() {
         cfBody.querySelectorAll('.cf-view-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const itemId = parseInt(btn.dataset.itemId);
-                const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                const lib = getLibraryCache();
                 const found = lib.find(i => i.id === itemId);
                 if (found && found.data) {
                     if (found.chapterId) found.data.chapterId = found.chapterId;
@@ -2934,11 +3005,11 @@ function setupKnowledgeBase() {
     }
 
     function renderLibraryList() {
-        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const library = getLibraryCache();
 
         // Ensure IDs are assigned (Migration check)
         if (assignSequentialIds(library)) {
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+            saveLibraryToIDB(library);
         }
 
         // Sync chapterId into data.chapterId for all items (ensures tag always matches)
@@ -2950,7 +3021,7 @@ function setupKnowledgeBase() {
             }
         });
         if (chapterSynced) {
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+            saveLibraryToIDB(library);
         }
 
         // Count badge - will be updated after filtering below
@@ -3291,7 +3362,7 @@ function setupKnowledgeBase() {
                     }
                     return item;
                 });
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
+                saveLibraryToIDB(updatedLibrary);
 
                 const count = selectedItems.size;
                 selectionMode = false;
@@ -3334,7 +3405,7 @@ function setupKnowledgeBase() {
 
                 // 2. Delete from LocalStorage
                 const updatedLibrary = library.filter(item => !selectedItems.has(item.id));
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
+                saveLibraryToIDB(updatedLibrary);
 
                 // 3. Reset UI
                 selectionMode = false;
@@ -3427,7 +3498,7 @@ function setupKnowledgeBase() {
                         }
                         return item;
                     });
-                    localStorage.setItem(LIBRARY_KEY, JSON.stringify(updatedLibrary));
+                    saveLibraryToIDB(updatedLibrary);
 
                     // Update the currently displayed infographic's tag if it was affected
                     if (currentInfographicData) {
@@ -3549,7 +3620,7 @@ function setupKnowledgeBase() {
                     const targetItem = library.find(i => i.id === id);
                     if (targetItem) {
                         targetItem.bookmarked = !targetItem.bookmarked;
-                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                        saveLibraryToIDB(library);
                         renderLibraryList();
                     }
                 });
@@ -3570,7 +3641,7 @@ function setupKnowledgeBase() {
                             if (targetItem.data) {
                                 targetItem.data.title = newTitle.trim();
                             }
-                            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                            saveLibraryToIDB(library);
 
                             // Auto-Sync
                             syncLibraryToServer();
@@ -3586,7 +3657,7 @@ function setupKnowledgeBase() {
                 btn.addEventListener('click', (e) => {
                     const id = parseInt(e.target.dataset.id);
                     // Always read fresh from localStorage to get latest chapterId
-                    const freshLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const freshLibrary = getLibraryCache();
                     const targetItem = freshLibrary.find(i => i.id === id);
                     if (targetItem) {
                         if (!targetItem.data || (typeof targetItem.data === 'object' && !targetItem.data.sections)) {
@@ -3629,7 +3700,7 @@ function setupKnowledgeBase() {
                         // Reassign sequential IDs after deletion (no gaps)
                         reassignSequentialIds(newLibrary);
 
-                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(newLibrary));
+                        saveLibraryToIDB(newLibrary);
 
                         // TRACK LOCAL DELETION (For Remote Users)
                         if (isGitHubPages()) {
@@ -3660,7 +3731,7 @@ function setupKnowledgeBase() {
     const checkCategorisationBtn = document.getElementById('check-categorisation-btn');
     if (checkCategorisationBtn) {
         checkCategorisationBtn.addEventListener('click', () => {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
 
             if (library.length === 0) {
                 alert('Library is empty. Nothing to check.');
@@ -3895,7 +3966,7 @@ function setupKnowledgeBase() {
                     }
                 });
 
-                localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                saveLibraryToIDB(library);
 
                 // Update the currently displayed infographic's tag if it was in the changed set
                 if (currentInfographicData) {
@@ -3924,7 +3995,7 @@ function setupKnowledgeBase() {
     const redFlagsBtn = document.getElementById('red-flags-btn');
     if (redFlagsBtn) {
         redFlagsBtn.addEventListener('click', () => {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
 
             if (library.length === 0) {
                 alert('Library is empty. No red flags to display.');
@@ -4084,7 +4155,7 @@ function setupKnowledgeBase() {
             body.querySelectorAll('.view-redflag-infographic').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const itemId = parseInt(btn.dataset.itemId);
-                    const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const lib = getLibraryCache();
                     const found = lib.find(i => i.id === itemId);
                     if (found && found.data) {
                         // Sync library chapterId into data for correct tag rendering
@@ -4183,7 +4254,7 @@ function setupSyncStatus() {
 
         try {
             // Get local library
-            const localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const localLibrary = getLibraryCache();
             const localTitles = new Map();
             localLibrary.forEach(item => {
                 localTitles.set(normalizeTitle(item.title), item);
@@ -4443,7 +4514,7 @@ function setupSyncStatus() {
             downloadServerOnlyBtn.disabled = true;
             downloadServerOnlyBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span> Downloading...';
 
-            let localLibrary = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            let localLibrary = getLibraryCache();
             const normalizeTitle = (t) => (t || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
             let addedCount = 0;
             let skippedCount = 0;
@@ -4482,7 +4553,7 @@ function setupSyncStatus() {
                 addedCount++;
             }
 
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(localLibrary));
+            saveLibraryToIDB(localLibrary);
 
             downloadServerOnlyBtn.disabled = false;
             downloadServerOnlyBtn.innerHTML = '<span class="material-symbols-rounded">cloud_download</span> Download Server-Only Infographs';
@@ -4740,10 +4811,11 @@ function setupFTPServer() {
 
 let currentInfographicData = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await initLibraryCache();
     // ── Migration: purge legacy kanskiImages blobs from localStorage ──
     try {
-        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const lib = getLibraryCache();
         let cleaned = false;
         lib.forEach(item => {
             if (item.kanskiImages) {
@@ -4763,7 +4835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         if (cleaned) {
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+            saveLibraryToIDB(lib);
             console.log('[Kanski Migration] Purged legacy kanskiImages blobs from localStorage');
         }
     } catch (err) {
@@ -6622,7 +6694,7 @@ function renderInfographic(data) {
     // Priority: 1) library item's chapterId (user's local override), 2) data.chapterId, 3) auto-detect
     let chapterId = 'uncategorized';
     try {
-        const lib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const lib = getLibraryCache();
         // Try exact title match first, then normalised match
         let libItem = lib.find(i => i.title === title);
         if (!libItem) {
@@ -9201,7 +9273,7 @@ function setupCommunityHub() {
             if (confirm(`Load "${submission.title}"? This will replace your current workspace content.`)) {
                 // Check local library for user's chapterId override
                 try {
-                    const localLib = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const localLib = getLibraryCache();
                     const localItem = localLib.find(i => i.title === submission.title);
                     if (localItem && localItem.chapterId) {
                         submission.data.chapterId = localItem.chapterId;
@@ -9824,6 +9896,9 @@ async function deleteKanskiFromIDB(infographicTitle) {
 // Expose Kanski IDB functions globally so community-submissions.js can access them
 // (script.js is loaded as type="module", scoping its functions)
 window.saveKanskiToIDB = saveKanskiToIDB;
+window.getLibraryCache = getLibraryCache;
+window.saveLibraryToIDB = saveLibraryToIDB;
+window.loadLibraryFromIDB = loadLibraryFromIDB;
 window.loadKanskiFromIDB = loadKanskiFromIDB;
 
 /* ========================================
@@ -9838,7 +9913,7 @@ function loadAdheredKanskiImages(data) {
     // Check localStorage for the lightweight meta flag
     let hasAdhered = false;
     try {
-        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+        const library = getLibraryCache();
         const item = library.find(i => i.title === data.title);
         hasAdhered = item && item.kanskiMeta && item.kanskiMeta.length > 0;
     } catch { /* ignore */ }
@@ -9927,7 +10002,7 @@ function loadAdheredKanskiImages(data) {
                 if (removePermanently) {
                     // Remove lightweight meta from localStorage
                     try {
-                        const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                        const library = getLibraryCache();
                         const item = library.find(i => i.title === data.title);
                         if (item) {
                             delete item.kanskiMeta;
@@ -9936,7 +10011,7 @@ function loadAdheredKanskiImages(data) {
                                 delete item.data.kanskiMeta;
                                 delete item.data.kanskiImages;
                             }
-                            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                            saveLibraryToIDB(library);
                         }
                     } catch (err) {
                         console.error('Error removing Kanski meta:', err);
@@ -11005,7 +11080,7 @@ function setupKanskiPics() {
             }
 
             // Find the matching library item
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
             const item = library.find(i => i.title === currentInfographicData.title);
             if (!item) {
                 alert('This infographic is not saved in your library. Save it first, then adhere Kanski images.');
@@ -11041,7 +11116,7 @@ function setupKanskiPics() {
                 delete item.data.kanskiImages;
             }
 
-            localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+            saveLibraryToIDB(library);
 
             // Update button appearance to show "Adhered"
             adhereBtn.disabled = false;
@@ -11067,7 +11142,7 @@ function setupKanskiPics() {
 
                 if (removeFromLibrary) {
                     // Remove meta from localStorage
-                    const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+                    const library = getLibraryCache();
                     const item = library.find(i => i.title === currentInfographicData.title);
                     if (item) {
                         delete item.kanskiMeta;
@@ -11076,7 +11151,7 @@ function setupKanskiPics() {
                             delete item.data.kanskiMeta;
                             delete item.data.kanskiImages;
                         }
-                        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+                        saveLibraryToIDB(library);
                     }
                     // Remove images from IndexedDB
                     await deleteKanskiFromIDB(currentInfographicData.title);
@@ -11106,7 +11181,7 @@ function setupKanskiPics() {
     function isKanskiAdhered() {
         if (!currentInfographicData) return false;
         try {
-            const library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            const library = getLibraryCache();
             const item = library.find(i => i.title === currentInfographicData.title);
             return item && item.kanskiMeta && item.kanskiMeta.length > 0;
         } catch { return false; }

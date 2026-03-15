@@ -647,11 +647,11 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
             return { success: false, message: 'Submission not found.' };
         }
 
-        // Get local library
-        const LIBRARY_KEY = 'ophthalmic_infographic_library';
         let library = [];
         try {
-            library = JSON.parse(localStorage.getItem(LIBRARY_KEY) || '[]');
+            library = (typeof window.getLibraryCache === 'function')
+                ? [...window.getLibraryCache()]
+                : JSON.parse(localStorage.getItem('ophthalmic_infographic_library') || '[]');
         } catch {
             library = [];
         }
@@ -765,7 +765,11 @@ async function downloadToLocalLibrary(submissionId, overwrite = false) {
         }
 
         library.unshift(newItem);
-        localStorage.setItem(LIBRARY_KEY, JSON.stringify(library));
+        if (typeof window.saveLibraryToIDB === 'function') {
+            window.saveLibraryToIDB(library);
+        } else {
+            localStorage.setItem('ophthalmic_infographic_library', JSON.stringify(library));
+        }
 
         return {
             success: true,
