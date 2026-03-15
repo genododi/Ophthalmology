@@ -741,6 +741,9 @@ const DEFAULT_CHAPTERS = [
     { id: 'theatre', name: 'Surgery: Theatre Notes', color: '#2dd4bf' },
     { id: 'lasers', name: 'Lasers', color: '#f87171' },
     { id: 'therapeutics', name: 'Therapeutics', color: '#c084fc' },
+    { id: 'anatomy', name: 'Anatomy', color: '#0d9488' },
+    { id: 'optics', name: 'Optics', color: '#7c3aed' },
+    { id: 'physiology', name: 'Physiology', color: '#dc2626' },
     { id: 'evidence', name: 'Evidence-based Ophthalmology', color: '#94a3b8' },
     { id: 'resources', name: 'Resources', color: '#64748b' }
 ];
@@ -1443,6 +1446,73 @@ function autoDetectChapter(title) {
                 'occupational', 'screening', 'public health',
                 'quality of life', 'prom', 'patient reported'
             ], chapter: 'vision_context'
+        },
+
+        // ══════════════════════════════════════════════════════════════════
+        // ANATOMY
+        // ══════════════════════════════════════════════════════════════════
+        {
+            keywords: [
+                'anatomy', 'anatomical', 'orbital anatomy', 'ocular anatomy', 'globe anatomy',
+                'extraocular muscles', 'annulus of zinn', 'tenon', 'fascia',
+                'lacrimal gland anatomy', 'eyelid anatomy', 'conjunctival anatomy',
+                'corneal layers', 'bowman', 'descemet', 'endothelium anatomy',
+                'uveal tract', 'choroid anatomy', 'ciliary body anatomy', 'iris anatomy',
+                'retinal layers', 'photoreceptor layer', 'rpe anatomy', 'bruch membrane',
+                'optic nerve anatomy', 'lamina cribrosa', 'circle of zinn-haller',
+                'blood supply', 'arterial supply', 'venous drainage', 'orbital apex',
+                'superior orbital fissure', 'inferior orbital fissure', 'optic canal',
+                'cavernous sinus', 'orbital walls', 'periorbita', 'septum anatomy',
+                'muscle origin', 'muscle insertion', 'nerve supply', 'innervation',
+                'embryology', 'development of eye', 'ocular development'
+            ], chapter: 'anatomy'
+        },
+
+        // ══════════════════════════════════════════════════════════════════
+        // OPTICS
+        // ══════════════════════════════════════════════════════════════════
+        {
+            keywords: [
+                'optics', 'optical', 'refraction', 'refractive index', 'snell', 'vergence',
+                'dioptre', 'diopter', 'focal length', 'focal point', 'conjugate',
+                'prism', 'prism dioptre', 'prentice', 'total internal reflection',
+                'critical angle', 'dispersion', 'chromatic aberration', 'spherical aberration',
+                'astigmatism optics', 'sturm conoid', 'circle of least confusion',
+                'thin lens', 'thick lens', 'lens equation', 'lens formula', 'power of lens',
+                'convex lens', 'concave lens', 'converging', 'diverging',
+                'mirror', 'concave mirror', 'convex mirror', 'mirror equation',
+                'telescopes', 'galilean', 'keplerian', 'microscope optics',
+                'direct ophthalmoscope optics', 'indirect ophthalmoscope optics',
+                'slit lamp optics', 'gonioscopy optics', 'goniolens',
+                'wavefront', 'zernike', 'higher order aberrations', 'coma', 'trefoil',
+                'jackson cross cylinder', 'retinoscopy optics', 'streak retinoscope',
+                'keratometry', 'iol calculation', 'iol power', 'srk', 'haigis', 'holladay',
+                'optical coherence', 'interferometry', 'low coherence',
+                'diffraction', 'interference', 'polarization'
+            ], chapter: 'optics'
+        },
+
+        // ══════════════════════════════════════════════════════════════════
+        // PHYSIOLOGY
+        // ══════════════════════════════════════════════════════════════════
+        {
+            keywords: [
+                'physiology', 'physiological', 'aqueous humour physiology', 'aqueous production',
+                'aqueous outflow', 'trabecular outflow', 'uveoscleral outflow',
+                'tear film physiology', 'tear production', 'lacrimal secretion', 'tear breakup',
+                'corneal physiology', 'corneal transparency', 'corneal hydration',
+                'lens physiology', 'accommodation', 'presbyopia physiology',
+                'pupil physiology', 'pupillary pathway', 'light reflex', 'near reflex',
+                'dark adaptation', 'light adaptation', 'phototransduction',
+                'visual cycle', 'retinol', 'rhodopsin', '11-cis retinal',
+                'colour vision', 'color vision', 'trichromatic', 'opponent process',
+                'contrast sensitivity', 'visual acuity physiology',
+                'electrophysiology', 'erg', 'electroretinogram', 'vep', 'eog',
+                'pattern erg', 'multifocal erg', 'flash erg',
+                'retinal metabolism', 'photoreceptor physiology', 'rod physiology', 'cone physiology',
+                'blood-retinal barrier', 'blood-aqueous barrier',
+                'circadian rhythm', 'melatonin eye', 'iprgc', 'melanopsin'
+            ], chapter: 'physiology'
         },
     ];
 
@@ -3003,41 +3073,12 @@ function setupKnowledgeBase() {
                 return new Date(b.date) - new Date(a.date);
             });
         } else if (currentSortMode === 'vip') {
-            // Sort by VIP: Priority to infographics most related to sticky notes
-            try {
-                const notes = JSON.parse(localStorage.getItem(STICKY_NOTES_KEY) || '[]');
-                if (notes.length > 0) {
-                    // Extract words from sticky notes over 3 chars
-                    const stickyWordsText = notes.map(n => n.text).join(' ').toLowerCase();
-                    const words = stickyWordsText.split(/\\W+/).filter(w => w.length > 3);
-                    const stickyWordsSet = new Set(words);
-
-                    filteredLibrary.forEach(item => {
-                        let score = 0;
-                        const contentText = ((item.title || '') + ' ' + (item.summary || '') + ' ' + JSON.stringify(item.data || '')).toLowerCase();
-                        const contentWords = contentText.split(/\\W+/);
-                        contentWords.forEach(w => {
-                            if (stickyWordsSet.has(w)) score++;
-                        });
-                        item._vipScore = score;
-                    });
-
-                    filteredLibrary.sort((a, b) => {
-                        const scoreA = a._vipScore || 0;
-                        const scoreB = b._vipScore || 0;
-                        if (scoreB !== scoreA) {
-                            return scoreB - scoreA; // Highest score first
-                        }
-                        return new Date(b.date) - new Date(a.date); // Fallback to date
-                    });
-                } else {
-                    // Fallback to date if no sticky notes
-                    filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
-                }
-            } catch (e) {
-                // Fallback to date on error
-                filteredLibrary.sort((a, b) => new Date(b.date) - new Date(a.date));
-            }
+            filteredLibrary.sort((a, b) => {
+                const aBookmarked = a.bookmarked ? 1 : 0;
+                const bBookmarked = b.bookmarked ? 1 : 0;
+                if (bBookmarked !== aBookmarked) return bBookmarked - aBookmarked;
+                return new Date(b.date) - new Date(a.date);
+            });
         }
 
         // Update count badge to show filtered vs total count
@@ -3109,7 +3150,7 @@ function setupKnowledgeBase() {
                         <option value="date" ${currentSortMode === 'date' ? 'selected' : ''}>Sort by Date</option>
                         <option value="name" ${currentSortMode === 'name' ? 'selected' : ''}>Sort by Name</option>
                         <option value="chapter" ${currentSortMode === 'chapter' ? 'selected' : ''}>Sort by Chapter</option>
-                        <option value="vip" ${currentSortMode === 'vip' ? 'selected' : ''}>Sort by VIP</option>
+                        <option value="vip" ${currentSortMode === 'vip' ? 'selected' : ''}>Sort by Bookmarked</option>
                     </select>
                 </div>
                 <div class="content-filter-wrapper">
@@ -6158,6 +6199,7 @@ const ICON_FALLBACK_MAP = {
     'list_icon': 'format_list_bulleted',
     'bullet': 'format_list_bulleted',
     'numbered_list': 'format_list_numbered',
+    'process': 'account_tree',
     'steps': 'format_list_numbered',
     'step': 'looks_one',
     'number': 'tag',
@@ -9280,6 +9322,121 @@ function setupCommunityHub() {
         submitCommunityBtn.addEventListener('click', openSubmitModal);
     }
 
+    // Bulk import state for pause/resume/stop
+    let bulkImportPaused = false;
+    let bulkImportStopped = false;
+
+    function createBulkControls(parentEl) {
+        bulkImportPaused = false;
+        bulkImportStopped = false;
+        let controlsDiv = parentEl.querySelector('.bulk-controls');
+        if (controlsDiv) controlsDiv.remove();
+        controlsDiv = document.createElement('div');
+        controlsDiv.className = 'bulk-controls';
+        controlsDiv.style.cssText = 'display:flex;gap:6px;margin-top:6px;';
+
+        const pauseBtn = document.createElement('button');
+        pauseBtn.className = 'btn-secondary';
+        pauseBtn.style.cssText = 'padding:4px 10px;font-size:0.8rem;display:flex;align-items:center;gap:4px;border-radius:6px;cursor:pointer;border:1px solid #cbd5e1;background:#f8fafc;';
+        pauseBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:16px;">pause</span> Pause';
+        pauseBtn.addEventListener('click', () => {
+            bulkImportPaused = !bulkImportPaused;
+            pauseBtn.innerHTML = bulkImportPaused
+                ? '<span class="material-symbols-rounded" style="font-size:16px;">play_arrow</span> Resume'
+                : '<span class="material-symbols-rounded" style="font-size:16px;">pause</span> Pause';
+            pauseBtn.style.background = bulkImportPaused ? '#fef3c7' : '#f8fafc';
+            pauseBtn.style.borderColor = bulkImportPaused ? '#f59e0b' : '#cbd5e1';
+        });
+
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'btn-secondary';
+        stopBtn.style.cssText = 'padding:4px 10px;font-size:0.8rem;display:flex;align-items:center;gap:4px;border-radius:6px;cursor:pointer;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;';
+        stopBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:16px;">stop</span> Stop';
+        stopBtn.addEventListener('click', () => {
+            bulkImportStopped = true;
+            stopBtn.disabled = true;
+            stopBtn.style.opacity = '0.5';
+        });
+
+        controlsDiv.appendChild(pauseBtn);
+        controlsDiv.appendChild(stopBtn);
+        parentEl.appendChild(controlsDiv);
+        return controlsDiv;
+    }
+
+    function removeBulkControls(parentEl) {
+        const c = parentEl.querySelector('.bulk-controls');
+        if (c) c.remove();
+    }
+
+    async function waitWhilePaused() {
+        while (bulkImportPaused && !bulkImportStopped) {
+            await new Promise(r => setTimeout(r, 200));
+        }
+    }
+
+    async function runBulkImport(items, btn, progressEl, replaceExisting, parentForControls) {
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-rounded">sync</span> Processing...';
+
+        if (progressEl) {
+            progressEl.style.display = 'flex';
+            progressEl.className = 'bulk-progress';
+        }
+
+        const controlsContainer = parentForControls || btn.parentElement;
+        const controlsDiv = createBulkControls(controlsContainer);
+
+        let added = 0, replaced = 0, skipped = 0, failed = 0;
+
+        for (let i = 0; i < items.length; i++) {
+            if (bulkImportStopped) break;
+            await waitWhilePaused();
+            if (bulkImportStopped) break;
+
+            const submission = items[i];
+            if (progressEl) {
+                progressEl.textContent = `Processing ${i + 1}/${items.length}...` + (bulkImportPaused ? ' (Paused)' : '');
+            }
+
+            try {
+                let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
+                if (result.success) {
+                    added++;
+                } else if (result.status === 'duplicate' && replaceExisting) {
+                    result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
+                    if (result.success) replaced++;
+                    else failed++;
+                } else if (result.status === 'duplicate') {
+                    skipped++;
+                } else {
+                    failed++;
+                }
+            } catch (err) {
+                console.error(`Failed to add ${submission.title}:`, err);
+                failed++;
+            }
+        }
+
+        removeBulkControls(controlsContainer);
+
+        const wasStopped = bulkImportStopped;
+        if (progressEl) {
+            progressEl.className = 'bulk-progress success';
+            progressEl.textContent = `${wasStopped ? 'Stopped' : 'Done'}: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed`;
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+
+        let msg = `Bulk import ${wasStopped ? 'stopped' : 'complete'}!\n\n✓ Added: ${added}`;
+        if (replaced > 0) msg += `\n↻ Replaced: ${replaced}`;
+        if (skipped > 0) msg += `\n⊘ Skipped: ${skipped}`;
+        if (failed > 0) msg += `\n✗ Failed: ${failed}`;
+        alert(msg);
+    }
+
     // Add All to Library button (Bulk download approved submissions)
     const addAllToLibraryBtn = document.getElementById('add-all-to-library-btn');
     const addAllProgress = document.getElementById('add-all-progress');
@@ -9293,82 +9450,19 @@ function setupCommunityHub() {
                 return;
             }
 
-            // Ask user whether to replace existing or skip duplicates
             const replaceExisting = confirm(
                 `Add all ${approved.length} approved infographics to your library?\n\n` +
                 `Click OK to REPLACE existing duplicates with updated versions.\n` +
                 `Click Cancel to skip duplicates (keep existing).`
             );
 
-            // Second confirm if they clicked Cancel (they may have wanted to abort entirely)
             if (!replaceExisting) {
                 if (!confirm(`Add all ${approved.length} infographics, SKIPPING any that already exist in your library?`)) {
                     return;
                 }
             }
 
-            // Disable button and show progress
-            addAllToLibraryBtn.disabled = true;
-            const originalHTML = addAllToLibraryBtn.innerHTML;
-            addAllToLibraryBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Processing...';
-
-            if (addAllProgress) {
-                addAllProgress.style.display = 'flex';
-                addAllProgress.className = 'bulk-progress';
-            }
-
-            let added = 0;
-            let replaced = 0;
-            let skipped = 0;
-            let failed = 0;
-
-            for (let i = 0; i < approved.length; i++) {
-                const submission = approved[i];
-
-                // Update progress
-                if (addAllProgress) {
-                    addAllProgress.textContent = `Processing ${i + 1}/${approved.length}...`;
-                }
-
-                try {
-                    // First try without overwrite
-                    let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
-                    if (result.success) {
-                        added++;
-                    } else if (result.status === 'duplicate' && replaceExisting) {
-                        // User chose to replace - retry with overwrite
-                        result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
-                        if (result.success) {
-                            replaced++;
-                        } else {
-                            failed++;
-                        }
-                    } else if (result.status === 'duplicate') {
-                        skipped++;
-                    } else {
-                        failed++;
-                    }
-                } catch (err) {
-                    console.error(`Failed to add ${submission.title}:`, err);
-                    failed++;
-                }
-            }
-
-            // Show final result
-            if (addAllProgress) {
-                addAllProgress.className = 'bulk-progress success';
-                addAllProgress.textContent = `Done: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed`;
-            }
-
-            // Re-enable button
-            addAllToLibraryBtn.disabled = false;
-            addAllToLibraryBtn.innerHTML = originalHTML;
-
-            let msg = `Bulk import complete!\n\n✓ Added: ${added}`;
-            if (replaced > 0) msg += `\n↻ Replaced: ${replaced}`;
-            if (skipped > 0) msg += `\n⊘ Skipped: ${skipped}`;
-            if (failed > 0) msg += `\n✗ Failed: ${failed}`;
-            alert(msg);
+            await runBulkImport(approved, addAllToLibraryBtn, addAllProgress, replaceExisting);
         });
     }
 
@@ -9397,62 +9491,7 @@ function setupCommunityHub() {
                 }
             }
 
-            addAllPendingBtn.disabled = true;
-            const originalHTML = addAllPendingBtn.innerHTML;
-            addAllPendingBtn.innerHTML = '<span class="material-symbols-rounded">sync</span> Processing...';
-
-            if (addAllPendingProgress) {
-                addAllPendingProgress.style.display = 'flex';
-                addAllPendingProgress.className = 'bulk-progress';
-            }
-
-            let added = 0;
-            let replaced = 0;
-            let skipped = 0;
-            let failed = 0;
-
-            for (let i = 0; i < pending.length; i++) {
-                const submission = pending[i];
-
-                if (addAllPendingProgress) {
-                    addAllPendingProgress.textContent = `Processing ${i + 1}/${pending.length}...`;
-                }
-
-                try {
-                    let result = await CommunitySubmissions.downloadToLibrary(submission.id, false);
-                    if (result.success) {
-                        added++;
-                    } else if (result.status === 'duplicate' && replaceExisting) {
-                        result = await CommunitySubmissions.downloadToLibrary(submission.id, true);
-                        if (result.success) {
-                            replaced++;
-                        } else {
-                            failed++;
-                        }
-                    } else if (result.status === 'duplicate') {
-                        skipped++;
-                    } else {
-                        failed++;
-                    }
-                } catch (err) {
-                    console.error(`Failed to add ${submission.title}:`, err);
-                    failed++;
-                }
-            }
-
-            if (addAllPendingProgress) {
-                addAllPendingProgress.className = 'bulk-progress success';
-                addAllPendingProgress.textContent = `Done: ${added} added, ${replaced} replaced, ${skipped} skipped, ${failed} failed`;
-            }
-
-            addAllPendingBtn.disabled = false;
-            addAllPendingBtn.innerHTML = originalHTML;
-
-            let msg = `Bulk import complete!\n\n✓ Added: ${added}`;
-            if (replaced > 0) msg += `\n↻ Replaced: ${replaced}`;
-            if (skipped > 0) msg += `\n⊘ Skipped: ${skipped}`;
-            if (failed > 0) msg += `\n✗ Failed: ${failed}`;
-            alert(msg);
+            await runBulkImport(pending, addAllPendingBtn, addAllPendingProgress, replaceExisting);
         });
     }
 
