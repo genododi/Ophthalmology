@@ -2013,32 +2013,31 @@ textarea:focus {
     flex: 1;
     background: #f8fafc;
     background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
-    background-size: 20px 20px;
+    background-size: 24px 24px;
     overflow: hidden;
     position: relative;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
+
+.mindmap-canvas:active { cursor: grabbing; }
 
 .mindmap-svg {
     width: 100%;
     height: 100%;
+    display: block;
 }
 
-.mindmap-node {
-    cursor: pointer;
-    transition: transform 0.2s;
-}
+.mindmap-node { transition: opacity 0.15s ease; }
+.mindmap-node.mm-branch { cursor: pointer; }
+.mindmap-node.mm-branch:hover > circle:last-of-type { stroke: #0f172a; stroke-width: 3; }
+.mindmap-node.mm-leaf:hover > rect { filter: brightness(0.97); }
+.mindmap-node.mm-center > text { pointer-events: none; }
 
-.mindmap-node:hover {
-    transform: scale(1.05);
-}
-
-.mindmap-node-center {
-    fill: #1e293b;
-}
-
-.mindmap-node-branch {
-    fill: #3b82f6;
-}
+.mindmap-node-center { fill: #1e293b; }
+.mindmap-node-branch { fill: #3b82f6; }
 
 .mindmap-node-leaf {
     fill: #f8fafc;
@@ -2051,19 +2050,22 @@ textarea:focus {
     fill: white;
     text-anchor: middle;
     dominant-baseline: middle;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
+    pointer-events: none;
 }
 
 .mindmap-text-leaf {
-    fill: #334155;
-    font-size: 12px;
+    fill: #1f2937;
+    font-size: 13px;
+    font-weight: 500;
 }
 
 .mindmap-line {
     stroke: #94a3b8;
     stroke-width: 2;
     fill: none;
+    pointer-events: none;
 }
 
 .mindmap-actions {
@@ -4866,4 +4868,87 @@ textarea:focus {
     color: #1e40af;
     font-weight: 600;
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+/* ========================================
+   PROMPT TOGGLE & PANEL
+   ======================================== */
+.prompt-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    background: #eef2ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    font-family: inherit;
+    max-width: fit-content;
+}
+
+.prompt-toggle-btn:hover {
+    background: #e0e7ff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.12);
+}
+
+.prompt-toggle-btn .material-symbols-rounded {
+    font-size: 16px;
+}
+
+.prompt-panel {
+    margin: 0 0 1.25rem;
+    background: linear-gradient(180deg, #f5f3ff 0%, #eff6ff 100%);
+    border: 1px solid #c7d2fe;
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.06);
+}
+
+.prompt-panel[hidden] { display: none; }
+
+.prompt-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #4338ca;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.prompt-panel-header .material-symbols-rounded { font-size: 18px; }
+.prompt-panel-header strong { flex: 1; font-weight: 700; }
+
+.prompt-copy-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #4338ca;
+    border-radius: 8px;
+    padding: 4px 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.15s;
+}
+.prompt-copy-btn:hover { background: rgba(79, 70, 229, 0.12); }
+.prompt-copy-btn .material-symbols-rounded { font-size: 18px; }
+
+.prompt-panel-body {
+    margin: 0;
+    font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: #1e1b4b;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid rgba(79, 70, 229, 0.18);
 }

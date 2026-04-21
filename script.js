@@ -3799,7 +3799,7 @@ function setupKnowledgeBase() {
             });
         }
 
-        // MERGE SELECTED HANDLER
+        // MERGE SELECTED HANDLER (with comprehensive type-aware deduplication)
         const mergeSelectedBtn = toolbar.querySelector('#merge-selected-btn');
         if (mergeSelectedBtn) {
             mergeSelectedBtn.addEventListener('click', () => {
@@ -3809,49 +3809,15 @@ function setupKnowledgeBase() {
                 }
 
                 const itemsToMerge = library.filter(item => selectedItems.has(item.id));
-                const titles = itemsToMerge.map(i => i.title).join(' + ');
-                const defaultTitle = titles.length > 80 ? titles.substring(0, 77) + '...' : titles;
-                const mergedTitle = prompt('Enter a title for the merged infographic:', defaultTitle);
+                const rawTitles = itemsToMerge.map(i => i.title).filter(Boolean);
+                const uniqueTitles = Array.from(new Set(rawTitles.map(t => t.trim())));
+                const defaultTitle = uniqueTitles.join(' + ');
+                const promptTitle = defaultTitle.length > 90 ? defaultTitle.substring(0, 87) + '...' : defaultTitle;
+                const mergedTitle = prompt('Enter a title for the merged infographic:', promptTitle);
                 if (!mergedTitle || !mergedTitle.trim()) return;
 
-                // Collect all sections, deduplicating by normalized title
-                const seenSectionTitles = new Set();
-                const mergedSections = [];
+                const built = buildDeduplicatedMergedInfographic(itemsToMerge, mergedTitle.trim());
 
-                for (const item of itemsToMerge) {
-                    const sections = item.data?.sections || [];
-                    for (const section of sections) {
-                        if (!section) continue;
-                        const normSectionTitle = (section.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                        if (normSectionTitle && seenSectionTitles.has(normSectionTitle)) continue;
-                        if (normSectionTitle) seenSectionTitles.add(normSectionTitle);
-
-                        // Deep-deduplicate list content within each section
-                        let dedupedSection = { ...section };
-                        if (Array.isArray(section.content)) {
-                            const seenItems = new Set();
-                            dedupedSection.content = section.content.filter(c => {
-                                const key = typeof c === 'string'
-                                    ? c.toLowerCase().trim()
-                                    : (c && c.label ? c.label.toLowerCase().trim() : JSON.stringify(c));
-                                if (seenItems.has(key)) return false;
-                                seenItems.add(key);
-                                return true;
-                            });
-                        }
-                        mergedSections.push(dedupedSection);
-                    }
-                }
-
-                // Build merged summary from unique sentences
-                const summaryParts = new Set();
-                for (const item of itemsToMerge) {
-                    const s = (item.data?.summary || item.summary || '').trim();
-                    if (s) summaryParts.add(s);
-                }
-                const mergedSummary = Array.from(summaryParts).join(' ');
-
-                // Determine the most common chapterId
                 const chapterCounts = {};
                 for (const item of itemsToMerge) {
                     const ch = item.chapterId || 'uncategorized';
@@ -3861,17 +3827,19 @@ function setupKnowledgeBase() {
 
                 const mergedData = {
                     title: mergedTitle.trim(),
-                    summary: mergedSummary,
-                    sections: mergedSections,
+                    summary: built.summary,
+                    summary_illustration: built.summary_illustration,
+                    sections: built.sections,
                     chapterId: majorityChapter,
-                    mergedFrom: itemsToMerge.map(i => i.title)
+                    mergedFrom: itemsToMerge.map(i => i.title),
+                    generationPrompt: built.generationPrompt || undefined
                 };
 
                 const newItem = {
                     id: Date.now(),
                     seqId: 1,
                     title: mergedTitle.trim(),
-                    summary: mergedSummary,
+                    summary: built.summary,
                     date: new Date().toISOString(),
                     data: mergedData,
                     chapterId: majorityChapter
@@ -3890,7 +3858,12 @@ function setupKnowledgeBase() {
                 renderLibraryList();
                 updateExportButtonVisibility();
 
-                alert(`Merged ${itemsToMerge.length} infographics into "${mergedTitle.trim()}" with ${mergedSections.length} unique sections.`);
+                const stats = built._mergeStats || {};
+                const details = [];
+                if (stats.duplicatesRemoved) details.push(`removed ${stats.duplicatesRemoved} duplicate entries`);
+                if (stats.sectionsMerged) details.push(`merged ${stats.sectionsMerged} overlapping sections`);
+                const suffix = details.length ? ` (${details.join(', ')})` : '';
+                alert(`Merged ${itemsToMerge.length} infographics into "${mergedTitle.trim()}" with ${built.sections.length} unique sections${suffix}.`);
             });
         }
 
@@ -6141,6 +6114,9 @@ generateBtn.addEventListener('click', async () => {
         } else {
             data = await generateInfographicData(geminiKey, combinedInput);
         }
+        if (data && !data.generationPrompt) {
+            data.generationPrompt = topic;
+        }
         currentInfographicData = data;
         renderInfographic(data);
     } catch (error) {
@@ -6440,6 +6416,177 @@ ${topicMode ? 'Include epidemiological data as charts. Include at least one mnem
 }
 
 // Helper to escape HTML characters
+/* ========================================
+   MERGE DEDUPLICATION HELPERS
+   ======================================== */
+
+function _mdNormalize(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object') {
+        try { return JSON.stringify(v).toLowerCase().replace(/\s+/g, ' ').trim(); }
+        catch { return ''; }
+    }
+    return String(v)
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[\u2018\u2019\u201c\u201d]/g, "'")
+        .replace(/[.,;:!?\-\u2013\u2014()\[\]"']+/g, '')
+        .trim();
+}
+
+function _mdDedupArray(arr) {
+    const seen = new Set();
+    const out = [];
+    (arr || []).forEach(item => {
+        if (item === null || item === undefined) return;
+        const key = _mdNormalize(item);
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        out.push(item);
+    });
+    return out;
+}
+
+function _mdMergeContent(type, existing, incoming, stats) {
+    switch (type) {
+        case 'plain_text': {
+            const a = String(existing || '').trim();
+            const b = String(incoming || '').trim();
+            if (!a) return b;
+            if (!b) return a;
+            const na = _mdNormalize(a);
+            const nb = _mdNormalize(b);
+            if (na === nb || na.includes(nb) || nb.includes(na)) {
+                stats.duplicatesRemoved += 1;
+                return na.length >= nb.length ? a : b;
+            }
+            return a + '\n\n' + b;
+        }
+        case 'remember': {
+            const a = existing || {};
+            const b = incoming || {};
+            if (!a.mnemonic && !a.explanation) return b;
+            if (!b.mnemonic && !b.explanation) return a;
+            if (_mdNormalize(a.mnemonic) === _mdNormalize(b.mnemonic)) {
+                stats.duplicatesRemoved += 1;
+                const explA = String(a.explanation || '');
+                const explB = String(b.explanation || '');
+                return {
+                    mnemonic: a.mnemonic || b.mnemonic,
+                    explanation: explA.length >= explB.length ? explA : explB
+                };
+            }
+            return a;
+        }
+        case 'mindmap': {
+            const a = existing || { center: '', branches: [] };
+            const b = incoming || { center: '', branches: [] };
+            const combined = [...(a.branches || []), ...(b.branches || [])];
+            const dedup = _mdDedupArray(combined);
+            stats.duplicatesRemoved += combined.length - dedup.length;
+            return {
+                center: a.center || b.center || 'Concept',
+                branches: dedup
+            };
+        }
+        case 'table': {
+            const a = existing || { headers: [], rows: [] };
+            const b = incoming || { headers: [], rows: [] };
+            const headers = (a.headers && a.headers.length) ? a.headers : (b.headers || []);
+            const seen = new Set();
+            const rows = [];
+            [...(a.rows || []), ...(b.rows || [])].forEach(row => {
+                const key = Array.isArray(row)
+                    ? row.map(c => _mdNormalize(c)).join('|')
+                    : _mdNormalize(row);
+                if (!key) return;
+                if (seen.has(key)) { stats.duplicatesRemoved += 1; return; }
+                seen.add(key);
+                rows.push(row);
+            });
+            return { headers, rows };
+        }
+        case 'chart': {
+            const a = existing || { type: 'bar', data: [] };
+            const b = incoming || { type: 'bar', data: [] };
+            const seen = new Set();
+            const data = [];
+            [...(a.data || []), ...(b.data || [])].forEach(d => {
+                const key = _mdNormalize(d && d.label);
+                if (!key) return;
+                if (seen.has(key)) { stats.duplicatesRemoved += 1; return; }
+                seen.add(key);
+                data.push(d);
+            });
+            return { type: a.type || b.type || 'bar', data };
+        }
+        case 'key_point':
+        case 'process':
+        case 'red_flag':
+        default: {
+            if (Array.isArray(existing) && Array.isArray(incoming)) {
+                const combined = [...existing, ...incoming];
+                const dedup = _mdDedupArray(combined);
+                stats.duplicatesRemoved += combined.length - dedup.length;
+                return dedup;
+            }
+            if (Array.isArray(existing)) return existing;
+            if (Array.isArray(incoming)) return incoming;
+            if (typeof existing === 'string' && typeof incoming === 'string') {
+                const na = _mdNormalize(existing);
+                const nb = _mdNormalize(incoming);
+                if (na === nb) { stats.duplicatesRemoved += 1; return existing; }
+                return existing + '\n\n' + incoming;
+            }
+            return existing != null ? existing : incoming;
+        }
+    }
+}
+
+function buildDeduplicatedMergedInfographic(items, overrideTitle) {
+    const stats = { duplicatesRemoved: 0, sectionsMerged: 0 };
+    const titles = _mdDedupArray(items.map(i => i.title).filter(Boolean));
+    const summaries = _mdDedupArray(items.map(i => i.summary || (i.data && i.data.summary)).filter(Boolean));
+    const prompts = _mdDedupArray(
+        items.map(i => i.data && (i.data.generationPrompt || i.data._topicInput)).filter(Boolean)
+    );
+
+    const mergedTitle = overrideTitle || titles.join(' + ') || 'Merged Infographic';
+    const mergedSummary = summaries.join(' \u00B7 ');
+
+    const sectionMap = new Map();
+    items.forEach(item => {
+        const sections = (item.data && item.data.sections) || [];
+        sections.forEach(section => {
+            if (!section || !section.type) return;
+            const sig = _mdNormalize(section.title) + '::' + section.type;
+            if (!sectionMap.has(sig)) {
+                sectionMap.set(sig, JSON.parse(JSON.stringify(section)));
+            } else {
+                const existing = sectionMap.get(sig);
+                existing.content = _mdMergeContent(section.type, existing.content, section.content, stats);
+                if (!existing.icon && section.icon) existing.icon = section.icon;
+                if (!existing.layout && section.layout) existing.layout = section.layout;
+                if (!existing.color_theme && section.color_theme) existing.color_theme = section.color_theme;
+                stats.sectionsMerged += 1;
+            }
+        });
+    });
+
+    const mergedSections = Array.from(sectionMap.values());
+    const illustration = items.find(i => i.data && i.data.summary_illustration);
+
+    return {
+        title: mergedTitle,
+        summary: mergedSummary,
+        summary_illustration: illustration ? illustration.data.summary_illustration : undefined,
+        sections: mergedSections,
+        generationPrompt: prompts.length ? prompts.join('\n\n---\n\n') : undefined,
+        _mergedFrom: items.map(i => ({ id: i.id, title: i.title })),
+        _mergeStats: stats
+    };
+}
+
 function escapeHtml(text) {
     if (!text) return '';
     return String(text)
@@ -7363,12 +7510,64 @@ function renderInfographic(data) {
         <div class="header-content-wrapper" style="display: flex; gap: 2rem; align-items: start; flex-wrap: wrap;">
             <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
                 <p class="poster-summary" style="margin: 0; font-size: 1.1rem; line-height: 1.6; color: #475569;">${escapeHtml(data.summary)}</p>
-                ${data.generationPrompt ? `<div class="prompt-tag" style="display:inline-flex; align-items:center; gap:4px; background-color:#f1f5f9; color:#64748b; font-size:0.8rem; padding:4px 10px; border-radius:12px; max-width: fit-content; border: 1px solid #e2e8f0; margin-top: 4px;"><span class="material-symbols-rounded" style="font-size:14px;">smart_toy</span> <strong>Prompt:</strong> ${escapeHtml(data.generationPrompt)}</div>` : ''}
+                ${data.generationPrompt ? `<button type="button" class="prompt-toggle-btn" id="prompt-toggle-btn" aria-expanded="false" aria-controls="prompt-panel"><span class="material-symbols-rounded">visibility</span><span class="prompt-toggle-label">Show prompt</span></button>` : ''}
             </div>
             ${illustrationHtml}
         </div>
     `;
     posterSheet.appendChild(header);
+
+    // Prompt panel (hidden by default) + toggle/copy wiring
+    if (data.generationPrompt) {
+        const promptPanel = document.createElement('section');
+        promptPanel.id = 'prompt-panel';
+        promptPanel.className = 'prompt-panel';
+        promptPanel.hidden = true;
+        const safePrompt = escapeHtml(String(data.generationPrompt));
+        promptPanel.innerHTML = `
+            <div class="prompt-panel-header">
+                <span class="material-symbols-rounded">terminal</span>
+                <strong>Prompt used to generate this infographic</strong>
+                <button type="button" class="prompt-copy-btn" id="prompt-copy-btn" title="Copy prompt">
+                    <span class="material-symbols-rounded">content_copy</span>
+                </button>
+            </div>
+            <pre class="prompt-panel-body">${safePrompt}</pre>
+        `;
+        posterSheet.appendChild(promptPanel);
+
+        const toggleBtn = header.querySelector('#prompt-toggle-btn');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const willShow = promptPanel.hidden;
+                promptPanel.hidden = !willShow;
+                toggleBtn.setAttribute('aria-expanded', String(willShow));
+                const icon = toggleBtn.querySelector('.material-symbols-rounded');
+                const label = toggleBtn.querySelector('.prompt-toggle-label');
+                if (icon) icon.textContent = willShow ? 'visibility_off' : 'visibility';
+                if (label) label.textContent = willShow ? 'Hide prompt' : 'Show prompt';
+                if (willShow) {
+                    promptPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        }
+
+        const copyBtn = promptPanel.querySelector('#prompt-copy-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                    await navigator.clipboard.writeText(String(data.generationPrompt));
+                    const icon = copyBtn.querySelector('.material-symbols-rounded');
+                    if (icon) {
+                        const prev = icon.textContent;
+                        icon.textContent = 'check';
+                        setTimeout(() => { icon.textContent = prev; }, 1500);
+                    }
+                } catch { /* ignore */ }
+            });
+        }
+    }
 
     // Wire the Find Matching Notes button
     const findNotesBtn = header.querySelector('#find-matching-notes-btn');
@@ -8374,21 +8573,30 @@ ${videoSlides.map((slide, i) => `
 }
 
 /* ========================================
-   MIND MAP FEATURE
+   MIND MAP FEATURE (interactive: pan, zoom, collapse, wrap, tooltips)
    ======================================== */
 
-let mindmapZoom = 1;
-let mindmapPan = { x: 0, y: 0 };
+const MINDMAP_BASE_W = 1600;
+const MINDMAP_BASE_H = 1000;
+
+const mindmapState = {
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    collapsed: new Set(),
+    _boundMove: null,
+    _boundUp: null
+};
 
 const MINDMAP_PALETTE = [
-    { fill: '#2563eb', gradient: ['#3b82f6', '#1d4ed8'] },  // blue
-    { fill: '#dc2626', gradient: ['#ef4444', '#b91c1c'] },  // red
-    { fill: '#059669', gradient: ['#10b981', '#047857'] },  // green
-    { fill: '#d97706', gradient: ['#f59e0b', '#b45309'] },  // amber
-    { fill: '#7c3aed', gradient: ['#8b5cf6', '#6d28d9'] },  // purple
-    { fill: '#0891b2', gradient: ['#06b6d4', '#0e7490'] },  // cyan
-    { fill: '#db2777', gradient: ['#ec4899', '#be185d'] },  // pink
-    { fill: '#0d9488', gradient: ['#14b8a6', '#0f766e'] },  // teal
+    { fill: '#2563eb', gradient: ['#3b82f6', '#1d4ed8'], soft: '#dbeafe', dark: '#1e40af' },
+    { fill: '#dc2626', gradient: ['#ef4444', '#b91c1c'], soft: '#fee2e2', dark: '#991b1b' },
+    { fill: '#059669', gradient: ['#10b981', '#047857'], soft: '#d1fae5', dark: '#065f46' },
+    { fill: '#d97706', gradient: ['#f59e0b', '#b45309'], soft: '#fef3c7', dark: '#92400e' },
+    { fill: '#7c3aed', gradient: ['#8b5cf6', '#6d28d9'], soft: '#ede9fe', dark: '#5b21b6' },
+    { fill: '#0891b2', gradient: ['#06b6d4', '#0e7490'], soft: '#cffafe', dark: '#155e75' },
+    { fill: '#db2777', gradient: ['#ec4899', '#be185d'], soft: '#fce7f3', dark: '#9d174d' },
+    { fill: '#0d9488', gradient: ['#14b8a6', '#0f766e'], soft: '#ccfbf1', dark: '#115e59' }
 ];
 
 function pickBranchColor(section, idx) {
@@ -8397,7 +8605,69 @@ function pickBranchColor(section, idx) {
         yellow: MINDMAP_PALETTE[3], amber: MINDMAP_PALETTE[3], purple: MINDMAP_PALETTE[4],
         cyan: MINDMAP_PALETTE[5], pink: MINDMAP_PALETTE[6], teal: MINDMAP_PALETTE[7]
     };
-    return byTheme[section?.color_theme] || MINDMAP_PALETTE[idx % MINDMAP_PALETTE.length];
+    return byTheme[section && section.color_theme] || MINDMAP_PALETTE[idx % MINDMAP_PALETTE.length];
+}
+
+function _mmEsc(text) {
+    return String(text == null ? '' : text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function _mmWrap(text, maxChars, maxLines) {
+    const str = (typeof cleanMarks === 'function' ? cleanMarks(String(text || '')) : String(text || '')).trim();
+    if (!str) return { lines: [''], truncated: false };
+    const words = str.split(/\s+/);
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+        const candidate = current ? current + ' ' + word : word;
+        if (candidate.length > maxChars && current) {
+            lines.push(current);
+            current = word;
+        } else {
+            current = candidate;
+        }
+        if (lines.length >= maxLines) break;
+    }
+    if (current && lines.length < maxLines) lines.push(current);
+    let truncated = false;
+    if (words.join(' ').length > lines.join(' ').length) {
+        const last = lines[Math.min(lines.length, maxLines) - 1] || '';
+        const trimmed = last.length > maxChars - 1 ? last.substring(0, maxChars - 1) : last;
+        lines[Math.min(lines.length, maxLines) - 1] = trimmed.replace(/[\s,.;:-]*$/, '') + '\u2026';
+        truncated = true;
+    }
+    return { lines: lines.slice(0, maxLines), truncated };
+}
+
+function _mmMultilineText(lines, x, y, lineHeight, extraAttrs) {
+    const totalH = (lines.length - 1) * lineHeight;
+    const startY = y - totalH / 2;
+    const attrs = extraAttrs || '';
+    return lines.map((line, i) => (
+        '<text ' + attrs + ' x="' + x + '" y="' + (startY + i * lineHeight) + '">' + _mmEsc(line) + '</text>'
+    )).join('');
+}
+
+function _mmExtractLeaves(section) {
+    if (!section) return [];
+    const c = section.content;
+    if (section.type === 'mindmap' && c && Array.isArray(c.branches)) return c.branches.slice();
+    if (Array.isArray(c)) return c.map(v => (typeof v === 'string' ? v : JSON.stringify(v)));
+    if (c && typeof c === 'object') {
+        if (Array.isArray(c.branches)) return c.branches.slice();
+        if (c.mnemonic || c.explanation) return [c.mnemonic, c.explanation].filter(Boolean);
+        if (Array.isArray(c.data)) return c.data.map(d => (d && d.label ? d.label + ': ' + d.value : JSON.stringify(d)));
+        if (Array.isArray(c.rows)) return c.rows.slice(0, 10).map(r => Array.isArray(r) ? r.join(' \u2013 ') : String(r));
+        if (Array.isArray(c.headers)) return c.headers.slice();
+    }
+    if (typeof c === 'string' && c.length > 0) {
+        return c.split(/\.\s+/).slice(0, 6).map(s => s.replace(/^\s+|\s+$/g, '').replace(/\.$/, '')).filter(Boolean);
+    }
+    return [];
 }
 
 function setupMindMap() {
@@ -8416,65 +8686,35 @@ function setupMindMap() {
             alert('Please generate an infographic first.');
             return;
         }
+        mindmapState.zoom = 1;
+        mindmapState.panX = 0;
+        mindmapState.panY = 0;
+        mindmapState.collapsed = new Set();
         mindmapModal.classList.add('active');
-        mindmapZoom = 1;
-        mindmapPan = { x: 0, y: 0 };
         generateMindMap();
     });
 
-    closeBtn?.addEventListener('click', () => mindmapModal.classList.remove('active'));
+    closeBtn && closeBtn.addEventListener('click', () => mindmapModal.classList.remove('active'));
     mindmapModal.addEventListener('click', (e) => {
         if (e.target === mindmapModal) mindmapModal.classList.remove('active');
     });
 
-    zoomInBtn?.addEventListener('click', () => {
-        mindmapZoom = Math.min(mindmapZoom + 0.15, 3);
-        applyMindmapZoom();
+    zoomInBtn && zoomInBtn.addEventListener('click', () => {
+        mindmapState.zoom = Math.min(mindmapState.zoom * 1.2, 4);
+        applyMindmapTransform();
     });
-
-    zoomOutBtn?.addEventListener('click', () => {
-        mindmapZoom = Math.max(mindmapZoom - 0.15, 0.4);
-        applyMindmapZoom();
+    zoomOutBtn && zoomOutBtn.addEventListener('click', () => {
+        mindmapState.zoom = Math.max(mindmapState.zoom / 1.2, 0.3);
+        applyMindmapTransform();
     });
-
-    resetBtn?.addEventListener('click', () => {
-        mindmapZoom = 1;
-        mindmapPan = { x: 0, y: 0 };
-        applyMindmapZoom();
+    resetBtn && resetBtn.addEventListener('click', () => {
+        mindmapState.zoom = 1;
+        mindmapState.panX = 0;
+        mindmapState.panY = 0;
+        mindmapState.collapsed = new Set();
+        generateMindMap();
     });
-
-    exportBtn?.addEventListener('click', exportMindMapAsPNG);
-
-    // Wheel to zoom, drag to pan
-    const canvas = document.getElementById('mindmap-canvas');
-    if (canvas) {
-        canvas.addEventListener('wheel', (e) => {
-            if (!mindmapModal.classList.contains('active')) return;
-            e.preventDefault();
-            const delta = e.deltaY < 0 ? 0.1 : -0.1;
-            mindmapZoom = Math.min(3, Math.max(0.4, mindmapZoom + delta));
-            applyMindmapZoom();
-        }, { passive: false });
-
-        let dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
-        canvas.addEventListener('mousedown', (e) => {
-            dragging = true;
-            startX = e.clientX; startY = e.clientY;
-            startPanX = mindmapPan.x; startPanY = mindmapPan.y;
-            canvas.style.cursor = 'grabbing';
-        });
-        window.addEventListener('mousemove', (e) => {
-            if (!dragging) return;
-            mindmapPan.x = startPanX + (e.clientX - startX);
-            mindmapPan.y = startPanY + (e.clientY - startY);
-            applyMindmapZoom();
-        });
-        window.addEventListener('mouseup', () => {
-            dragging = false;
-            canvas.style.cursor = 'grab';
-        });
-        canvas.style.cursor = 'grab';
-    }
+    exportBtn && exportBtn.addEventListener('click', exportMindMapAsPNG);
 }
 
 function generateMindMap() {
@@ -8482,179 +8722,246 @@ function generateMindMap() {
     if (!canvas || !currentInfographicData) return;
 
     const data = currentInfographicData;
-    const sections = data.sections || [];
-
-    // Dynamic canvas sizing based on section count
-    const W = 1200;
-    const H = 800;
+    const sections = (data.sections || []).filter(Boolean);
+    const W = MINDMAP_BASE_W;
+    const H = MINDMAP_BASE_H;
     const centerX = W / 2;
     const centerY = H / 2;
-    const radius = Math.min(260, 160 + sections.length * 8);
+
+    const minRadius = 300;
+    const extraRadius = Math.max(0, sections.length - 6) * 18;
+    const branchRadius = Math.min(540, minRadius + extraRadius);
 
     const angleStep = (2 * Math.PI) / Math.max(sections.length, 1);
-    const MAX_LEAVES = 6;
-    const LEAF_DIST = 120;
-    const LEAF_SPREAD = Math.PI / 2.5; // total angular span for leaves
+    const MAX_LEAVES = 10;
+    const MAX_CHARS_PER_LEAF = 22;
+    const MAX_LEAF_LINES = 3;
 
-    let defs = `<defs>
-        <filter id="mm-shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
-            <feOffset dx="0" dy="2"/>
-            <feComponentTransfer><feFuncA type="linear" slope="0.25"/></feComponentTransfer>
-            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        <radialGradient id="mm-center-grad"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1e3a8a"/></radialGradient>`;
+    let defs = '<defs>'
+        + '<filter id="mm-shadow" x="-30%" y="-30%" width="160%" height="160%">'
+        + '<feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.18"/>'
+        + '</filter>'
+        + '<radialGradient id="mm-center-grad"><stop offset="0%" stop-color="#334155"/><stop offset="100%" stop-color="#0f172a"/></radialGradient>';
     sections.forEach((section, i) => {
         const c = pickBranchColor(section, i);
-        defs += `<linearGradient id="mm-grad-${i}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${c.gradient[0]}"/><stop offset="100%" stop-color="${c.gradient[1]}"/></linearGradient>`;
+        defs += '<linearGradient id="mm-grad-' + i + '" x1="0%" y1="0%" x2="100%" y2="100%">'
+            + '<stop offset="0%" stop-color="' + c.gradient[0] + '"/>'
+            + '<stop offset="100%" stop-color="' + c.gradient[1] + '"/>'
+            + '</linearGradient>';
     });
-    defs += `</defs>`;
+    defs += '</defs>';
 
-    let svg = `<svg class="mindmap-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${defs}`;
+    let svg = '<svg class="mindmap-svg" xmlns="http://www.w3.org/2000/svg" '
+        + 'viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">'
+        + defs
+        + '<g class="mindmap-viewport" transform="translate(' + mindmapState.panX + ' ' + mindmapState.panY + ') scale(' + mindmapState.zoom + ')">';
 
-    // Curved connectors from center to each branch (drawn first, behind nodes)
-    sections.forEach((section, i) => {
+    const branchPositions = sections.map((section, i) => {
         const angle = i * angleStep - Math.PI / 2;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-        const c = pickBranchColor(section, i);
-        // Smooth bezier curve from center toward branch
-        const midX = centerX + (x - centerX) * 0.5;
-        const midY = centerY + (y - centerY) * 0.5;
-        svg += `<path d="M ${centerX} ${centerY} Q ${midX} ${midY} ${x} ${y}" fill="none" stroke="${c.fill}" stroke-width="3" stroke-opacity="0.35" stroke-linecap="round"/>`;
+        return {
+            section: section,
+            i: i,
+            angle: angle,
+            x: centerX + branchRadius * Math.cos(angle),
+            y: centerY + branchRadius * Math.sin(angle),
+            color: pickBranchColor(section, i)
+        };
     });
 
-    // Leaf nodes first, then branches (so branches cover leaf line origins)
-    sections.forEach((section, i) => {
-        const angle = i * angleStep - Math.PI / 2;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-        const c = pickBranchColor(section, i);
+    // Curved connectors (center -> branch)
+    branchPositions.forEach(p => {
+        const midX = (centerX + p.x) / 2;
+        const midY = (centerY + p.y) / 2;
+        svg += '<path class="mindmap-line" d="M ' + centerX + ' ' + centerY
+            + ' Q ' + midX + ' ' + midY + ' ' + p.x + ' ' + p.y
+            + '" fill="none" stroke="' + p.color.fill + '" stroke-width="3" stroke-opacity="0.55" stroke-linecap="round"/>';
+    });
 
-        // Collect leaf items from whatever content shape we have
-        let leafItems = [];
-        const content = section.content;
-        if (Array.isArray(content)) {
-            leafItems = content.slice(0, MAX_LEAVES).map(String);
-        } else if (content && typeof content === 'object') {
-            if (Array.isArray(content.branches)) leafItems = content.branches.slice(0, MAX_LEAVES).map(String);
-            else if (content.mnemonic) leafItems = [String(content.mnemonic)];
-            else if (content.headers) leafItems = content.headers.slice(0, MAX_LEAVES).map(String);
-        } else if (typeof content === 'string' && content.length > 0) {
-            leafItems = [content.split(/[.\n]/)[0].trim()].filter(Boolean);
+    // Leaves
+    branchPositions.forEach(p => {
+        if (mindmapState.collapsed.has(p.i)) return;
+        const leaves = _mmExtractLeaves(p.section);
+        if (!leaves.length) return;
+
+        const display = leaves.slice(0, MAX_LEAVES);
+        const remainder = leaves.length - display.length;
+        const leafCount = display.length;
+        const arcSpan = Math.min(Math.PI * 0.95, 0.5 + 0.12 * leafCount);
+        const baseRadius = 210 + Math.max(0, leafCount - 4) * 8;
+        const startAngle = p.angle - arcSpan / 2;
+        const stepAngle = leafCount > 1 ? arcSpan / (leafCount - 1) : 0;
+
+        display.forEach((leafText, j) => {
+            const angle = leafCount === 1 ? p.angle : startAngle + j * stepAngle;
+            const jitter = (j % 2 === 0) ? 0 : 32;
+            const lx = p.x + (baseRadius + jitter) * Math.cos(angle);
+            const ly = p.y + (baseRadius + jitter) * Math.sin(angle);
+            const wrapped = _mmWrap(leafText, MAX_CHARS_PER_LEAF, MAX_LEAF_LINES);
+            const widest = wrapped.lines.reduce((m, l) => Math.max(m, l.length), 0);
+            const pillW = Math.min(280, Math.max(140, widest * 8 + 28));
+            const pillH = 20 + wrapped.lines.length * 18;
+            const full = _mmEsc(typeof cleanMarks === 'function' ? cleanMarks(leafText) : leafText);
+
+            svg += '<path class="mindmap-line" d="M ' + p.x + ' ' + p.y + ' Q '
+                + ((p.x + lx) / 2) + ' ' + ((p.y + ly) / 2 - 10) + ' ' + lx + ' ' + ly
+                + '" fill="none" stroke="' + p.color.fill + '" stroke-width="1.5" stroke-opacity="0.35" stroke-linecap="round"/>'
+                + '<g class="mindmap-node mm-leaf" data-branch="' + p.i + '">'
+                + '<title>' + full + '</title>'
+                + '<rect x="' + (lx - pillW / 2) + '" y="' + (ly - pillH / 2) + '" width="' + pillW + '" height="' + pillH + '" rx="10" '
+                + 'fill="' + p.color.soft + '" stroke="' + p.color.fill + '" stroke-width="1.5" filter="url(#mm-shadow)"/>'
+                + _mmMultilineText(wrapped.lines, lx, ly, 17, 'class="mindmap-text mindmap-text-leaf" text-anchor="middle" dominant-baseline="central" fill="#1f2937"')
+                + '</g>';
+        });
+
+        if (remainder > 0) {
+            const mx = p.x + (baseRadius + 80) * Math.cos(p.angle);
+            const my = p.y + (baseRadius + 80) * Math.sin(p.angle);
+            const moreText = '+' + remainder + ' more';
+            const remFull = _mmEsc(leaves.slice(MAX_LEAVES).map(v => typeof cleanMarks === 'function' ? cleanMarks(v) : v).join(' \u2022 '));
+            svg += '<g class="mindmap-node mm-more">'
+                + '<title>' + remFull + '</title>'
+                + '<rect x="' + (mx - 58) + '" y="' + (my - 14) + '" width="116" height="28" rx="14" fill="#ffffff" stroke="' + p.color.fill + '" stroke-dasharray="3 3"/>'
+                + '<text class="mindmap-text mindmap-text-leaf" x="' + mx + '" y="' + my + '" text-anchor="middle" dominant-baseline="central" fill="' + p.color.dark + '">' + _mmEsc(moreText) + '</text>'
+                + '</g>';
         }
-
-        const leafCount = leafItems.length;
-        if (leafCount > 0) {
-            const startLeafAngle = angle - LEAF_SPREAD / 2;
-            const stepLeaf = leafCount === 1 ? 0 : LEAF_SPREAD / (leafCount - 1);
-            leafItems.forEach((item, j) => {
-                const leafAngle = startLeafAngle + j * stepLeaf;
-                const lx = x + LEAF_DIST * Math.cos(leafAngle);
-                const ly = y + LEAF_DIST * Math.sin(leafAngle);
-                // connector
-                svg += `<path d="M ${x} ${y} Q ${(x + lx) / 2} ${(y + ly) / 2} ${lx} ${ly}" fill="none" stroke="${c.fill}" stroke-width="1.5" stroke-opacity="0.45" stroke-linecap="round"/>`;
-                // pill
-                const label = truncateText(item, 22);
-                const pillW = Math.max(110, Math.min(220, label.length * 7.5 + 22));
-                svg += `<g class="mindmap-node">
-                    <rect x="${lx - pillW / 2}" y="${ly - 16}" width="${pillW}" height="32" rx="16" fill="white" stroke="${c.fill}" stroke-width="2" filter="url(#mm-shadow)"/>
-                    <text class="mindmap-text mindmap-text-leaf" x="${lx}" y="${ly}" dominant-baseline="central" text-anchor="middle" font-size="12" fill="#0f172a" font-weight="500">${label}</text>
-                </g>`;
-            });
-        }
     });
 
-    // Branches on top of leaves so the line origins stay clean
-    sections.forEach((section, i) => {
-        const angle = i * angleStep - Math.PI / 2;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-        const c = pickBranchColor(section, i);
-        const label = truncateText(section.title || `#${i + 1}`, 20);
-        svg += `<g class="mindmap-node mindmap-branch-node">
-            <circle cx="${x}" cy="${y}" r="52" fill="url(#mm-grad-${i})" stroke="white" stroke-width="3" filter="url(#mm-shadow)"/>
-            <text class="mindmap-text" x="${x}" y="${y}" dominant-baseline="central" text-anchor="middle" fill="white" font-weight="700" font-size="14">${label}</text>
-        </g>`;
+    // Branch nodes
+    branchPositions.forEach(p => {
+        const collapsed = mindmapState.collapsed.has(p.i);
+        const label = p.section.title || ('#' + (p.i + 1));
+        const wrapped = _mmWrap(label, 16, 3);
+        const widest = wrapped.lines.reduce((m, l) => Math.max(m, l.length), 0);
+        const r = Math.max(54, 30 + widest * 3);
+        const fullLabel = _mmEsc(typeof cleanMarks === 'function' ? cleanMarks(label) : label);
+        const hint = collapsed ? ' (click to expand)' : ' (click to collapse)';
+        svg += '<g class="mindmap-node mm-branch" data-branch="' + p.i + '" style="cursor: pointer">'
+            + '<title>' + fullLabel + hint + '</title>'
+            + '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + (r + 4) + '" fill="' + p.color.fill + '" opacity="0.15"/>'
+            + '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + r + '" fill="url(#mm-grad-' + p.i + ')" stroke="white" stroke-width="3" filter="url(#mm-shadow)"/>'
+            + _mmMultilineText(wrapped.lines, p.x, p.y, 17, 'class="mindmap-text" text-anchor="middle" dominant-baseline="central" fill="white" font-weight="700"')
+            + (collapsed
+                ? '<circle cx="' + (p.x + r - 12) + '" cy="' + (p.y - r + 12) + '" r="10" fill="white"/>'
+                  + '<text x="' + (p.x + r - 12) + '" y="' + (p.y - r + 12) + '" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="' + p.color.dark + '">+</text>'
+                : '')
+            + '</g>';
     });
 
-    // Center node on top
-    svg += `<g class="mindmap-node mindmap-center-node">
-        <circle cx="${centerX}" cy="${centerY}" r="72" fill="url(#mm-center-grad)" stroke="white" stroke-width="4" filter="url(#mm-shadow)"/>
-        <text class="mindmap-text mindmap-text-center" x="${centerX}" y="${centerY}" dominant-baseline="central" text-anchor="middle" fill="white" font-weight="800" font-size="16">${truncateText(data.title || 'Topic', 22)}</text>
-    </g>`;
+    // Center node
+    const centerTitle = data.title || 'Topic';
+    const centerWrapped = _mmWrap(centerTitle, 16, 4);
+    const centerWidest = centerWrapped.lines.reduce((m, l) => Math.max(m, l.length), 0);
+    const centerR = Math.max(90, 40 + centerWidest * 4);
+    svg += '<g class="mindmap-node mm-center">'
+        + '<title>' + _mmEsc(typeof cleanMarks === 'function' ? cleanMarks(centerTitle) : centerTitle) + '</title>'
+        + '<circle cx="' + centerX + '" cy="' + centerY + '" r="' + (centerR + 10) + '" fill="#0f172a" opacity="0.12"/>'
+        + '<circle cx="' + centerX + '" cy="' + centerY + '" r="' + centerR + '" fill="url(#mm-center-grad)" stroke="white" stroke-width="4" filter="url(#mm-shadow)"/>'
+        + _mmMultilineText(centerWrapped.lines, centerX, centerY, 20, 'class="mindmap-text mindmap-text-center" text-anchor="middle" dominant-baseline="central" fill="white" font-weight="800"')
+        + '</g>';
 
-    svg += '</svg>';
+    svg += '</g></svg>';
     canvas.innerHTML = svg;
-    applyMindmapZoom();
+    attachMindmapInteractions(canvas);
 }
 
-function truncateText(text, maxLength) {
-    if (text == null) return '';
-    const s = String(text);
-    if (s.length <= maxLength) return s;
-    return s.substring(0, maxLength - 1) + '…';
+function attachMindmapInteractions(canvas) {
+    const svg = canvas.querySelector('svg.mindmap-svg');
+    if (!svg) return;
+
+    canvas.querySelectorAll('.mm-branch').forEach(group => {
+        group.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const idx = parseInt(group.getAttribute('data-branch'), 10);
+            if (Number.isFinite(idx)) {
+                if (mindmapState.collapsed.has(idx)) {
+                    mindmapState.collapsed.delete(idx);
+                } else {
+                    mindmapState.collapsed.add(idx);
+                }
+                generateMindMap();
+            }
+        });
+    });
+
+    if (mindmapState._boundMove) {
+        window.removeEventListener('mousemove', mindmapState._boundMove);
+        window.removeEventListener('mouseup', mindmapState._boundUp);
+    }
+
+    let dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+
+    canvas.onmousedown = (e) => {
+        if (e.target.closest('.mm-branch') || e.target.closest('.mm-leaf') || e.target.closest('.mm-more')) return;
+        dragging = true;
+        startX = e.clientX; startY = e.clientY;
+        startPanX = mindmapState.panX; startPanY = mindmapState.panY;
+        canvas.style.cursor = 'grabbing';
+    };
+
+    mindmapState._boundMove = (e) => {
+        if (!dragging) return;
+        const rect = svg.getBoundingClientRect();
+        const sx = MINDMAP_BASE_W / rect.width;
+        mindmapState.panX = startPanX + (e.clientX - startX) * sx;
+        mindmapState.panY = startPanY + (e.clientY - startY) * sx;
+        applyMindmapTransform();
+    };
+    mindmapState._boundUp = () => {
+        dragging = false;
+        canvas.style.cursor = 'grab';
+    };
+    window.addEventListener('mousemove', mindmapState._boundMove);
+    window.addEventListener('mouseup', mindmapState._boundUp);
+
+    canvas.onwheel = (e) => {
+        e.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const sx = MINDMAP_BASE_W / rect.width;
+        const px = (e.clientX - rect.left) * sx;
+        const py = (e.clientY - rect.top) * sx;
+        const delta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+        const newZoom = Math.max(0.3, Math.min(4, mindmapState.zoom * delta));
+        const ratio = newZoom / mindmapState.zoom;
+        mindmapState.panX = px - (px - mindmapState.panX) * ratio;
+        mindmapState.panY = py - (py - mindmapState.panY) * ratio;
+        mindmapState.zoom = newZoom;
+        applyMindmapTransform();
+    };
+
+    canvas.style.cursor = 'grab';
 }
 
-function applyMindmapZoom() {
-    const svg = document.querySelector('.mindmap-svg');
-    if (svg) {
-        svg.style.transform = `translate(${mindmapPan.x}px, ${mindmapPan.y}px) scale(${mindmapZoom})`;
-        svg.style.transformOrigin = 'center center';
-        svg.style.transition = 'transform 0.15s ease';
+function applyMindmapTransform() {
+    const viewport = document.querySelector('.mindmap-viewport');
+    if (viewport) {
+        viewport.setAttribute('transform',
+            'translate(' + mindmapState.panX + ' ' + mindmapState.panY + ') scale(' + mindmapState.zoom + ')'
+        );
     }
 }
 
 async function exportMindMapAsPNG() {
     const canvas = document.getElementById('mindmap-canvas');
     if (!canvas) return;
-
     const svg = canvas.querySelector('svg');
     if (!svg) return;
 
-    // Rasterize the SVG to a real PNG via an <img> → canvas round-trip
-    try {
-        const clone = svg.cloneNode(true);
-        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-        clone.style.transform = ''; // no pan/zoom in export
-        const serialized = new XMLSerializer().serializeToString(clone);
-        const svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
+    const clone = svg.cloneNode(true);
+    const viewport = clone.querySelector('.mindmap-viewport');
+    if (viewport) viewport.setAttribute('transform', 'translate(0 0) scale(1)');
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-        const img = new Image();
-        img.src = url;
-        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const svgData = new XMLSerializer().serializeToString(clone);
+    const svgBlob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
 
-        const vb = svg.viewBox.baseVal;
-        const W = vb && vb.width ? vb.width : 1200;
-        const H = vb && vb.height ? vb.height : 800;
-        const SCALE = 2; // 2x for retina-quality export
-
-        const out = document.createElement('canvas');
-        out.width = W * SCALE;
-        out.height = H * SCALE;
-        const ctx = out.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, out.width, out.height);
-        ctx.drawImage(img, 0, 0, out.width, out.height);
-
-        URL.revokeObjectURL(url);
-
-        const a = document.createElement('a');
-        a.href = out.toDataURL('image/png');
-        a.download = `${(currentInfographicData?.title || 'mindmap').replace(/[^\w\-]+/g, '_')}_mindmap.png`;
-        a.click();
-    } catch (err) {
-        console.warn('[Mindmap] PNG export failed, falling back to SVG:', err);
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const url = URL.createObjectURL(svgBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentInfographicData?.title || 'mindmap'}_mindmap.svg`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ((currentInfographicData && currentInfographicData.title) || 'mindmap') + '_mindmap.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 /* ========================================
