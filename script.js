@@ -8790,6 +8790,7 @@ const mindmapState = {
     zoom: 1,
     panX: 0,
     panY: 0,
+    showLeafLabels: true,
     collapsed: new Set(),
     _boundMove: null,
     _boundUp: null
@@ -8884,6 +8885,8 @@ function setupMindMap() {
     const zoomInBtn = document.getElementById('mindmap-zoom-in');
     const zoomOutBtn = document.getElementById('mindmap-zoom-out');
     const resetBtn = document.getElementById('mindmap-reset');
+    const fitBtn = document.getElementById('mindmap-fit-btn');
+    const toggleLabelsBtn = document.getElementById('mindmap-toggle-labels');
     const exportBtn = document.getElementById('export-mindmap-btn');
 
     if (!mindmapBtn || !mindmapModal) return;
@@ -8897,8 +8900,12 @@ function setupMindMap() {
         mindmapState.panX = 0;
         mindmapState.panY = 0;
         mindmapState.collapsed = new Set();
+        mindmapState.showLeafLabels = true;
         mindmapModal.classList.add('active');
+        toggleLabelsBtn && toggleLabelsBtn.classList.add('active');
+        if (toggleLabelsBtn) toggleLabelsBtn.title = 'Hide Leaf Labels';
         generateMindMap();
+        setTimeout(fitMindMapToView, 50);
     });
 
     closeBtn && closeBtn.addEventListener('click', () => mindmapModal.classList.remove('active'));
@@ -8919,6 +8926,17 @@ function setupMindMap() {
         mindmapState.panX = 0;
         mindmapState.panY = 0;
         mindmapState.collapsed = new Set();
+        mindmapState.showLeafLabels = true;
+        toggleLabelsBtn && toggleLabelsBtn.classList.add('active');
+        if (toggleLabelsBtn) toggleLabelsBtn.title = 'Hide Leaf Labels';
+        generateMindMap();
+        setTimeout(fitMindMapToView, 0);
+    });
+    fitBtn && fitBtn.addEventListener('click', fitMindMapToView);
+    toggleLabelsBtn && toggleLabelsBtn.addEventListener('click', () => {
+        mindmapState.showLeafLabels = !mindmapState.showLeafLabels;
+        toggleLabelsBtn.classList.toggle('active', mindmapState.showLeafLabels);
+        toggleLabelsBtn.title = mindmapState.showLeafLabels ? 'Hide Leaf Labels' : 'Show Leaf Labels';
         generateMindMap();
     });
     exportBtn && exportBtn.addEventListener('click', exportMindMapAsPNG);
@@ -9005,8 +9023,8 @@ function generateMindMap() {
             const ly = p.y + (baseRadius + jitter) * Math.sin(angle);
             const wrapped = _mmWrap(leafText, MAX_CHARS_PER_LEAF, MAX_LEAF_LINES);
             const widest = wrapped.lines.reduce((m, l) => Math.max(m, l.length), 0);
-            const pillW = Math.min(280, Math.max(140, widest * 8 + 28));
-            const pillH = 20 + wrapped.lines.length * 18;
+            const pillW = mindmapState.showLeafLabels ? Math.min(280, Math.max(140, widest * 8 + 28)) : 16;
+            const pillH = mindmapState.showLeafLabels ? 20 + wrapped.lines.length * 18 : 16;
             const full = _mmEsc(typeof cleanMarks === 'function' ? cleanMarks(leafText) : leafText);
 
             svg += '<path class="mindmap-line" d="M ' + p.x + ' ' + p.y + ' Q '
@@ -9014,9 +9032,9 @@ function generateMindMap() {
                 + '" fill="none" stroke="' + p.color.fill + '" stroke-width="1.5" stroke-opacity="0.35" stroke-linecap="round"/>'
                 + '<g class="mindmap-node mm-leaf" data-branch="' + p.i + '">'
                 + '<title>' + full + '</title>'
-                + '<rect x="' + (lx - pillW / 2) + '" y="' + (ly - pillH / 2) + '" width="' + pillW + '" height="' + pillH + '" rx="10" '
+                + '<rect x="' + (lx - pillW / 2) + '" y="' + (ly - pillH / 2) + '" width="' + pillW + '" height="' + pillH + '" rx="' + (mindmapState.showLeafLabels ? 10 : 8) + '" '
                 + 'fill="' + p.color.soft + '" stroke="' + p.color.fill + '" stroke-width="1.5" filter="url(#mm-shadow)"/>'
-                + _mmMultilineText(wrapped.lines, lx, ly, 17, 'class="mindmap-text mindmap-text-leaf" text-anchor="middle" dominant-baseline="central" fill="#1f2937"')
+                + (mindmapState.showLeafLabels ? _mmMultilineText(wrapped.lines, lx, ly, 17, 'class="mindmap-text mindmap-text-leaf" text-anchor="middle" dominant-baseline="central" fill="#1f2937"') : '')
                 + '</g>';
         });
 
@@ -9147,6 +9165,27 @@ function applyMindmapTransform() {
     }
 }
 
+function fitMindMapToView() {
+    const canvas = document.getElementById('mindmap-canvas');
+    const svg = canvas && canvas.querySelector('svg.mindmap-svg');
+    const viewport = svg && svg.querySelector('.mindmap-viewport');
+    if (!canvas || !svg || !viewport) return;
+
+    try {
+        const box = viewport.getBBox();
+        if (!box.width || !box.height) return;
+        const margin = 80;
+        const scaleX = MINDMAP_BASE_W / (box.width + margin * 2);
+        const scaleY = MINDMAP_BASE_H / (box.height + margin * 2);
+        mindmapState.zoom = Math.max(0.25, Math.min(1.4, Math.min(scaleX, scaleY)));
+        mindmapState.panX = (MINDMAP_BASE_W - box.width * mindmapState.zoom) / 2 - box.x * mindmapState.zoom;
+        mindmapState.panY = (MINDMAP_BASE_H - box.height * mindmapState.zoom) / 2 - box.y * mindmapState.zoom;
+        applyMindmapTransform();
+    } catch (err) {
+        console.warn('[MindMap] Fit failed:', err);
+    }
+}
+
 async function exportMindMapAsPNG() {
     const canvas = document.getElementById('mindmap-canvas');
     if (!canvas) return;
@@ -9157,18 +9196,41 @@ async function exportMindMapAsPNG() {
     const viewport = clone.querySelector('.mindmap-viewport');
     if (viewport) viewport.setAttribute('transform', 'translate(0 0) scale(1)');
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', MINDMAP_BASE_W);
+    clone.setAttribute('height', MINDMAP_BASE_H);
 
     const svgData = new XMLSerializer().serializeToString(clone);
     const svgBlob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = ((currentInfographicData && currentInfographicData.title) || 'mindmap') + '_mindmap.svg';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    img.onload = () => {
+        const out = document.createElement('canvas');
+        out.width = MINDMAP_BASE_W * 2;
+        out.height = MINDMAP_BASE_H * 2;
+        const ctx = out.getContext('2d');
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, out.width, out.height);
+        ctx.drawImage(img, 0, 0, out.width, out.height);
+        URL.revokeObjectURL(url);
+
+        out.toBlob(blob => {
+            if (!blob) return;
+            const pngUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = pngUrl;
+            a.download = ((currentInfographicData && currentInfographicData.title) || 'mindmap').replace(/[^a-z0-9_-]+/gi, '_') + '_mindmap.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(pngUrl);
+        }, 'image/png');
+    };
+    img.onerror = () => {
+        URL.revokeObjectURL(url);
+        alert('Could not export the mind map image.');
+    };
+    img.src = url;
 }
 
 /* ========================================
@@ -10144,6 +10206,40 @@ function classifySlideTemplate(title, type) {
     return SLIDE_TEMPLATES.default;
 }
 
+function slideEscape(value) {
+    if (typeof escapeHtml === 'function') return escapeHtml(value == null ? '' : String(value));
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function slideText(value) {
+    if (value == null) return '';
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map(slideText).filter(Boolean).join(' - ');
+    }
+    if (typeof value === 'object') {
+        return value.title || value.text || value.label || value.description || value.content || value.name ||
+            Object.entries(value)
+                .filter(([, v]) => v != null && typeof v !== 'object')
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(' - ') ||
+            JSON.stringify(value);
+    }
+    return String(value);
+}
+
+function slidePercentValue(value) {
+    const text = slideText(value);
+    return /%$/.test(text.trim()) ? slideEscape(text) : slideEscape(text + (Number.isFinite(Number(text)) ? '%' : ''));
+}
+
 // Produce a themed bullet list given an array of strings and a template.
 function renderTemplatedBullets(items, tpl, opts = {}) {
     const fontSize = opts.fontSize || '1.25rem';
@@ -10154,7 +10250,7 @@ function renderTemplatedBullets(items, tpl, opts = {}) {
                 <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
                     ? `min-width:36px;height:36px;border-radius:50%;background:${tpl.accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;`
                     : `color:${tpl.accent};font-size:1.5rem;flex-shrink:0;margin-top:2px;`}">${numbered ? (i + 1) : tpl.bullet}</span>
-                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;">${it}</span>
+                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;">${slideEscape(slideText(it))}</span>
             </li>
         `).join('')}
     </ul>`;
@@ -10241,6 +10337,22 @@ function generateSlides() {
                         template
                     });
                 }
+            } else if (content && typeof content === 'object' && Array.isArray(content.rows) && content.rows.length > 8) {
+                const TABLE_ROWS_PER_SLIDE = 6;
+                for (let i = 0; i < content.rows.length; i += TABLE_ROWS_PER_SLIDE) {
+                    slides.push({
+                        type: 'content',
+                        title: sectionTitle + ` (${Math.floor(i / TABLE_ROWS_PER_SLIDE) + 1}/${Math.ceil(content.rows.length / TABLE_ROWS_PER_SLIDE)})`,
+                        content: {
+                            ...content,
+                            rows: content.rows.slice(i, i + TABLE_ROWS_PER_SLIDE)
+                        },
+                        contentType: sectionType,
+                        icon: sectionIcon,
+                        colorTheme,
+                        template
+                    });
+                }
             } else {
                 slides.push({
                     type: 'content',
@@ -10280,12 +10392,13 @@ function renderSlide() {
     const slide = slides[currentSlideIndex];
 
     slideContent.className = 'slide-content';
+    slideContent.removeAttribute('style');
 
     if (slide.type === 'title') {
         slideContent.classList.add('title-slide');
         slideContent.innerHTML = `
-            <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
+            <h1>${slideEscape(slide.title)}</h1>
+            <p>${slideEscape(slide.subtitle || '')}</p>
         `;
     } else if (slide.type === 'section') {
         slideContent.classList.add('section-slide');
@@ -10296,14 +10409,14 @@ function renderSlide() {
                 <span class="material-symbols-rounded" style="font-size:4rem;">${slide.icon || tpl.icon}</span>
             </div>
             <div style="font-size:0.9rem;text-transform:uppercase;letter-spacing:3px;color:${tpl.accent};font-weight:700;margin-bottom:0.5rem;">${tpl.label}</div>
-            <h2 style="color:#0f172a;">${slide.title}</h2>
+            <h2 style="color:#0f172a;">${slideEscape(slide.title)}</h2>
         `;
     } else if (slide.type === 'agenda') {
         slideContent.classList.add('content-slide');
         slideContent.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:12px;font-size:2.4rem;color:#0f172a;margin-bottom:2rem;border-bottom:2px solid #e2e8f0;padding-bottom:1rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:#2563eb;font-size:2.4rem;">list_alt</span>
-                ${slide.title}
+                ${slideEscape(slide.title)}
             </h3>
             <ol style="list-style:none;padding-left:0;counter-reset:agenda;width:100%;">
                 ${slide.items.map(item => `
@@ -10311,7 +10424,7 @@ function renderSlide() {
                         <span style="display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;font-weight:700;font-size:1.1rem;">
                             <span style="content:counter(agenda);">${'0'}</span>
                         </span>
-                        <span style="flex:1;">${item}</span>
+                        <span style="flex:1;">${slideEscape(item)}</span>
                     </li>
                 `).join('')}
             </ol>
@@ -10326,8 +10439,8 @@ function renderSlide() {
         slideContent.classList.add('title-slide');
         slideContent.innerHTML = `
             <span class="material-symbols-rounded" style="font-size:3.5rem;margin-bottom:1rem;color:#fbbf24;">auto_awesome</span>
-            <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
+            <h1>${slideEscape(slide.title)}</h1>
+            <p>${slideEscape(slide.subtitle || '')}</p>
         `;
     } else {
         slideContent.classList.add('content-slide');
@@ -10349,13 +10462,13 @@ function renderSlide() {
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 1.25rem;">
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
-                                ${headers.map(h => `<th style="padding: 1.2rem; font-weight: 700; color: #1e293b; border-right: 1px solid #e2e8f0;">${h}</th>`).join('')}
+                                ${headers.map(h => `<th style="padding: 1.2rem; font-weight: 700; color: #1e293b; border-right: 1px solid #e2e8f0;">${slideEscape(h)}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
                             ${rows.map((row, idx) => `
                                 <tr style="background: ${idx % 2 === 0 ? 'white' : '#f8fafc'}; border-bottom: 1px solid #e2e8f0;">
-                                    ${row.map(cell => `<td style="padding: 1.2rem; color: #475569; border-right: 1px solid #e2e8f0;">${cell}</td>`).join('')}
+                                    ${(Array.isArray(row) ? row : [row]).map(cell => `<td style="padding: 1.2rem; color: #475569; border-right: 1px solid #e2e8f0;">${slideEscape(slideText(cell))}</td>`).join('')}
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -10365,19 +10478,19 @@ function renderSlide() {
                 // Enhanced Mnemonic Graphical Style
                 contentHtml = `
                     <div style="background: #f8fafc; padding: 2rem; border-left: 6px solid #8b5cf6; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-                        <p><strong style="font-size: 3rem; color: #8b5cf6; display: block; margin-bottom: 1rem; letter-spacing: 3px;">${slide.content.mnemonic}</strong></p>
-                        <p style="font-size: 1.5rem; color: #475569; line-height: 1.6;">${slide.content.explanation}</p>
+                        <p><strong style="font-size: 3rem; color: #8b5cf6; display: block; margin-bottom: 1rem; letter-spacing: 3px;">${slideEscape(slide.content.mnemonic)}</strong></p>
+                        <p style="font-size: 1.5rem; color: #475569; line-height: 1.6;">${slideEscape(slide.content.explanation)}</p>
                     </div>`;
             } else if (slide.content.center) {
                 // Enhanced Mindmap Graphical Style
                 contentHtml = `
                     <div style="text-align: center; margin-bottom: 2.5rem;">
-                        <span style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">${slide.content.center}</span>
+                        <span style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 1.5rem; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);">${slideEscape(slideText(slide.content.center))}</span>
                     </div>`;
                 if (slide.content.branches) {
                     contentHtml += `
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
-                            ${slide.content.branches.map(b => `<div style="background: #eff6ff; padding: 1.2rem; border-radius: 10px; border: 2px solid #bfdbfe; text-align: center; font-size: 1.2rem; font-weight: 500; color: #1e3a8a;">${b}</div>`).join('')}
+                            ${slide.content.branches.map(b => `<div style="background: #eff6ff; padding: 1.2rem; border-radius: 10px; border: 2px solid #bfdbfe; text-align: center; font-size: 1.2rem; font-weight: 500; color: #1e3a8a;">${slideEscape(slideText(b))}</div>`).join('')}
                         </div>`;
                 }
             } else if (slide.content.data) {
@@ -10386,20 +10499,20 @@ function renderSlide() {
                     <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
                         ${slide.content.data.map(d => `
                             <div style="background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 6px 15px rgba(0,0,0,0.05); border: 2px solid #e2e8f0; flex: 1; min-width: 180px; text-align: center;">
-                                <div style="font-size: 3rem; font-weight: 800; color: #10b981; margin-bottom: 0.5rem; line-height: 1;">${d.value}%</div>
-                                <div style="color: #64748b; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">${d.label}</div>
+                                <div style="font-size: 3rem; font-weight: 800; color: #10b981; margin-bottom: 0.5rem; line-height: 1;">${slidePercentValue(d.value)}</div>
+                                <div style="color: #64748b; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">${slideEscape(d.label)}</div>
                             </div>
                         `).join('')}
                     </div>`;
             } else {
                 // Fallback for unexpected object structure
-                contentHtml = `<p style="font-size: 1.4rem; line-height: 1.8; color: #334155; white-space: pre-wrap;">${JSON.stringify(slide.content, null, 2)}</p>`;
+                contentHtml = `<p style="font-size: 1.4rem; line-height: 1.8; color: #334155; white-space: pre-wrap;">${slideEscape(JSON.stringify(slide.content, null, 2))}</p>`;
             }
         } else {
             // Enhanced Plain Text Graphical Style
             contentHtml = `
                 <div style="background: #f8fafc; padding: 2rem; border-radius: 12px; border-left: 6px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-                    <p style="font-size: 1.4rem; line-height: 1.8; color: #334155;">${slide.content}</p>
+                    <p style="font-size: 1.4rem; line-height: 1.8; color: #334155;">${slideEscape(slide.content)}</p>
                 </div>`;
         }
 
@@ -10411,7 +10524,7 @@ function renderSlide() {
         slideContent.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:12px;border-bottom:3px solid ${tpl.accent}22;padding-bottom:0.9rem;font-size:2rem;color:#0f172a;margin-bottom:1.75rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:${tpl.accent};font-size:2.2rem;">${slide.icon || tpl.icon}</span>
-                <span style="flex:1;">${slide.title}</span>
+                <span style="flex:1;">${slideEscape(slide.title)}</span>
                 ${headerBadge}
             </h3>
             <div style="margin-top:0.5rem;width:100%;">
@@ -10601,13 +10714,14 @@ function renderPresentationSlide() {
 
     const slide = slides[currentSlideIndex];
     content.className = 'slide-content';
+    content.removeAttribute('style');
 
     if (slide.type === 'title' || slide.type === 'end') {
         content.classList.add('title-slide');
         content.innerHTML = `
             ${slide.type === 'end' ? '<span class="material-symbols-rounded" style="font-size:5rem;margin-bottom:1.5rem;color:#fbbf24;">auto_awesome</span>' : ''}
-            <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
+            <h1>${slideEscape(slide.title)}</h1>
+            <p>${slideEscape(slide.subtitle || '')}</p>
         `;
     } else if (slide.type === 'section') {
         const tpl = slide.template || SLIDE_TEMPLATES.default;
@@ -10618,20 +10732,20 @@ function renderPresentationSlide() {
                 <span class="material-symbols-rounded" style="font-size:7rem;">${slide.icon || tpl.icon}</span>
             </div>
             <div style="font-size:1.3rem;text-transform:uppercase;letter-spacing:6px;color:${tpl.accent};font-weight:700;margin-bottom:1rem;">${tpl.label}</div>
-            <h2 style="color:#0f172a;">${slide.title}</h2>
+            <h2 style="color:#0f172a;">${slideEscape(slide.title)}</h2>
         `;
     } else if (slide.type === 'agenda') {
         content.classList.add('content-slide');
         content.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:16px;font-size:3rem;color:#0f172a;margin-bottom:2.5rem;border-bottom:3px solid #e2e8f0;padding-bottom:1rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:#2563eb;font-size:3rem;">list_alt</span>
-                ${slide.title}
+                ${slideEscape(slide.title)}
             </h3>
             <ol style="list-style:none;padding-left:0;width:100%;font-size:1.8rem;">
                 ${slide.items.map((item, i) => `
                     <li style="margin-bottom:1.25rem;display:flex;align-items:center;gap:20px;color:#334155;padding:1rem 1.5rem;background:#f8fafc;border-radius:14px;border-left:6px solid #3b82f6;">
                         <span style="display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:white;font-weight:700;font-size:1.3rem;">${String(i + 1).padStart(2, '0')}</span>
-                        <span style="flex:1;">${item}</span>
+                        <span style="flex:1;">${slideEscape(item)}</span>
                     </li>
                 `).join('')}
             </ol>
@@ -10650,7 +10764,7 @@ function renderPresentationSlide() {
                         <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
                             ? `min-width:48px;height:48px;border-radius:50%;background:${tpl.accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.3rem;flex-shrink:0;`
                             : `color:${tpl.accent};font-size:2rem;flex-shrink:0;margin-top:4px;`}">${numbered ? (i + 1) : tpl.bullet}</span>
-                        <span style="flex:1;line-height:1.6;color:#0f172a;">${c}</span>
+                        <span style="flex:1;line-height:1.6;color:#0f172a;">${slideEscape(slideText(c))}</span>
                     </li>
                 `).join('')}
             </ul>`;
@@ -10663,13 +10777,13 @@ function renderPresentationSlide() {
                     <table style="width:100%;border-collapse:collapse;text-align:left;font-size:1.4rem;">
                         <thead>
                             <tr style="background:#f1f5f9;border-bottom:3px solid #cbd5e1;">
-                                ${headers.map(h => `<th style="padding:1.5rem;font-weight:700;color:#0f172a;">${h}</th>`).join('')}
+                                ${headers.map(h => `<th style="padding:1.5rem;font-weight:700;color:#0f172a;">${slideEscape(h)}</th>`).join('')}
                             </tr>
                         </thead>
                         <tbody>
                             ${rows.map((row, idx) => `
                                 <tr style="background:${idx % 2 === 0 ? 'white' : '#f8fafc'};border-bottom:1px solid #e2e8f0;">
-                                    ${row.map(cell => `<td style="padding:1.25rem 1.5rem;color:#334155;">${cell}</td>`).join('')}
+                                    ${(Array.isArray(row) ? row : [row]).map(cell => `<td style="padding:1.25rem 1.5rem;color:#334155;">${slideEscape(slideText(cell))}</td>`).join('')}
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -10678,35 +10792,35 @@ function renderPresentationSlide() {
             } else if (slide.content.mnemonic) {
                 contentHtml = `
                     <div style="background:linear-gradient(135deg,#f8fafc,#eef2ff);padding:3rem;border-left:8px solid #8b5cf6;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.06);width:100%;">
-                        <p style="font-size:4.5rem;font-weight:800;color:#8b5cf6;letter-spacing:4px;margin-bottom:1.5rem;">${slide.content.mnemonic}</p>
-                        <p style="font-size:1.8rem;color:#475569;line-height:1.7;">${slide.content.explanation || ''}</p>
+                        <p style="font-size:4.5rem;font-weight:800;color:#8b5cf6;letter-spacing:4px;margin-bottom:1.5rem;">${slideEscape(slide.content.mnemonic)}</p>
+                        <p style="font-size:1.8rem;color:#475569;line-height:1.7;">${slideEscape(slide.content.explanation || '')}</p>
                     </div>`;
             } else if (slide.content.center) {
                 contentHtml = `
                     <div style="text-align:center;margin-bottom:3rem;">
-                        <span style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;padding:16px 32px;border-radius:40px;font-weight:700;font-size:2rem;box-shadow:0 6px 16px rgba(37,99,235,0.35);">${slide.content.center}</span>
+                        <span style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:white;padding:16px 32px;border-radius:40px;font-weight:700;font-size:2rem;box-shadow:0 6px 16px rgba(37,99,235,0.35);">${slideEscape(slideText(slide.content.center))}</span>
                     </div>
                     ${slide.content.branches ? `
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;width:100%;">
-                            ${slide.content.branches.map(b => `<div style="background:#eff6ff;padding:1.5rem;border-radius:12px;border:2px solid #bfdbfe;text-align:center;font-size:1.5rem;font-weight:500;color:#1e3a8a;">${b}</div>`).join('')}
+                            ${slide.content.branches.map(b => `<div style="background:#eff6ff;padding:1.5rem;border-radius:12px;border:2px solid #bfdbfe;text-align:center;font-size:1.5rem;font-weight:500;color:#1e3a8a;">${slideEscape(slideText(b))}</div>`).join('')}
                         </div>` : ''}`;
             } else if (slide.content.data) {
                 contentHtml = `
                     <div style="display:flex;flex-wrap:wrap;gap:2rem;width:100%;justify-content:center;">
                         ${slide.content.data.map(d => `
                             <div style="background:white;padding:2.5rem;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,0.06);border:2px solid #e2e8f0;flex:1;min-width:220px;text-align:center;">
-                                <div style="font-size:4rem;font-weight:800;color:#10b981;margin-bottom:0.5rem;line-height:1;">${d.value}${typeof d.value === 'number' ? '%' : ''}</div>
-                                <div style="color:#64748b;font-size:1.2rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">${d.label}</div>
+                                <div style="font-size:4rem;font-weight:800;color:#10b981;margin-bottom:0.5rem;line-height:1;">${slidePercentValue(d.value)}</div>
+                                <div style="color:#64748b;font-size:1.2rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">${slideEscape(d.label)}</div>
                             </div>
                         `).join('')}
                     </div>`;
             } else {
-                contentHtml = `<p style="font-size:1.6rem;line-height:1.8;color:#334155;white-space:pre-wrap;">${JSON.stringify(slide.content, null, 2)}</p>`;
+                contentHtml = `<p style="font-size:1.6rem;line-height:1.8;color:#334155;white-space:pre-wrap;">${slideEscape(JSON.stringify(slide.content, null, 2))}</p>`;
             }
         } else {
             contentHtml = `
                 <div style="background:${tpl.bg};padding:3rem;border-radius:16px;border-left:10px solid ${tpl.border};box-shadow:0 6px 20px rgba(0,0,0,0.06);width:100%;">
-                    <p style="font-size:2rem;line-height:1.8;color:#0f172a;">${slide.content || ''}</p>
+                    <p style="font-size:2rem;line-height:1.8;color:#0f172a;">${slideEscape(slide.content || '')}</p>
                 </div>`;
         }
 
@@ -10718,7 +10832,7 @@ function renderPresentationSlide() {
         content.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:16px;font-size:2.6rem;color:#0f172a;margin-bottom:1.75rem;border-bottom:4px solid ${tpl.accent}33;padding-bottom:1rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:${tpl.accent};font-size:2.8rem;">${slide.icon || tpl.icon}</span>
-                <span style="flex:1;">${slide.title}</span>
+                <span style="flex:1;">${slideEscape(slide.title)}</span>
                 ${headerBadge}
             </h3>
             <div style="width:100%;flex:1;display:flex;align-items:flex-start;overflow:auto;">${contentHtml}</div>
@@ -10773,52 +10887,83 @@ function exitPresentationMode() {
     }
 }
 
+function renderSlideExportBody(slide) {
+    if (slide.type === 'title' || slide.type === 'end') {
+        return `<h1>${slideEscape(slide.title)}</h1><p>${slideEscape(slide.subtitle || '')}</p>`;
+    }
+    if (slide.type === 'section') {
+        const tpl = slide.template || SLIDE_TEMPLATES.default;
+        return `<div class="section-icon">${slideEscape(slide.icon || tpl.icon)}</div><p class="eyebrow">${slideEscape(tpl.label)}</p><h2>${slideEscape(slide.title)}</h2>`;
+    }
+    if (slide.type === 'agenda') {
+        return `<h3>${slideEscape(slide.title)}</h3><ol>${(slide.items || []).map(item => `<li>${slideEscape(item)}</li>`).join('')}</ol>`;
+    }
+
+    const content = slide.content;
+    if (Array.isArray(content)) {
+        return `<h3>${slideEscape(slide.title)}</h3><ul>${content.map(c => `<li>${slideEscape(slideText(c))}</li>`).join('')}</ul>`;
+    }
+    if (content && typeof content === 'object') {
+        if (content.headers && content.rows) {
+            const headers = content.headers || [];
+            const rows = content.rows || [];
+            return `<h3>${slideEscape(slide.title)}</h3><table><thead><tr>${headers.map(h => `<th>${slideEscape(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${(Array.isArray(row) ? row : [row]).map(cell => `<td>${slideEscape(slideText(cell))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+        }
+        if (content.mnemonic) {
+            return `<h3>${slideEscape(slide.title)}</h3><div class="mnemonic"><strong>${slideEscape(content.mnemonic)}</strong><p>${slideEscape(content.explanation || '')}</p></div>`;
+        }
+        if (content.center) {
+            return `<h3>${slideEscape(slide.title)}</h3><div class="mind-export"><strong>${slideEscape(slideText(content.center))}</strong><ul>${(content.branches || []).map(b => `<li>${slideEscape(slideText(b))}</li>`).join('')}</ul></div>`;
+        }
+        if (content.data) {
+            return `<h3>${slideEscape(slide.title)}</h3><div class="metric-grid">${content.data.map(d => `<div class="metric"><strong>${slidePercentValue(d.value)}</strong><span>${slideEscape(d.label)}</span></div>`).join('')}</div>`;
+        }
+        return `<h3>${slideEscape(slide.title)}</h3><pre>${slideEscape(JSON.stringify(content, null, 2))}</pre>`;
+    }
+    return `<h3>${slideEscape(slide.title)}</h3><p>${slideEscape(content || '')}</p>`;
+}
+
 function exportSlidesAsHTML() {
     if (slides.length === 0) return;
 
     let html = `<!DOCTYPE html>
 <html>
 <head>
-    <title>${currentInfographicData.title} - Presentation</title>
+    <title>${slideEscape(currentInfographicData.title)} - Presentation</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; }
         .slide { width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; }
         .title-slide { background: linear-gradient(135deg, #1e293b, #334155); color: white; text-align: center; }
-        .section-slide { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; text-align: center; }
-        .content-slide { background: white; color: #1f2937; align-items: flex-start; }
+        .section-slide { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #0f172a; text-align: center; }
+        .content-slide { background: white; color: #1f2937; align-items: flex-start; justify-content: flex-start; overflow: auto; }
         h1 { font-size: 3.5rem; margin-bottom: 1rem; }
         h2 { font-size: 3rem; }
         h3 { font-size: 2rem; color: #3b82f6; margin-bottom: 2rem; width: 100%; }
         p { font-size: 1.5rem; opacity: 0.9; }
-        ul { font-size: 1.3rem; line-height: 2; list-style: none; }
-        li::before { content: "▸ "; color: #3b82f6; }
+        ul, ol { font-size: 1.3rem; line-height: 1.8; padding-left: 2rem; }
+        li { margin-bottom: 0.7rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+        th, td { border: 1px solid #cbd5e1; padding: 0.75rem; vertical-align: top; }
+        th { background: #f1f5f9; text-align: left; }
+        pre { white-space: pre-wrap; font-size: 1rem; }
+        .section-icon { font-family: 'Material Symbols Rounded'; font-size: 5rem; margin-bottom: 1rem; color: #2563eb; }
+        .eyebrow { color: #2563eb; text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; }
+        .mnemonic, .mind-export { border-left: 8px solid #8b5cf6; background: #f8fafc; padding: 2rem; border-radius: 14px; width: 100%; }
+        .mnemonic strong, .mind-export strong { display: block; font-size: 3rem; color: #7c3aed; margin-bottom: 1rem; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; width: 100%; }
+        .metric { border: 1px solid #cbd5e1; border-radius: 14px; padding: 1.5rem; text-align: center; }
+        .metric strong { display: block; font-size: 2.5rem; color: #059669; }
+        .metric span { display: block; color: #64748b; font-weight: 700; margin-top: 0.5rem; }
         @media print { .slide { page-break-after: always; } }
     </style>
 </head>
 <body>
 ${slides.map(slide => {
-        if (slide.type === 'title' || slide.type === 'end') {
-            return `<div class="slide title-slide">
-            <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
-        </div>`;
-        } else if (slide.type === 'section') {
-            return `<div class="slide section-slide">
-            <h2>${slide.title}</h2>
-        </div>`;
-        } else {
-            let content = '';
-            if (Array.isArray(slide.content)) {
-                content = `<ul>${slide.content.map(c => `<li>${c}</li>`).join('')}</ul>`;
-            } else if (typeof slide.content === 'string') {
-                content = `<p>${slide.content}</p>`;
-            }
-            return `<div class="slide content-slide">
-            <h3>${slide.title}</h3>
-            ${content}
-        </div>`;
-        }
+        const cls = (slide.type === 'title' || slide.type === 'end')
+            ? 'title-slide'
+            : (slide.type === 'section' ? 'section-slide' : 'content-slide');
+        return `<div class="slide ${cls}">${renderSlideExportBody(slide)}</div>`;
     }).join('\n')}
 </body>
 </html>`;
@@ -10827,7 +10972,7 @@ ${slides.map(slide => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${currentInfographicData.title.replace(/[^a-z0-9]/gi, '_')}_slides.html`;
+    a.download = `${((currentInfographicData && currentInfographicData.title) || 'slides').replace(/[^a-z0-9]/gi, '_')}_slides.html`;
     a.click();
     URL.revokeObjectURL(url);
 }

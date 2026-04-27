@@ -2077,6 +2077,12 @@ textarea:focus {
     justify-content: center;
 }
 
+.mindmap-actions .btn-secondary.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: transparent;
+}
+
 /* ========================================
    REPORTS MODAL
    ======================================== */
