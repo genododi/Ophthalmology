@@ -881,7 +881,8 @@ async function safeFetch(url, options) {
 async function fetchLibraryFromStatic() {
     try {
         // Try fetching the pre-generated library index
-        const response = await fetch('library-index.json');
+        const fetcher = (typeof safeFetch === 'function') ? safeFetch : fetch;
+        const response = await fetcher('library-index.json', { cache: 'no-store' });
         if (response.ok) {
             return await response.json();
         }
@@ -13265,7 +13266,7 @@ function setupKanskiPics() {
         try {
             if (!libraryItem || !libraryItem.title) return false;
             // Skip if already adhered
-            if (libraryItem.kanskiMeta && libraryItem.kanskiMeta.length > 0) return false;
+            if (!opts.force && libraryItem.kanskiMeta && libraryItem.kanskiMeta.length > 0) return false;
 
             // Only try if we have the PDF/index cached or loaded in this session.
             // ensureKanskiReady() returns false when no cache exists (and would
@@ -13350,9 +13351,77 @@ function setupKanskiPics() {
     };
 
     // ═══════════════════════════════════════════════════════════════
-    // BATCH BACKFILL — auto-attach Kanski images to every library item
-    // that doesn't already have `kanskiMeta`. Shows a progress modal.
+    // BATCH BACKFILL — auto-attach Kanski images to every saved library item.
+    // Merges the browser cache with the static saved-library index first so
+    // GitHub Pages / local server users process the complete saved set.
     // ═══════════════════════════════════════════════════════════════
+    function normalizeKanskiLibraryKey(title) {
+        return (title || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    }
+
+    function normalizeKanskiLibraryItem(rawItem, fallbackIndex = 0) {
+        if (!rawItem || typeof rawItem !== 'object') return null;
+        const title = rawItem.title || rawItem.data?.title;
+        if (!title) return null;
+
+        const item = { ...rawItem, title };
+        if (!item.id) item.id = Date.now() + fallbackIndex;
+        if (!item.summary) item.summary = item.data?.summary || '';
+        if (!item.chapterId) item.chapterId = item.data?.chapterId || autoDetectChapter(title);
+
+        if (!item.data || typeof item.data !== 'object') {
+            item.data = {
+                title,
+                summary: item.summary || '',
+                sections: Array.isArray(rawItem.sections) ? rawItem.sections : []
+            };
+        } else {
+            item.data = { ...item.data, title: item.data.title || title };
+        }
+
+        return item;
+    }
+
+    async function loadAllSavedInfographicsForKanski() {
+        const localLibrary = (typeof getLibraryCache === 'function') ? getLibraryCache() : [];
+        let staticLibrary = [];
+
+        try {
+            staticLibrary = await fetchLibraryFromStatic();
+        } catch (err) {
+            console.warn('[Kanski Backfill] Could not load static saved library:', err);
+        }
+
+        const merged = [];
+        const seen = new Set();
+        const addItem = (rawItem, index) => {
+            const item = normalizeKanskiLibraryItem(rawItem, index);
+            if (!item) return;
+
+            const key = normalizeKanskiLibraryKey(item.title);
+            if (!key || seen.has(key)) return;
+
+            seen.add(key);
+            merged.push(item);
+        };
+
+        localLibrary.forEach(addItem);
+        if (Array.isArray(staticLibrary)) {
+            staticLibrary.forEach((item, index) => addItem(item, localLibrary.length + index));
+        }
+
+        if (merged.length > localLibrary.length) {
+            try {
+                reassignSequentialIds(merged);
+                saveLibraryToIDB(merged);
+            } catch (err) {
+                console.warn('[Kanski Backfill] Could not persist merged saved library:', err);
+            }
+        }
+
+        return merged;
+    }
+
     window.autoAttachKanskiToAllLibrary = async function () {
         let ready = await ensureKanskiReady();
 
@@ -13396,19 +13465,13 @@ function setupKanskiPics() {
             if (!ready) return; // User cancelled / couldn't load
         }
 
-        const library = (typeof getLibraryCache === 'function') ? getLibraryCache() : [];
+        const library = await loadAllSavedInfographicsForKanski();
         if (!library || library.length === 0) {
             alert('Your library is empty.');
             return;
         }
 
-        const pending = library.filter(it => !it.kanskiMeta || it.kanskiMeta.length === 0);
-        if (pending.length === 0) {
-            alert('Every infographic in your library already has Kanski photos attached.');
-            return;
-        }
-
-        if (!confirm(`Scan the Kanski PDF and auto-attach matching clinical photos to ${pending.length} infographic(s)?\n\nThis runs locally in your browser and may take a few minutes.`)) return;
+        if (!confirm(`Scan the Kanski PDF and auto-attach matching clinical photos to all ${library.length} saved infographic(s)?\n\nThis runs locally in your browser and may take a few minutes.`)) return;
 
         // Build progress modal
         const overlay = document.createElement('div');
@@ -13425,7 +13488,7 @@ function setupKanskiPics() {
                     <div id="kbf-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#0891b2,#0e7490);transition:width 0.3s;"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;color:#64748b;">
-                    <span id="kbf-counter">0 / ${pending.length}</span>
+                    <span id="kbf-counter">0 / ${library.length}</span>
                     <span id="kbf-attached" style="color:#0891b2;font-weight:600;">0 photos attached</span>
                 </div>
                 <div style="margin-top:1.25rem;display:flex;justify-content:flex-end;gap:8px;">
@@ -13442,26 +13505,26 @@ function setupKanskiPics() {
 
         let totalAttached = 0;
         let processed = 0;
-        for (const item of pending) {
+        for (const item of library) {
             if (cancelled) break;
             status.textContent = `Scoring pages for: ${item.title}`;
             try {
-                const count = await window.autoAttachKanskiOnSave(item, { maxImages: 6 });
+                const count = await window.autoAttachKanskiOnSave(item, { maxImages: 6, force: true });
                 if (count) totalAttached += count;
             } catch (err) {
                 console.warn(`[Kanski Backfill] Failed for "${item.title}":`, err);
             }
             processed++;
-            const pct = (processed / pending.length) * 100;
+            const pct = (processed / library.length) * 100;
             bar.style.width = `${pct}%`;
-            counter.textContent = `${processed} / ${pending.length}`;
+            counter.textContent = `${processed} / ${library.length}`;
             attachedEl.textContent = `${totalAttached} photos attached`;
             // Yield to the UI so the progress bar actually paints
             await new Promise(r => setTimeout(r, 30));
         }
 
         status.textContent = cancelled
-            ? `Stopped. Processed ${processed} of ${pending.length}.`
+            ? `Stopped. Processed ${processed} of ${library.length}.`
             : `Done — attached ${totalAttached} photo${totalAttached === 1 ? '' : 's'} across ${processed} infographic${processed === 1 ? '' : 's'}.`;
         overlay.querySelector('#kbf-cancel').textContent = 'Close';
         overlay.querySelector('#kbf-cancel').onclick = () => {
