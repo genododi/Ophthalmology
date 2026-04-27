@@ -198,6 +198,12 @@
                     <button class="icon-btn" id="submit-community-btn" title="Submit to Community">
                         <span class="material-symbols-rounded">group_add</span>
                     </button>
+                    <button class="icon-btn" id="dedup-current-btn" title="Deduplicate Current Infographic">
+                        <span class="material-symbols-rounded">auto_fix_high</span>
+                    </button>
+                    <button class="icon-btn" id="toggle-prompt-btn" title="Toggle Prompt Tag">
+                        <span class="material-symbols-rounded">visibility</span>
+                    </button>
                     <button class="icon-btn" id="download-pdf-btn" title="Download PDF" style="display: none;">
                         <span class="material-symbols-rounded">download</span>
                     </button>
@@ -589,14 +595,20 @@
             <div class="modal-body mindmap-modal-body">
                 <div class="mindmap-canvas" id="mindmap-canvas"></div>
                 <div class="mindmap-actions">
-                    <button class="btn-secondary" id="mindmap-zoom-in">
+                    <button class="btn-secondary" id="mindmap-zoom-in" title="Zoom In">
                         <span class="material-symbols-rounded">zoom_in</span>
                     </button>
-                    <button class="btn-secondary" id="mindmap-zoom-out">
+                    <button class="btn-secondary" id="mindmap-zoom-out" title="Zoom Out">
                         <span class="material-symbols-rounded">zoom_out</span>
                     </button>
-                    <button class="btn-secondary" id="mindmap-reset">
+                    <button class="btn-secondary" id="mindmap-reset" title="Reset View">
                         <span class="material-symbols-rounded">center_focus_strong</span>
+                    </button>
+                    <button class="btn-secondary" id="mindmap-fit-btn" title="Fit to View">
+                        <span class="material-symbols-rounded">fit_screen</span>
+                    </button>
+                    <button class="btn-secondary" id="mindmap-toggle-labels" title="Toggle Leaf Labels">
+                        <span class="material-symbols-rounded">label</span>
                     </button>
                     <button class="btn-primary" id="export-mindmap-btn">
                         <span class="material-symbols-rounded">download</span>

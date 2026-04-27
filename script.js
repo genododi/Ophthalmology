@@ -749,6 +749,206 @@ async function exportToPDF(element) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// DEEP DEDUPLICATION ENGINE — fuzzy matching for merged infographics
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Normalize text for comparison: lowercase, strip punctuation/whitespace/numbers
+ */
+function normalizeText(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')   // strip punctuation
+        .replace(/\s+/g, ' ')           // collapse whitespace
+        .trim();
+}
+
+/**
+ * Get word set from text
+ */
+function getWordSet(text) {
+    const norm = normalizeText(text);
+    return new Set(norm.split(' ').filter(w => w.length > 2)); // skip tiny words
+}
+
+/**
+ * Jaccard similarity between two word sets (0..1)
+ */
+function jaccardSimilarity(setA, setB) {
+    if (setA.size === 0 && setB.size === 0) return 1;
+    if (setA.size === 0 || setB.size === 0) return 0;
+    let intersection = 0;
+    for (const w of setA) {
+        if (setB.has(w)) intersection++;
+    }
+    const union = setA.size + setB.size - intersection;
+    return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Check if two text items are near-duplicates (>= threshold word overlap)
+ */
+function isNearDuplicate(textA, textB, threshold = 0.7) {
+    const setA = getWordSet(textA);
+    const setB = getWordSet(textB);
+    return jaccardSimilarity(setA, setB) >= threshold;
+}
+
+/**
+ * Extract comparable text from any content item
+ */
+function extractContentText(item) {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return String(item || '');
+    return item.label || item.text || item.title || item.description ||
+           item.name || item.content || Object.values(item).filter(v => typeof v === 'string').join(' ');
+}
+
+/**
+ * Deduplicate an array of string/object items using fuzzy matching
+ */
+function deduplicateArrayContent(items, threshold = 0.7) {
+    if (!Array.isArray(items) || items.length <= 1) return items;
+    const kept = [];
+    const keptTexts = [];
+
+    for (const item of items) {
+        const text = extractContentText(item);
+        const isDup = keptTexts.some(existingText => isNearDuplicate(text, existingText, threshold));
+        if (!isDup) {
+            kept.push(item);
+            keptTexts.push(text);
+        }
+    }
+    return kept;
+}
+
+/**
+ * Deduplicate table rows using fuzzy matching on concatenated cell text
+ */
+function deduplicateTableRows(rows, threshold = 0.75) {
+    if (!Array.isArray(rows) || rows.length <= 1) return rows;
+    const kept = [];
+    const keptTexts = [];
+
+    for (const row of rows) {
+        const rowText = (Array.isArray(row) ? row : Object.values(row)).join(' ');
+        const isDup = keptTexts.some(t => isNearDuplicate(rowText, t, threshold));
+        if (!isDup) {
+            kept.push(row);
+            keptTexts.push(rowText);
+        }
+    }
+    return kept;
+}
+
+/**
+ * Deep-deduplicate sections after merging.
+ * 1. Removes sections with near-duplicate titles (keeping the richer one)
+ * 2. Within each section, deduplicates array/table/mindmap content
+ * Returns the cleaned sections array.
+ */
+function deduplicateSections(sections) {
+    if (!Array.isArray(sections) || sections.length === 0) return sections;
+
+    // Phase 1: Merge sections with near-duplicate titles
+    const mergedBuckets = [];  // [{titleWords: Set, sections: [...]}]
+
+    for (const section of sections) {
+        if (!section) continue;
+        const title = section.title || '';
+        const titleWords = getWordSet(title);
+
+        // Find an existing bucket with a similar title
+        let matched = false;
+        for (const bucket of mergedBuckets) {
+            if (jaccardSimilarity(titleWords, bucket.titleWords) >= 0.6) {
+                bucket.sections.push(section);
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            mergedBuckets.push({ titleWords, sections: [section] });
+        }
+    }
+
+    // Phase 2: From each bucket, keep the richest section and merge unique content
+    const result = [];
+    for (const bucket of mergedBuckets) {
+        if (bucket.sections.length === 1) {
+            result.push(deduplicateSectionContent(bucket.sections[0]));
+            continue;
+        }
+
+        // Pick the section with the most content as the base
+        const sorted = bucket.sections.sort((a, b) => {
+            const sizeA = JSON.stringify(a.content || '').length;
+            const sizeB = JSON.stringify(b.content || '').length;
+            return sizeB - sizeA; // descending
+        });
+
+        const base = { ...sorted[0] };
+        // Try to merge array content from other sections into base
+        for (let i = 1; i < sorted.length; i++) {
+            const other = sorted[i];
+            if (Array.isArray(base.content) && Array.isArray(other.content)) {
+                // Append unique items from the other section
+                for (const item of other.content) {
+                    const itemText = extractContentText(item);
+                    const isDup = base.content.some(existing =>
+                        isNearDuplicate(extractContentText(existing), itemText, 0.7)
+                    );
+                    if (!isDup) {
+                        base.content.push(item);
+                    }
+                }
+            } else if (base.content?.branches && other.content?.branches) {
+                // Mindmap: merge branches
+                for (const branch of other.content.branches) {
+                    const bText = extractContentText(branch);
+                    const isDup = base.content.branches.some(existing =>
+                        isNearDuplicate(extractContentText(existing), bText, 0.7)
+                    );
+                    if (!isDup) {
+                        base.content.branches.push(branch);
+                    }
+                }
+            }
+        }
+        result.push(deduplicateSectionContent(base));
+    }
+
+    return result;
+}
+
+/**
+ * Deduplicate content within a single section based on its type
+ */
+function deduplicateSectionContent(section) {
+    if (!section || !section.content) return section;
+    const cleaned = { ...section };
+
+    if (Array.isArray(cleaned.content)) {
+        // key_point, process, red_flag — deduplicate items
+        cleaned.content = deduplicateArrayContent(cleaned.content, 0.7);
+    } else if (typeof cleaned.content === 'object') {
+        // Table: deduplicate rows
+        if (cleaned.content.rows && Array.isArray(cleaned.content.rows)) {
+            cleaned.content = { ...cleaned.content };
+            cleaned.content.rows = deduplicateTableRows(cleaned.content.rows, 0.75);
+        }
+        // Mindmap: deduplicate branches
+        if (cleaned.content.branches && Array.isArray(cleaned.content.branches)) {
+            cleaned.content = { ...cleaned.content };
+            cleaned.content.branches = deduplicateArrayContent(cleaned.content.branches, 0.65);
+        }
+    }
+
+    return cleaned;
+}
+
 /* Knowledge Base / Library System with Chapters and Rename */
 const LIBRARY_KEY = 'ophthalmic_infographic_library';
 const CHAPTERS_KEY = 'ophthalmic_infographic_chapters';
@@ -2643,6 +2843,9 @@ function setupKnowledgeBase() {
                         }
                         if (deleteOriginals) idsToDelete.add(otherItem.id);
                     }
+
+                    // Deep-deduplicate all sections after merge
+                    baseItem.data.sections = deduplicateSections(baseItem.data.sections);
 
                     newItems.push(baseItem);
                     mergedCount++;
