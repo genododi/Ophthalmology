@@ -2840,7 +2840,7 @@ function setupKnowledgeBase() {
             // Fires in the background; does not block the UI.
             if (typeof window.autoAttachKanskiOnSave === 'function' && !newItem.kanskiMeta) {
                 saveBtn.title = 'Checking Kanski library...';
-                window.autoAttachKanskiOnSave(newItem, { maxImages: 8 })
+                window.autoAttachKanskiOnSave(newItem, { maxImages: 8, retryWhenReady: true })
                     .then(count => {
                         if (!count) return;
                         saveBtn.title = `Saved · ${count} Kanski image(s) attached`;
@@ -7723,6 +7723,9 @@ function renderInfographic(data) {
     // Auto-load adhered Kanski images if present
     setTimeout(() => {
         loadAdheredKanskiImages(data);
+        if (typeof window.autoAttachKanskiForCurrent === 'function') {
+            window.autoAttachKanskiForCurrent({ maxImages: 8, retryWhenReady: true });
+        }
     }, 100);
 
     // Auto-collapse sidebar to give more space for viewing the infographic
@@ -11689,6 +11692,9 @@ function setupKanskiPics() {
     let kanskiPageTexts = []; // [{pageNum, text}]
     let kanskiFileName = '';
     let kanskiAutoMode = false; // Whether auto mode is enabled
+    let kanskiStartupReadyPromise = null;
+    let kanskiQueueFlushing = false;
+    const kanskiAutoAttachQueue = new Map();
 
     // ═══════════════════════════════════════════════════════════════
     // IndexedDB cache — stores page text index AND PDF binary
@@ -11958,6 +11964,7 @@ function setupKanskiPics() {
             kanskiBtn.disabled = false;
             kanskiBtn.innerHTML = originalHTML;
             updateKanskiReadyIndicator();
+            flushQueuedKanskiAutoAttach();
             return true;
 
         } catch (err) {
@@ -12215,8 +12222,7 @@ function setupKanskiPics() {
         await handleKanskiFileLoad(file, null);
     });
 
-    // On page load, try reopening silently from persistent handle/cache so the ready-dot appears.
-    (async () => {
+    async function preloadKanskiAtStartup() {
         try {
             if (hasFileSystemAccess) {
                 const handle = await loadKanskiFileHandle();
@@ -12242,9 +12248,29 @@ function setupKanskiPics() {
                 const cachedIndex = await loadCachedIndex();
                 if (cachedIndex && cachedIndex.length > 0) kanskiPageTexts = cachedIndex;
             }
-            if (kanskiPdfDoc) updateKanskiReadyIndicator();
-        } catch {}
-    })();
+            if (kanskiPdfDoc && kanskiPageTexts.length === 0) {
+                kanskiPageTexts = await indexPdfPages(kanskiPdfDoc);
+                await saveCachedIndex(kanskiPageTexts);
+            }
+            if (kanskiPdfDoc && kanskiPageTexts.length > 0) {
+                updateKanskiReadyIndicator();
+                flushQueuedKanskiAutoAttach();
+                setTimeout(() => {
+                    if (typeof window.autoAttachKanskiForCurrent === 'function') {
+                        window.autoAttachKanskiForCurrent({ maxImages: 8, retryWhenReady: false });
+                    }
+                }, 250);
+                return true;
+            }
+        } catch (err) {
+            console.warn('[Kanski Startup] Silent preload failed:', err);
+        }
+        return false;
+    }
+
+    // On page load, silently reopen from persistent handle/cache and prepare auto-attach.
+    kanskiStartupReadyPromise = preloadKanskiAtStartup();
+    window.ensureKanskiPreloaded = () => kanskiStartupReadyPromise || preloadKanskiAtStartup();
 
     // ═══════════════════════════════════════════════════════════════
     // PAGE SCORING — shared by auto, manual, backfill, and auto-attach
@@ -12267,9 +12293,21 @@ function setupKanskiPics() {
         /\bb-scan\b/i
     ];
 
+    function countKanskiTerm(textLower, term) {
+        const kwLower = term.toLowerCase().trim();
+        if (!kwLower) return 0;
+        const escaped = kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = kwLower.length < 5
+            ? new RegExp(`\\b${escaped}\\b`, 'gi')
+            : new RegExp(`\\b${escaped}`, 'gi');
+        const matches = textLower.match(regex);
+        return matches ? matches.length : 0;
+    }
+
     function scoreKanskiPages(weightedKeywords, primaryTopicTerms, options = {}) {
         const primarySet = new Set(primaryTopicTerms.map(t => t.toLowerCase()));
         const scored = [];
+        const preferClinicalImages = options.preferClinicalImages !== false;
 
         for (const { pageNum, text } of kanskiPageTexts) {
             if (!text || text.length < 50) continue;
@@ -12285,22 +12323,25 @@ function setupKanskiPics() {
             if (!hasPrimary) continue;
 
             // ── Weighted keyword counting ──
-            let score = 0, primaryHits = 0;
+            let score = 0, primaryHits = 0, exactPrimaryHits = 0;
             const matchedKeywords = [];
+            const matchedStrong = new Set();
             for (const { term, weight } of weightedKeywords) {
-                const kwLower = term.toLowerCase();
-                const escaped = kwLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regex = kwLower.length < 5
-                    ? new RegExp(`\\b${escaped}\\b`, 'gi')
-                    : new RegExp(`\\b${escaped}`, 'gi');
-                const matches = text.match(regex);
-                if (matches) {
-                    score += matches.length * weight;
-                    if (weight >= 20) primaryHits += matches.length;
+                const matchCount = countKanskiTerm(textLower, term);
+                if (matchCount) {
+                    score += matchCount * weight;
+                    if (weight >= 20) {
+                        primaryHits += matchCount;
+                        matchedStrong.add(term.toLowerCase());
+                    }
                     if (!matchedKeywords.includes(term)) matchedKeywords.push(term);
                 }
             }
             if (score === 0) continue;
+
+            for (const pt of primarySet) {
+                exactPrimaryHits += countKanskiTerm(textLower, pt);
+            }
 
             // ── Figure/caption boost: pages that LOOK like image pages get a bump ──
             let figureBoost = 0;
@@ -12309,6 +12350,9 @@ function setupKanskiPics() {
             }
             // Cap the boost so short-text figure pages don't drown out real content pages
             if (figureBoost > 60) figureBoost = 60;
+            if (preferClinicalImages && figureBoost === 0 && text.length > 1200) {
+                score -= 25;
+            }
             score += figureBoost;
 
             // ── Short-text (image-heavy) pages get a small bump proportional to primary hits ──
@@ -12328,10 +12372,32 @@ function setupKanskiPics() {
                 }
             }
 
-            scored.push({ pageNum, score, primaryHits, matchedKeywords, textLen: text.length, figureBoost });
+            const noisePenalty = /\b(index|contents|references|bibliography|further reading)\b/.test(textLower) ? 40 : 0;
+            score += exactPrimaryHits * 90;
+            score += Math.min(matchedStrong.size, 8) * 12;
+            score -= noisePenalty;
+
+            if (primaryTopicTerms.length > 0 && exactPrimaryHits === 0 && primaryHits < 2) continue;
+            if (score <= 0) continue;
+
+            scored.push({
+                pageNum,
+                score: Math.round(score),
+                primaryHits,
+                exactPrimaryHits,
+                matchedKeywords,
+                textLen: text.length,
+                figureBoost,
+                strongMatchCount: matchedStrong.size
+            });
         }
 
-        scored.sort((a, b) => (b.primaryHits - a.primaryHits) || (b.score - a.score));
+        scored.sort((a, b) =>
+            (b.score - a.score) ||
+            (b.exactPrimaryHits - a.exactPrimaryHits) ||
+            (b.primaryHits - a.primaryHits) ||
+            (b.figureBoost - a.figureBoost)
+        );
         return scored;
     }
 
@@ -12380,7 +12446,7 @@ function setupKanskiPics() {
             console.log(`[Kanski Auto] Primary topic terms:`, primaryTopicTerms);
             console.log(`[Kanski Auto] Keywords:`, weightedKeywords.filter(k => k.weight >= 20).map(k => k.term));
 
-            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms);
+            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms, { preferClinicalImages: true });
 
             // Auto-select: take top 10, diversified across the book
             const topPages = diversifyTopPages(scoredPages, 10, { maxPerWindow: 2, windowSize: 3 });
@@ -12447,7 +12513,7 @@ function setupKanskiPics() {
             console.log(`[Kanski] Primary topic terms:`, primaryTopicTerms);
             console.log(`[Kanski] Total keywords:`, weightedKeywords.length);
 
-            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms);
+            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms, { preferClinicalImages: true });
             const topPages = diversifyTopPages(scoredPages, 12, { maxPerWindow: 2, windowSize: 3 });
 
             if (topPages.length === 0) {
@@ -12615,8 +12681,40 @@ function setupKanskiPics() {
             ]
         };
 
+        const KANSKI_TOPIC_ALIASES = {
+            'age-related macular degeneration': ['amd', 'armd', 'macular degeneration'],
+            'macular degeneration': ['amd', 'armd', 'age-related macular degeneration'],
+            'diabetic retinopathy': ['dr', 'npdr', 'pdr', 'diabetic macular edema', 'dme'],
+            'retinopathy of prematurity': ['rop'],
+            'central serous': ['csr', 'csc', 'cscr', 'central serous chorioretinopathy'],
+            'retinal detachment': ['rhegmatogenous retinal detachment', 'tractional retinal detachment', 'exudative retinal detachment', 'rd'],
+            'epiretinal membrane': ['erm', 'macular pucker'],
+            'central retinal vein occlusion': ['crvo'],
+            'branch retinal vein occlusion': ['brvo'],
+            'central retinal artery occlusion': ['crao'],
+            'branch retinal artery occlusion': ['brao'],
+            'primary open angle': ['poag', 'primary open angle glaucoma'],
+            'primary angle closure': ['pacg', 'angle closure glaucoma'],
+            'normal tension glaucoma': ['ntg'],
+            'pseudoexfoliation': ['pxf', 'pex', 'exfoliation syndrome'],
+            'thyroid eye disease': ['ted', 'graves ophthalmopathy', 'graves orbitopathy'],
+            'idiopathic intracranial hypertension': ['iih', 'pseudotumor cerebri'],
+            'optic neuritis': ['demyelinating optic neuritis'],
+            'ischaemic optic neuropathy': ['ischemic optic neuropathy', 'aion', 'naion'],
+            'herpes simplex keratitis': ['hsv keratitis', 'dendritic ulcer', 'dendrite'],
+            'keratoconus': ['corneal ectasia', 'ectasia'],
+            'choroidal melanoma': ['uveal melanoma', 'ciliary body melanoma'],
+            'uveal melanoma': ['choroidal melanoma', 'ciliary body melanoma'],
+            'dacryocystorhinostomy': ['dcr'],
+            'phacoemulsification': ['phaco', 'cataract surgery']
+        };
+
         // Build flat list for backward compat
-        const OPHTHALMIC_TOPIC_TERMS = Object.values(OPHTHALMIC_TOPIC_CATEGORIES).flat();
+        const OPHTHALMIC_TOPIC_TERMS = Array.from(new Set([
+            ...Object.values(OPHTHALMIC_TOPIC_CATEGORIES).flat(),
+            ...Object.keys(KANSKI_TOPIC_ALIASES),
+            ...Object.values(KANSKI_TOPIC_ALIASES).flat()
+        ]));
 
         // ═══════════════════════════════════════════════════════
         // TOPIC SCOPING — identify the primary disease category
@@ -12642,6 +12740,7 @@ function setupKanskiPics() {
         // These are used as a GATE: Kanski pages must mention at least one
         if (bestTitleMatch) {
             primaryTopicTerms.push(bestTitleMatch);
+            (KANSKI_TOPIC_ALIASES[bestTitleMatch.toLowerCase()] || []).forEach(alias => primaryTopicTerms.push(alias));
             // Also add any abbreviation/alias that shares the same category
             // and appears in the title
             const categoryTerms = OPHTHALMIC_TOPIC_CATEGORIES[primaryCategory] || [];
@@ -12650,7 +12749,18 @@ function setupKanskiPics() {
                     primaryTopicTerms.push(t);
                 }
             }
+        } else if (data.title) {
+            const titleWords = data.title.toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, ' ')
+                .split(/[\s-]+/)
+                .filter(w => w.length > 3 && !stopWords.has(w));
+            if (titleWords.length >= 2) primaryTopicTerms.push(titleWords.slice(0, 4).join(' '));
+            titleWords.slice(0, 4).forEach(w => primaryTopicTerms.push(w));
         }
+
+        const uniquePrimaryTerms = Array.from(new Set(primaryTopicTerms.map(t => t.toLowerCase().trim()).filter(Boolean)));
+        primaryTopicTerms.length = 0;
+        primaryTopicTerms.push(...uniquePrimaryTerms);
 
         console.log(`[Kanski Keywords] Primary topic: "${bestTitleMatch}" (category: ${primaryCategory})`);
         console.log(`[Kanski Keywords] Topic scope terms:`, primaryTopicTerms);
@@ -12689,6 +12799,7 @@ function setupKanskiPics() {
                 // other-category terms found in title get reduced weight
                 const off = isOffTopic(term);
                 addTerm(term, off ? 5 : 50);
+                (KANSKI_TOPIC_ALIASES[term.toLowerCase()] || []).forEach(alias => addTerm(alias, off ? 3 : 35));
             }
         });
 
@@ -13193,7 +13304,7 @@ function setupKanskiPics() {
 
             // Score Kanski pages (shared helper — same as auto/manual modes)
             const { keywords: weightedKeywords, primaryTopicTerms } = extractInfographicKeywordsWeighted(data);
-            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms);
+            const scoredPages = scoreKanskiPages(weightedKeywords, primaryTopicTerms, { preferClinicalImages: true });
             const topPages = diversifyTopPages(scoredPages, maxImages, { maxPerWindow: 2, windowSize: 3 });
             if (topPages.length === 0) {
                 console.log(`[Kanski Auto-Adhere] No Kanski pages matched "${title}".`);
@@ -13257,6 +13368,38 @@ function setupKanskiPics() {
     // Expose to save flow
     window.kanskiAutoAdhere = autoAdhereForTitle;
 
+    function queueKanskiAutoAttach(libraryItem, opts = {}) {
+        if (!libraryItem || !libraryItem.title) return;
+        kanskiAutoAttachQueue.set(libraryItem.title, {
+            item: libraryItem,
+            opts: { ...opts, retryWhenReady: false }
+        });
+        console.log(`[Kanski AutoAttach] Queued "${libraryItem.title}" until Kanski is ready.`);
+    }
+
+    async function flushQueuedKanskiAutoAttach() {
+        if (kanskiQueueFlushing || kanskiAutoAttachQueue.size === 0) return;
+        if (!kanskiPdfDoc || kanskiPageTexts.length === 0 || typeof window.autoAttachKanskiOnSave !== 'function') return;
+
+        kanskiQueueFlushing = true;
+        try {
+            const queued = Array.from(kanskiAutoAttachQueue.entries());
+            kanskiAutoAttachQueue.clear();
+            const library = (typeof getLibraryCache === 'function') ? getLibraryCache() : [];
+
+            for (const [title, queuedItem] of queued) {
+                const freshItem = library.find(i => i.title === title) || queuedItem.item;
+                if (!freshItem || (freshItem.kanskiMeta && freshItem.kanskiMeta.length > 0)) continue;
+                await window.autoAttachKanskiOnSave(freshItem, queuedItem.opts);
+                await new Promise(resolve => setTimeout(resolve, 25));
+            }
+        } catch (err) {
+            console.warn('[Kanski AutoAttach] Queue flush failed:', err);
+        } finally {
+            kanskiQueueFlushing = false;
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // GLOBAL AUTO-ATTACH — called by the Save button after saving
     // a new infographic. Quietly runs match → render → adhere without
@@ -13271,9 +13414,10 @@ function setupKanskiPics() {
             // Only try if we have the PDF/index cached or loaded in this session.
             // ensureKanskiReady() returns false when no cache exists (and would
             // otherwise need a user file-picker, which we skip on autosave).
-            const ready = await ensureKanskiReady();
+            const ready = (kanskiStartupReadyPromise ? await kanskiStartupReadyPromise : false) || await ensureKanskiReady();
             if (!ready) {
                 console.log('[Kanski AutoAttach] No Kanski PDF cached — skipping.');
+                if (opts.retryWhenReady !== false) queueKanskiAutoAttach(libraryItem, opts);
                 return false;
             }
 
@@ -13282,7 +13426,7 @@ function setupKanskiPics() {
                 extractInfographicKeywordsWeighted(data);
 
             // Score pages via shared helper (figure-boost, proximity, diversity)
-            const scored = scoreKanskiPages(weightedKeywords, primaryTopicTerms);
+            const scored = scoreKanskiPages(weightedKeywords, primaryTopicTerms, { preferClinicalImages: true });
             const MAX_IMAGES = opts.maxImages || 8;
             const topPages = diversifyTopPages(scored, MAX_IMAGES, { maxPerWindow: 2, windowSize: 3 });
             if (topPages.length === 0) {
@@ -13346,8 +13490,22 @@ function setupKanskiPics() {
             return images.length;
         } catch (err) {
             console.warn('[Kanski AutoAttach] Error:', err);
+            if (opts.retryWhenReady !== false) queueKanskiAutoAttach(libraryItem, opts);
             return false;
         }
+    };
+
+    window.autoAttachKanskiForCurrent = async function (opts = {}) {
+        if (!currentInfographicData || !currentInfographicData.title) return false;
+
+        const library = (typeof getLibraryCache === 'function') ? getLibraryCache() : [];
+        const item = library.find(i => i.title === currentInfographicData.title);
+        if (!item || (item.kanskiMeta && item.kanskiMeta.length > 0)) return false;
+
+        return await window.autoAttachKanskiOnSave(item, {
+            maxImages: opts.maxImages || 8,
+            retryWhenReady: opts.retryWhenReady !== false
+        });
     };
 
     // ═══════════════════════════════════════════════════════════════
