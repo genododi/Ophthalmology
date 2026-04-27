@@ -10097,6 +10097,8 @@ function updateQuizScore() {
 
 let slides = [];
 let currentSlideIndex = 0;
+let presentationScrollY = 0;
+let presentationHideTimer = null;
 
 let _lastSlidesForTitle = null; // Remembers which infographic slides were built for
 
@@ -10108,6 +10110,7 @@ function setupSlideDeck() {
     const prevBtn = document.getElementById('slide-prev-btn');
     const nextBtn = document.getElementById('slide-next-btn');
     const presentBtn = document.getElementById('present-slides-btn');
+    const fullscreenPreviewBtn = document.getElementById('fullscreen-preview-btn');
     const exportBtn = document.getElementById('export-slides-btn');
 
     if (!slideBtn || !slideModal) return;
@@ -10137,7 +10140,8 @@ function setupSlideDeck() {
     });
     prevBtn?.addEventListener('click', () => navigateSlide(-1));
     nextBtn?.addEventListener('click', () => navigateSlide(1));
-    presentBtn?.addEventListener('click', enterPresentationMode);
+    presentBtn?.addEventListener('click', () => enterPresentationMode({ requestNativeFullscreen: true }));
+    fullscreenPreviewBtn?.addEventListener('click', () => enterPresentationMode({ requestNativeFullscreen: false }));
     exportBtn?.addEventListener('click', exportSlidesAsHTML);
 
     // Keyboard nav inside the preview modal (not in presentation mode)
@@ -10146,7 +10150,7 @@ function setupSlideDeck() {
         if (document.getElementById('presentation-mode')) return; // Ignored while presenting
         if (e.key === 'ArrowRight') { navigateSlide(1); e.preventDefault(); }
         else if (e.key === 'ArrowLeft') { navigateSlide(-1); e.preventDefault(); }
-        else if (e.key === 'f' || e.key === 'F' || e.key === 'F5') { enterPresentationMode(); e.preventDefault(); }
+        else if (e.key === 'f' || e.key === 'F' || e.key === 'F5') { enterPresentationMode({ requestNativeFullscreen: true }); e.preventDefault(); }
     });
     // Make the modal focusable so it can catch keys when clicked
     slideModal.setAttribute('tabindex', '-1');
@@ -10380,8 +10384,10 @@ function generateSlides() {
     updateSlideIndicator();
 
     const presentBtn = document.getElementById('present-slides-btn');
+    const fullscreenPreviewBtn = document.getElementById('fullscreen-preview-btn');
     const exportBtn = document.getElementById('export-slides-btn');
     if (presentBtn) presentBtn.style.display = 'flex';
+    if (fullscreenPreviewBtn) fullscreenPreviewBtn.style.display = 'flex';
     if (exportBtn) exportBtn.style.display = 'flex';
 }
 
@@ -10590,13 +10596,23 @@ function updateSlideIndicator() {
     }
 }
 
-function enterPresentationMode() {
+function enterPresentationMode(options = {}) {
     if (slides.length === 0) return;
 
+    const existingPresentation = document.getElementById('presentation-mode');
+    if (existingPresentation) {
+        existingPresentation.focus({ preventScroll: true });
+        return;
+    }
+
+    const requestNativeFullscreen = options.requestNativeFullscreen !== false;
     const presentationDiv = document.createElement('div');
     presentationDiv.className = 'presentation-mode';
     presentationDiv.id = 'presentation-mode';
     presentationDiv.tabIndex = -1;
+    presentationDiv.setAttribute('role', 'dialog');
+    presentationDiv.setAttribute('aria-modal', 'true');
+    presentationDiv.setAttribute('aria-label', 'Full screen slide preview');
 
     presentationDiv.innerHTML = `
         <div class="slide-frame">
@@ -10614,9 +10630,13 @@ function enterPresentationMode() {
         </div>
     `;
 
+    presentationScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.classList.add('presentation-open');
+    document.body.style.top = `-${presentationScrollY}px`;
     document.body.appendChild(presentationDiv);
     renderPresentationSlide();
     updatePresentationProgress();
+    syncFullscreenIcon();
 
     document.getElementById('pres-prev').addEventListener('click', () => {
         navigateSlide(-1);
@@ -10631,24 +10651,46 @@ function enterPresentationMode() {
     document.getElementById('pres-exit').addEventListener('click', exitPresentationMode);
     document.getElementById('pres-fullscreen').addEventListener('click', togglePresentationFullscreen);
 
-    // Sync the fullscreen icon when the user hits Esc / F11
+    // Sync the fullscreen icon when the user hits Esc / F11.
     document.addEventListener('fullscreenchange', syncFullscreenIcon);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenIcon);
 
-    // Keyboard navigation
+    // Keyboard navigation.
     document.addEventListener('keydown', handlePresentationKeydown);
 
-    // Auto-hide controls on mouse inactivity
-    let hideTimer = null;
+    // Auto-hide controls on mouse/touch inactivity.
     const showControls = () => {
         presentationDiv.classList.remove('controls-hidden');
-        clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => presentationDiv.classList.add('controls-hidden'), 2500);
+        clearTimeout(presentationHideTimer);
+        presentationHideTimer = setTimeout(() => presentationDiv.classList.add('controls-hidden'), 2500);
     };
     presentationDiv.addEventListener('mousemove', showControls);
     presentationDiv.addEventListener('touchstart', showControls, { passive: true });
     showControls();
 
-    // Click-to-advance (but ignore clicks on the controls bar)
+    let touchStartX = 0;
+    let touchStartY = 0;
+    presentationDiv.addEventListener('touchstart', (e) => {
+        const touch = e.changedTouches && e.changedTouches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+    }, { passive: true });
+    presentationDiv.addEventListener('touchend', (e) => {
+        if (e.target.closest('.presentation-controls')) return;
+        const touch = e.changedTouches && e.changedTouches[0];
+        if (!touch) return;
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+        if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+            navigateSlide(dx < 0 ? 1 : -1);
+            renderPresentationSlide();
+            updatePresentationProgress();
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // Click-to-advance, while preserving control-bar taps.
     presentationDiv.addEventListener('click', (e) => {
         if (e.target.closest('.presentation-controls')) return;
         navigateSlide(1);
@@ -10656,8 +10698,9 @@ function enterPresentationMode() {
         updatePresentationProgress();
     });
 
-    // Request native browser fullscreen
-    requestPresentationFullscreen(presentationDiv);
+    if (requestNativeFullscreen) {
+        requestPresentationFullscreen(presentationDiv);
+    }
 
     // Focus so keyboard works immediately
     presentationDiv.focus({ preventScroll: true });
@@ -10666,34 +10709,72 @@ function enterPresentationMode() {
 function requestPresentationFullscreen(el) {
     try {
         const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-        if (req) {
-            const p = req.call(el);
-            if (p && typeof p.catch === 'function') {
-                p.catch(err => console.warn('[Presentation] Fullscreen request failed:', err));
-            }
+        if (!req) {
+            el.classList.add('native-fullscreen-unavailable');
+            syncFullscreenIcon();
+            return;
+        }
+        el.classList.remove('native-fullscreen-unavailable');
+        const p = req.call(el);
+        if (p && typeof p.catch === 'function') {
+            p.catch(err => {
+                el.classList.add('native-fullscreen-unavailable');
+                syncFullscreenIcon();
+                console.warn('[Presentation] Fullscreen request failed:', err);
+            });
         }
     } catch (err) {
+        el.classList.add('native-fullscreen-unavailable');
+        syncFullscreenIcon();
         console.warn('[Presentation] Fullscreen not supported:', err);
     }
+}
+
+function exitNativePresentationFullscreen() {
+    try {
+        const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fullscreenElement) return;
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) exit.call(document);
+    } catch (err) {
+        console.warn('[Presentation] Fullscreen exit failed:', err);
+    }
+}
+
+function isPresentationNativeFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function supportsPresentationNativeFullscreen(el) {
+    return !!(el && (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen));
 }
 
 function togglePresentationFullscreen() {
     const el = document.getElementById('presentation-mode');
     if (!el) return;
-    const inFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    if (inFS) {
-        const exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) exit.call(document);
-    } else {
+    if (isPresentationNativeFullscreen()) {
+        exitNativePresentationFullscreen();
+    } else if (supportsPresentationNativeFullscreen(el)) {
         requestPresentationFullscreen(el);
+    } else {
+        el.classList.add('native-fullscreen-unavailable');
+        syncFullscreenIcon();
     }
 }
 
 function syncFullscreenIcon() {
     const icon = document.getElementById('pres-fs-icon');
-    if (!icon) return;
-    const inFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    const button = document.getElementById('pres-fullscreen');
+    const presentation = document.getElementById('presentation-mode');
+    if (!icon || !button || !presentation) return;
+    const supported = supportsPresentationNativeFullscreen(presentation);
+    const inFS = isPresentationNativeFullscreen();
     icon.textContent = inFS ? 'fullscreen_exit' : 'fullscreen';
+    button.title = supported
+        ? (inFS ? 'Exit Native Fullscreen (F)' : 'Native Fullscreen (F)')
+        : 'Native fullscreen is unavailable here';
+    button.disabled = !supported;
+    presentation.classList.toggle('native-fullscreen-unavailable', !supported);
 }
 
 function updatePresentationProgress() {
@@ -10876,15 +10957,15 @@ function exitPresentationMode() {
     if (presentation) {
         presentation.remove();
     }
+    clearTimeout(presentationHideTimer);
+    presentationHideTimer = null;
+    document.body.classList.remove('presentation-open');
+    document.body.style.top = '';
+    window.scrollTo(0, presentationScrollY || 0);
     document.removeEventListener('keydown', handlePresentationKeydown);
     document.removeEventListener('fullscreenchange', syncFullscreenIcon);
-    // Exit native fullscreen if still engaged
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-        const exit = document.exitFullscreen || document.webkitExitFullscreen;
-        if (exit) {
-            try { exit.call(document); } catch {}
-        }
-    }
+    document.removeEventListener('webkitfullscreenchange', syncFullscreenIcon);
+    exitNativePresentationFullscreen();
 }
 
 function renderSlideExportBody(slide) {
