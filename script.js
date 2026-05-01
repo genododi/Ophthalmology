@@ -115,13 +115,21 @@ function renderUploadedFiles() {
         <div class="uploaded-file-item ${item.status}" data-index="${index}">
             <div class="uploaded-file-info">
                 <span class="material-symbols-rounded">${item.type === 'pdf' ? 'picture_as_pdf' : (item.type === 'docx' || item.type === 'doc' ? 'article' : 'description')}</span>
-                <span class="uploaded-file-name" title="${item.name}">${item.name}</span>
+                <span class="uploaded-file-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
                 <span class="uploaded-file-size">(${formatFileSize(item.size)})</span>
             </div>
             ${item.status !== 'processing' ? `
-                <button class="remove-file-btn" onclick="removeUploadedFile(${index})" title="Remove file">
-                    <span class="material-symbols-rounded">close</span>
-                </button>
+                <div class="uploaded-file-actions">
+                    ${item.type === 'pdf' && item.status === 'success' ? `
+                        <button class="sketchy-pdf-btn" onclick="convertUploadedPdfToSketchyInfograph(${index})" title="Convert PDF to sketchy drawn infographic">
+                            <span class="material-symbols-rounded">draw</span>
+                            Sketchy Infograph
+                        </button>
+                    ` : ''}
+                    <button class="remove-file-btn" onclick="removeUploadedFile(${index})" title="Remove file">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
             ` : ''}
         </div>
     `).join('');
@@ -133,6 +141,76 @@ function renderUploadedFiles() {
 window.removeUploadedFile = function (index) {
     uploadedResourcesText.splice(index, 1);
     renderUploadedFiles();
+};
+
+window.convertUploadedPdfToSketchyInfograph = async function (index) {
+    const fileEntry = uploadedResourcesText[index];
+    if (!fileEntry || fileEntry.type !== 'pdf' || fileEntry.status !== 'success' || !fileEntry.text) {
+        alert('This PDF is not ready yet. Please wait until text extraction finishes.');
+        return;
+    }
+
+    const geminiKey = apiKeyInput.value.trim();
+    const openaiKey = openaiKeyInput.value.trim();
+    if (!geminiKey && !openaiKey) {
+        alert('Please enter either a Gemini or OpenAI API Key first.');
+        return;
+    }
+
+    const sketchPrompt = `
+Convert this uploaded PDF into a SKETCHY HAND-DRAWN ophthalmic infographic.
+
+Design direction:
+- Use a hand-drawn classroom whiteboard / notebook sketch feel.
+- Prefer simple, memorable visual sections: flow arrows, boxed callouts, rough comparison tables, memory aids, and clinical warning notes.
+- Keep it legible and clinically accurate.
+- Preserve the PDF's important details, definitions, classifications, management steps, tables, and red flags.
+- Do not invent facts that conflict with the PDF. Add ophthalmology context only when it clarifies the PDF.
+
+Source PDF: ${fileEntry.name}
+
+PDF text:
+${fileEntry.text}`;
+
+    setLoading(true);
+    const loadingText = outputContainer.querySelector('.loading-text');
+    if (loadingText) loadingText.textContent = 'Sketching your PDF into an infographic...';
+
+    try {
+        let data;
+        if (openaiKey) {
+            try {
+                data = await generateInfographicDataOpenAI(openaiKey, sketchPrompt);
+            } catch (openaiErr) {
+                if (!geminiKey) throw openaiErr;
+                console.warn('OpenAI sketchy PDF conversion failed, falling back to Gemini:', openaiErr);
+                data = await generateInfographicData(geminiKey, sketchPrompt);
+            }
+        } else {
+            data = await generateInfographicData(geminiKey, sketchPrompt);
+        }
+
+        data.visualStyle = 'sketchy';
+        data.sourcePdfName = fileEntry.name;
+        data.generationMode = 'pdf_sketchy_infograph';
+        data.generationPrompt = `Sketchy drawn infographic from PDF: ${fileEntry.name}`;
+        currentInfographicData = data;
+        renderInfographic(data);
+    } catch (err) {
+        console.error('Sketchy PDF conversion failed:', err);
+        outputContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon-container" style="background: #fee2e2; color: #ef4444;">
+                    <span class="material-symbols-rounded">error_outline</span>
+                </div>
+                <h2>Sketchy Conversion Failed</h2>
+                <p>${escapeHtml(err.message || String(err))}</p>
+            </div>
+        `;
+        alert('Failed to convert PDF to sketchy infographic: ' + (err.message || err));
+    } finally {
+        setLoading(false);
+    }
 };
 
 /**
@@ -5369,7 +5447,132 @@ function setupFTPServer() {
 
 let currentInfographicData = null;
 
+function cloneInfographicData(data) {
+    try {
+        return JSON.parse(JSON.stringify(data));
+    } catch {
+        return { ...data };
+    }
+}
+
+function findCurrentLibraryItem(library, data) {
+    if (!Array.isArray(library) || !data) return null;
+    const normalizeTitle = (value) => String(value || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+    const title = data.title || '';
+    return library.find(item => item.data === data)
+        || library.find(item => item.data && item.data.title === title)
+        || library.find(item => item.title === title)
+        || library.find(item => normalizeTitle(item.title) === normalizeTitle(title));
+}
+
+async function persistCurrentInfographicData(data) {
+    try {
+        const library = getLibraryCache();
+        const item = findCurrentLibraryItem(library, data);
+        if (!item) return false;
+        item.title = data.title || item.title;
+        item.summary = data.summary || item.summary;
+        item.chapterId = data.chapterId || item.chapterId;
+        item.data = cloneInfographicData(data);
+        await saveLibraryToIDB(library);
+        if (typeof syncLibraryToServer === 'function') {
+            syncLibraryToServer();
+        }
+        return true;
+    } catch (err) {
+        console.warn('[CurrentInfographic] Could not persist update:', err);
+        return false;
+    }
+}
+
+function countInfographicContentUnits(data) {
+    if (!data || !Array.isArray(data.sections)) return 0;
+    return data.sections.reduce((total, section) => {
+        const content = section && section.content;
+        if (Array.isArray(content)) return total + content.length;
+        if (content && Array.isArray(content.rows)) return total + content.rows.length;
+        if (content && Array.isArray(content.branches)) return total + content.branches.length;
+        if (content && Array.isArray(content.data)) return total + content.data.length;
+        return total + (content ? 1 : 0);
+    }, 0);
+}
+
+function togglePromptPanelFromToolbar() {
+    const panel = document.getElementById('prompt-panel');
+    const inlineToggle = document.getElementById('prompt-toggle-btn');
+    const toolbarToggle = document.getElementById('toggle-prompt-btn');
+
+    if (!currentInfographicData) {
+        alert('Generate or open an infographic first.');
+        return;
+    }
+    if (!currentInfographicData.generationPrompt || !panel) {
+        alert('No saved generation prompt is available for this infographic.');
+        return;
+    }
+
+    const willShow = panel.hidden;
+    panel.hidden = !willShow;
+    [inlineToggle, toolbarToggle].forEach((btn) => {
+        if (!btn) return;
+        btn.setAttribute('aria-expanded', String(willShow));
+        const icon = btn.querySelector('.material-symbols-rounded');
+        if (icon) icon.textContent = willShow ? 'visibility_off' : 'visibility';
+    });
+    const label = inlineToggle?.querySelector('.prompt-toggle-label');
+    if (label) label.textContent = willShow ? 'Hide prompt' : 'Show prompt';
+    toolbarToggle?.classList.toggle('active', willShow);
+    if (willShow) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function deduplicateCurrentInfographic() {
+    if (!currentInfographicData || !Array.isArray(currentInfographicData.sections)) {
+        alert('Generate or open an infographic first.');
+        return;
+    }
+
+    const beforeSections = currentInfographicData.sections.length;
+    const beforeUnits = countInfographicContentUnits(currentInfographicData);
+    currentInfographicData.sections = deduplicateSections(cloneInfographicData(currentInfographicData.sections));
+    const afterSections = currentInfographicData.sections.length;
+    const afterUnits = countInfographicContentUnits(currentInfographicData);
+
+    renderInfographic(currentInfographicData);
+    await persistCurrentInfographicData(currentInfographicData);
+
+    const removedSections = Math.max(0, beforeSections - afterSections);
+    const removedUnits = Math.max(0, beforeUnits - afterUnits);
+    alert(`Deduplicated current infographic.\n\nRemoved ${removedSections} duplicate section(s) and ${removedUnits} duplicate content item(s).`);
+}
+
+function setupCurrentInfographicToolbarActions() {
+    const dedupBtn = document.getElementById('dedup-current-btn');
+    const promptBtn = document.getElementById('toggle-prompt-btn');
+
+    if (dedupBtn && !dedupBtn.dataset.bound) {
+        dedupBtn.dataset.bound = 'true';
+        dedupBtn.addEventListener('click', async () => {
+            dedupBtn.disabled = true;
+            const originalHtml = dedupBtn.innerHTML;
+            dedupBtn.innerHTML = '<span class="material-symbols-rounded rotating">sync</span>';
+            try {
+                await deduplicateCurrentInfographic();
+            } finally {
+                dedupBtn.innerHTML = originalHtml;
+                dedupBtn.disabled = false;
+            }
+        });
+    }
+
+    if (promptBtn && !promptBtn.dataset.bound) {
+        promptBtn.dataset.bound = 'true';
+        promptBtn.setAttribute('aria-expanded', 'false');
+        promptBtn.addEventListener('click', togglePromptPanelFromToolbar);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    setupCurrentInfographicToolbarActions();
     await initLibraryCache();
     // ── Migration: purge legacy kanskiImages blobs from localStorage ──
     try {
@@ -7618,6 +7821,14 @@ function renderInfographic(data) {
     data.summary = data.summary || '';
     data.sections = data.sections || [];
 
+    const toolbarPromptBtn = document.getElementById('toggle-prompt-btn');
+    if (toolbarPromptBtn) {
+        toolbarPromptBtn.classList.remove('active');
+        toolbarPromptBtn.setAttribute('aria-expanded', 'false');
+        const toolbarPromptIcon = toolbarPromptBtn.querySelector('.material-symbols-rounded');
+        if (toolbarPromptIcon) toolbarPromptIcon.textContent = 'visibility';
+    }
+
     // Ensure sections is an array
     if (!Array.isArray(data.sections)) {
         console.warn('renderInfographic: sections is not an array, converting...');
@@ -7630,6 +7841,9 @@ function renderInfographic(data) {
     // Create the main Poster Sheet container
     const posterSheet = document.createElement('div');
     posterSheet.className = 'poster-sheet';
+    if (data.visualStyle === 'sketchy') {
+        posterSheet.classList.add('sketchy-infograph');
+    }
 
     // Header (Inside the sheet)
     const header = document.createElement('header');
@@ -7750,6 +7964,13 @@ function renderInfographic(data) {
                 const label = toggleBtn.querySelector('.prompt-toggle-label');
                 if (icon) icon.textContent = willShow ? 'visibility_off' : 'visibility';
                 if (label) label.textContent = willShow ? 'Hide prompt' : 'Show prompt';
+                const toolbarToggle = document.getElementById('toggle-prompt-btn');
+                if (toolbarToggle) {
+                    toolbarToggle.setAttribute('aria-expanded', String(willShow));
+                    toolbarToggle.classList.toggle('active', willShow);
+                    const toolbarIcon = toolbarToggle.querySelector('.material-symbols-rounded');
+                    if (toolbarIcon) toolbarIcon.textContent = willShow ? 'visibility_off' : 'visibility';
+                }
                 if (willShow) {
                     promptPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }

@@ -236,6 +236,7 @@ textarea:focus {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.6rem;
     padding: 0.5rem 0.75rem;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -294,6 +295,40 @@ textarea:focus {
     color: #94a3b8;
     font-size: 0.75rem;
     flex-shrink: 0;
+}
+
+.uploaded-file-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.sketchy-pdf-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 30px;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid #7dd3fc;
+    border-radius: 999px;
+    background: #f0f9ff;
+    color: #0369a1;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.sketchy-pdf-btn:hover {
+    background: #e0f2fe;
+    border-color: #38bdf8;
+    transform: translateY(-1px);
+}
+
+.sketchy-pdf-btn .material-symbols-rounded {
+    font-size: 1rem;
 }
 
 .remove-file-btn {
@@ -435,6 +470,12 @@ textarea:focus {
     color: white;
     transform: translateY(-2px);
     box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
+}
+
+.icon-btn.active {
+    background: #4338ca;
+    color: white;
+    border-color: #4338ca;
 }
 
 .btn-text-icon {
@@ -654,6 +695,93 @@ textarea:focus {
 .poster-card.theme-purple {
     border-top: 4px solid #8b5cf6;
     background: linear-gradient(to bottom, #f3e8ff 0%, #fff 15%);
+}
+
+.poster-sheet.sketchy-infograph {
+    --sketch-ink: #172033;
+    --sketch-paper: #fffaf0;
+    --sketch-blue: #2563eb;
+    background:
+        linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px),
+        linear-gradient(rgba(37, 99, 235, 0.045) 1px, transparent 1px),
+        var(--sketch-paper);
+    background-size: 22px 22px;
+    border: 3px solid var(--sketch-ink);
+    border-top: 10px solid var(--sketch-ink);
+    border-radius: 10px 14px 9px 16px;
+    box-shadow: 10px 12px 0 rgba(23, 32, 51, 0.12), 0 18px 36px rgba(15, 23, 42, 0.16);
+}
+
+.poster-sheet.sketchy-infograph::before {
+    content: "Sketchy PDF Infograph";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    transform: rotate(1.5deg);
+    color: #92400e;
+    background: #fef3c7;
+    border: 2px solid #172033;
+    border-radius: 8px 11px 7px 12px;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    box-shadow: 2px 3px 0 rgba(23, 32, 51, 0.18);
+}
+
+.poster-sheet.sketchy-infograph .poster-header {
+    border-bottom: 3px dashed var(--sketch-ink);
+}
+
+.poster-sheet.sketchy-infograph .poster-title,
+.poster-sheet.sketchy-infograph .card-title {
+    letter-spacing: 0;
+    color: var(--sketch-ink);
+}
+
+.poster-sheet.sketchy-infograph .poster-card {
+    background: rgba(255, 255, 255, 0.72);
+    border: 2px solid var(--sketch-ink);
+    border-radius: 13px 10px 15px 9px;
+    box-shadow: 4px 5px 0 rgba(23, 32, 51, 0.12);
+    transform: rotate(-0.25deg);
+}
+
+.poster-sheet.sketchy-infograph .poster-card:nth-child(2n) {
+    transform: rotate(0.25deg);
+}
+
+.poster-sheet.sketchy-infograph .poster-card:nth-child(3n) {
+    transform: rotate(-0.15deg);
+}
+
+.poster-sheet.sketchy-infograph .icon-box,
+.poster-sheet.sketchy-infograph .mindmap-center,
+.poster-sheet.sketchy-infograph .mindmap-branch,
+.poster-sheet.sketchy-infograph .mnemonic-box,
+.poster-sheet.sketchy-infograph .chart-bar-container {
+    border: 2px solid var(--sketch-ink);
+    border-radius: 10px 8px 11px 7px;
+}
+
+.poster-sheet.sketchy-infograph .chart-bar {
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--sketch-blue),
+        var(--sketch-blue) 8px,
+        #60a5fa 8px,
+        #60a5fa 13px
+    );
+}
+
+.poster-sheet.sketchy-infograph .data-table th,
+.poster-sheet.sketchy-infograph .data-table td {
+    border-color: var(--sketch-ink);
+}
+
+.poster-sheet.sketchy-infograph .prompt-toggle-btn {
+    border: 2px solid var(--sketch-ink);
+    box-shadow: 2px 2px 0 rgba(23, 32, 51, 0.14);
 }
 
 
