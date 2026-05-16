@@ -2679,6 +2679,74 @@ textarea:focus {
     padding-left: 0.5rem;
 }
 
+/* Topic + body comparison cards (e.g. framework / pillar slides) */
+.slide-topic-cards {
+    display: grid;
+    grid-template-columns: repeat(var(--slide-topic-cols, 4), minmax(0, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+    align-items: stretch;
+}
+
+.slide-topic-card {
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    background: #fff;
+}
+
+.slide-topic-card__label {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 0.85rem;
+    background: var(--slide-topic-accent, #2563eb);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-align: center;
+    max-width: none;
+}
+
+.slide-topic-card__label--inline {
+    border-radius: 0;
+}
+
+.slide-topic-card__body {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.75rem 0.9rem;
+    background: var(--slide-topic-bg, #f8fafc);
+    color: #0f172a;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.presentation-mode .slide-topic-cards {
+    gap: 1rem;
+}
+
+.presentation-mode .slide-topic-card__label {
+    font-size: 1rem;
+    padding: 0.85rem 1rem;
+}
+
+.presentation-mode .slide-topic-card__body {
+    font-size: 1.15rem;
+    padding: 1rem 1.15rem;
+}
+
 .slide-thumbnails {
     display: flex;
     gap: 0.5rem;

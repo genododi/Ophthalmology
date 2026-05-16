@@ -10073,7 +10073,13 @@ function updateSlideDeckActionButtons() {
 
 function slideContentToTextLines(slide) {
     const c = slide?.content;
-    if (Array.isArray(c)) return c.map(x => String(x));
+    if (Array.isArray(c)) {
+        return c.map(item => {
+            const { topic, body } = parseSlideContentItem(item);
+            if (topic && body) return `${topic}: ${body}`;
+            return body || topic || String(item);
+        });
+    }
     if (typeof c === 'string' && c.trim()) return [c];
     if (c && typeof c === 'object') {
         if (c.headers && c.rows) {
@@ -10122,20 +10128,90 @@ function classifySlideTemplate(title, type) {
     return SLIDE_TEMPLATES.default;
 }
 
+/** Parse a slide list item into optional topic label + body text. */
+function parseSlideContentItem(item) {
+    if (item == null) return { topic: '', body: '' };
+    if (typeof item === 'string') {
+        const s = item.trim();
+        if (!s) return { topic: '', body: '' };
+        const splitMatch = s.match(/^([^:—–|]+?)\s*[:—–|]\s*(.+)$/s);
+        if (splitMatch) {
+            const topic = splitMatch[1].trim();
+            const body = splitMatch[2].trim();
+            if (topic && body && topic.length <= 72 && topic.length < s.length * 0.72) {
+                return { topic, body };
+            }
+        }
+        return { topic: '', body: s };
+    }
+    if (typeof item === 'object') {
+        const topic = String(
+            item.title || item.label || item.name || item.topic || item.heading || ''
+        ).trim();
+        const body = String(
+            item.text || item.description || item.content || item.detail || item.body || item.value || ''
+        ).trim();
+        if (topic && body) return { topic, body };
+        if (topic && !body) return { topic, body: '' };
+        const vals = Object.values(item).filter(v => typeof v === 'string' && v.trim());
+        if (vals.length >= 2) {
+            return { topic: vals[0].trim(), body: vals.slice(1).join(' — ').trim() };
+        }
+        if (vals.length === 1) return { topic: '', body: vals[0].trim() };
+        return { topic: '', body: '' };
+    }
+    return { topic: '', body: String(item) };
+}
+
+function shouldRenderSlideTopicCards(items) {
+    if (!Array.isArray(items) || items.length < 2 || items.length > 6) return false;
+    const parsed = items.map(parseSlideContentItem);
+    const withTopic = parsed.filter(p => p.topic && p.body);
+    return withTopic.length >= 2 && withTopic.length >= Math.ceil(items.length * 0.5);
+}
+
+/** Horizontal row of topic + body cards (blue topic label, light content area). */
+function renderSlideTopicCards(items, tpl, opts = {}) {
+    const parsed = items.map(parseSlideContentItem);
+    const count = parsed.length;
+    const bodyFontSize = opts.fontSize || '1.05rem';
+    const cols = count <= 4 ? count : (count <= 5 ? 5 : 3);
+    return `<div class="slide-topic-cards" style="--slide-topic-accent:${tpl.accent};--slide-topic-bg:${tpl.bg};--slide-topic-cols:${cols};">
+        ${parsed.map((p, i) => {
+            const label = p.topic
+                ? escapeHtml(p.topic)
+                : escapeHtml(String(i + 1));
+            const body = escapeHtml(p.body || p.topic || '');
+            return `<div class="slide-topic-card">
+                <div class="slide-topic-card__label" title="${label}">${label}</div>
+                <div class="slide-topic-card__body" style="font-size:${bodyFontSize};">${body}</div>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
 // Produce a themed bullet list given an array of strings and a template.
 function renderTemplatedBullets(items, tpl, opts = {}) {
     const fontSize = opts.fontSize || '1.25rem';
     const numbered = !!opts.numbered;
     const bulletEmoji = SLIDE_TYPE_EMOJI[tpl.key] || '';
     return `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.85rem;width:100%;">
-        ${items.map((it, i) => `
-            <li style="display:flex;align-items:flex-start;gap:14px;padding:1rem 1.25rem;background:${tpl.bg};border-left:5px solid ${tpl.border};border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
-                <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
-                    ? `min-width:36px;height:36px;border-radius:50%;background:${tpl.accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;`
-                    : `color:${tpl.accent};font-size:1.5rem;flex-shrink:0;margin-top:2px;`}">${numbered ? (i + 1) : tpl.bullet}</span>
-                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;">${!numbered && bulletEmoji && i === 0 ? bulletEmoji + ' ' : ''}${it}</span>
-            </li>
-        `).join('')}
+        ${items.map((it, i) => {
+            const { topic, body } = parseSlideContentItem(it);
+            const displayBody = body || topic || String(it);
+            const topicLabel = topic && body ? topic : '';
+            return `
+            <li style="display:flex;align-items:stretch;gap:0;padding:0;background:${tpl.bg};border-left:5px solid ${tpl.border};border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);overflow:hidden;">
+                ${topicLabel ? `
+                    <span class="slide-topic-card__label slide-topic-card__label--inline" style="background:${tpl.accent};color:white;font-weight:700;font-size:0.95rem;padding:0.85rem 1rem;display:inline-flex;align-items:center;flex-shrink:0;white-space:nowrap;">${escapeHtml(topicLabel)}</span>
+                ` : `
+                    <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
+                        ? `min-width:36px;padding:0.85rem 0;display:inline-flex;align-items:center;justify-content:center;background:${tpl.accent};color:white;font-weight:700;font-size:0.95rem;flex-shrink:0;`
+                        : `color:${tpl.accent};font-size:1.5rem;flex-shrink:0;margin:0.85rem 0 0 1rem;`}">${numbered ? (i + 1) : tpl.bullet}</span>
+                `}
+                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;padding:0.85rem 1.15rem;min-width:0;">${!numbered && bulletEmoji && i === 0 && !topicLabel ? bulletEmoji + ' ' : ''}${escapeHtml(displayBody)}</span>
+            </li>`;
+        }).join('')}
     </ul>`;
 }
 
@@ -10313,9 +10389,12 @@ function renderSlide() {
         let contentHtml = '';
 
         if (Array.isArray(slide.content)) {
-            // Themed bullet list with color accent from template
             const numbered = tpl.key === 'framework' || tpl.key === 'management';
-            contentHtml = renderTemplatedBullets(slide.content, tpl, { fontSize: '1.3rem', numbered });
+            if (shouldRenderSlideTopicCards(slide.content)) {
+                contentHtml = renderSlideTopicCards(slide.content, tpl, { fontSize: '0.95rem' });
+            } else {
+                contentHtml = renderTemplatedBullets(slide.content, tpl, { fontSize: '1.3rem', numbered });
+            }
         } else if (typeof slide.content === 'object' && slide.content !== null) {
             // Check for table structure
             if (slide.content.headers && slide.content.rows) {
@@ -10629,16 +10708,11 @@ function renderPresentationSlide() {
 
         if (Array.isArray(slide.content)) {
             const numbered = tpl.key === 'framework' || tpl.key === 'management';
-            contentHtml = `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:1rem;width:100%;font-size:1.6rem;">
-                ${slide.content.map((c, i) => `
-                    <li style="display:flex;align-items:flex-start;gap:18px;padding:1.25rem 1.5rem;background:${tpl.bg};border-left:6px solid ${tpl.border};border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,0.05);">
-                        <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
-                            ? `min-width:48px;height:48px;border-radius:50%;background:${tpl.accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:1.3rem;flex-shrink:0;`
-                            : `color:${tpl.accent};font-size:2rem;flex-shrink:0;margin-top:4px;`}">${numbered ? (i + 1) : tpl.bullet}</span>
-                        <span style="flex:1;line-height:1.6;color:#0f172a;">${c}</span>
-                    </li>
-                `).join('')}
-            </ul>`;
+            if (shouldRenderSlideTopicCards(slide.content)) {
+                contentHtml = renderSlideTopicCards(slide.content, tpl, { fontSize: '1.15rem' });
+            } else {
+                contentHtml = renderTemplatedBullets(slide.content, tpl, { fontSize: '1.6rem', numbered });
+            }
         } else if (typeof slide.content === 'object' && slide.content !== null) {
             if (slide.content.headers && slide.content.rows) {
                 const headers = slide.content.headers || [];
