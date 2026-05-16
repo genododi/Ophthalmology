@@ -1,0 +1,2 @@
+# Copy to gemini-api-key.local (one line, your Gemini API key).
+# This file is gitignored. Or run: ./scripts/setup-gemini-key.sh

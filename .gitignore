@@ -1,0 +1,10 @@
+# Local secrets (never deploy to GitHub Pages)
+config/gemini-api-key.local
+.env.local
+.env
+*.local.json
+scripts/.gemini-key
+
+# Dependencies & OS
+node_modules/
+.DS_Store

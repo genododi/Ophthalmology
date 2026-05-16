@@ -96,6 +96,29 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
             return
         
+        # Local dev only: Gemini key from gitignored config (never for public deploy)
+        if self.path == '/local-dev/gemini-api-key':
+            client = self.client_address[0] if self.client_address else ''
+            if client not in ('127.0.0.1', '::1'):
+                self.send_error(403, 'Forbidden')
+                return
+            key_path = Path('config/gemini-api-key.local')
+            body = b''
+            if key_path.is_file():
+                body = key_path.read_text(encoding='utf-8').strip().encode('utf-8')
+            self.send_response(200 if body else 204)
+            self.send_header('Content-type', 'text/plain')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            if body:
+                self.wfile.write(body)
+            return
+
+        # Block serving secret config paths via static file handler
+        if self.path.startswith('/config/') or self.path.endswith('.local'):
+            self.send_error(404)
+            return
+
         # Handle robots.txt
         if self.path == '/robots.txt':
             self.send_response(200)

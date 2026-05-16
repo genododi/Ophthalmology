@@ -6,6 +6,73 @@ const openaiKeyInput = document.getElementById('openai-api-key');
 const topicInput = document.getElementById('topic-input');
 const outputContainer = document.getElementById('output-container');
 
+// Gemini API key: localStorage + optional localhost-only bootstrap (never hardcode in source)
+const GEMINI_API_KEY_STORAGE = 'geminiApiKey';
+const GEMINI_LOCAL_CONFIG_PATH = 'config/gemini-api-key.local';
+const LOCAL_DEV_KEY_ENDPOINT = '/local-dev/gemini-api-key';
+
+function isLocalDevHost() {
+    const h = window.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+}
+
+function applyGeminiApiKeyToInput(key) {
+    if (!key || !apiKeyInput) return;
+    apiKeyInput.value = key;
+}
+
+function persistGeminiApiKey(key) {
+    if (!key) return;
+    try {
+        localStorage.setItem(GEMINI_API_KEY_STORAGE, key);
+    } catch (e) {
+        console.warn('[Gemini API] Could not persist key to localStorage', e);
+    }
+}
+
+async function fetchLocalDevGeminiKey() {
+    if (!isLocalDevHost()) return null;
+    try {
+        const res = await fetch(LOCAL_DEV_KEY_ENDPOINT, { cache: 'no-store' });
+        if (res.ok) {
+            const text = (await res.text()).trim();
+            if (text) return text;
+        }
+    } catch (_) { /* local server may be offline */ }
+    try {
+        const res = await fetch(GEMINI_LOCAL_CONFIG_PATH, { cache: 'no-store' });
+        if (res.ok) {
+            const text = (await res.text()).trim();
+            if (text && !text.startsWith('#')) return text;
+        }
+    } catch (_) { /* file not served or missing */ }
+    return null;
+}
+
+async function initGeminiApiKey() {
+    if (!apiKeyInput) return;
+
+    let key = '';
+    try {
+        key = localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
+    } catch (_) { /* private mode */ }
+
+    if (!key) {
+        key = (await fetchLocalDevGeminiKey()) || '';
+        if (key) persistGeminiApiKey(key);
+    }
+
+    if (key) applyGeminiApiKeyToInput(key);
+
+    apiKeyInput.addEventListener('input', () => {
+        const v = apiKeyInput.value.trim();
+        if (v) persistGeminiApiKey(v);
+        else {
+            try { localStorage.removeItem(GEMINI_API_KEY_STORAGE); } catch (_) {}
+        }
+    });
+}
+
 // ============================================
 // RESOURCE FILE UPLOAD HANDLING (PDF/TXT)
 // ============================================
@@ -5166,6 +5233,7 @@ function setupFTPServer() {
 let currentInfographicData = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    await initGeminiApiKey();
     await initLibraryCache();
     // ── Migration: purge legacy kanskiImages blobs from localStorage ──
     try {
@@ -10347,7 +10415,7 @@ function renderThumbnails() {
     };
 
     container.innerHTML = slides.map((slide, i) => `
-        <div class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${slide.title || slide.type || ''}" style="--thumb-accent:${accentFor(slide)};">
+        <motion class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${slide.title || slide.type || ''}" style="--thumb-accent:${accentFor(slide)};">
             <span class="slide-thumb-accent" aria-hidden="true"></span>
             <div class="slide-thumb-inner">
                 <span class="slide-thumb-emoji" aria-hidden="true">${getSlideEmoji(slide)}</span>
