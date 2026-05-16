@@ -16,11 +16,37 @@ import os
 import sys
 import time
 import datetime
+import subprocess
 from pathlib import Path
 
 # Configuration
 DEFAULT_PORT = 8000
 HOST = 'localhost'
+KEYCHAIN_ACCOUNT_LABEL = 'SMILE'
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def read_gemini_key_from_keychain():
+    """Return Gemini API key from Keychain password field (account label SMILE)."""
+    read_script = SCRIPT_DIR / 'scripts' / 'read-gemini-keychain.sh'
+    if not read_script.is_file():
+        return None
+    try:
+        result = subprocess.run(
+            ['/bin/bash', str(read_script)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=SCRIPT_DIR,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    key = (result.stdout or '').strip()
+    if not key or key == KEYCHAIN_ACCOUNT_LABEL:
+        return None
+    return key
 
 class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     """HTTP request handler with CORS headers to prevent any cross-origin issues."""
@@ -96,16 +122,20 @@ class CORSHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
             return
         
-        # Local dev only: Gemini key from gitignored config (never for public deploy)
+        # Local dev only: Gemini key from Keychain password (account SMILE), never for public deploy
         if self.path == '/local-dev/gemini-api-key':
             client = self.client_address[0] if self.client_address else ''
             if client not in ('127.0.0.1', '::1'):
                 self.send_error(403, 'Forbidden')
                 return
-            key_path = Path('config/gemini-api-key.local')
-            body = b''
-            if key_path.is_file():
-                body = key_path.read_text(encoding='utf-8').strip().encode('utf-8')
+            key = read_gemini_key_from_keychain()
+            if not key:
+                key_path = SCRIPT_DIR / 'config' / 'gemini-api-key.local'
+                if key_path.is_file():
+                    key = key_path.read_text(encoding='utf-8').strip()
+                    if key == KEYCHAIN_ACCOUNT_LABEL:
+                        key = ''
+            body = key.encode('utf-8') if key else b''
             self.send_response(200 if body else 204)
             self.send_header('Content-type', 'text/plain')
             self.send_header('Cache-Control', 'no-store')

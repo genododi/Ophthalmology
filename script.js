@@ -8,17 +8,24 @@ const outputContainer = document.getElementById('output-container');
 
 // Gemini API key: localStorage + optional localhost-only bootstrap (never hardcode in source)
 const GEMINI_API_KEY_STORAGE = 'geminiApiKey';
-const GEMINI_LOCAL_CONFIG_PATH = 'config/gemini-api-key.local';
 const LOCAL_DEV_KEY_ENDPOINT = '/local-dev/gemini-api-key';
+const KEYCHAIN_ACCOUNT_LABEL = 'SMILE';
 
 function isLocalDevHost() {
     const h = window.location.hostname;
     return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
 }
 
+/** Reject Keychain account label or other non-key values wrongly persisted earlier. */
+function isValidGeminiApiKey(key) {
+    if (!key || typeof key !== 'string') return false;
+    const v = key.trim();
+    return v.length > 0 && v !== KEYCHAIN_ACCOUNT_LABEL;
+}
+
 function applyGeminiApiKeyToInput(key) {
-    if (!key || !apiKeyInput) return;
-    apiKeyInput.value = key;
+    if (!isValidGeminiApiKey(key) || !apiKeyInput) return;
+    apiKeyInput.value = key.trim();
 }
 
 function persistGeminiApiKey(key) {
@@ -34,18 +41,10 @@ async function fetchLocalDevGeminiKey() {
     if (!isLocalDevHost()) return null;
     try {
         const res = await fetch(LOCAL_DEV_KEY_ENDPOINT, { cache: 'no-store' });
-        if (res.ok) {
-            const text = (await res.text()).trim();
-            if (text) return text;
-        }
+        if (!res.ok) return null;
+        const text = (await res.text()).trim();
+        return isValidGeminiApiKey(text) ? text : null;
     } catch (_) { /* local server may be offline */ }
-    try {
-        const res = await fetch(GEMINI_LOCAL_CONFIG_PATH, { cache: 'no-store' });
-        if (res.ok) {
-            const text = (await res.text()).trim();
-            if (text && !text.startsWith('#')) return text;
-        }
-    } catch (_) { /* file not served or missing */ }
     return null;
 }
 
@@ -57,16 +56,24 @@ async function initGeminiApiKey() {
         key = localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
     } catch (_) { /* private mode */ }
 
-    if (!key) {
-        key = (await fetchLocalDevGeminiKey()) || '';
-        if (key) persistGeminiApiKey(key);
+    if (key && !isValidGeminiApiKey(key)) {
+        try { localStorage.removeItem(GEMINI_API_KEY_STORAGE); } catch (_) {}
+        key = '';
     }
 
     if (key) applyGeminiApiKeyToInput(key);
 
+    if (!key && isLocalDevHost()) {
+        key = (await fetchLocalDevGeminiKey()) || '';
+        if (key) {
+            applyGeminiApiKeyToInput(key);
+            persistGeminiApiKey(key);
+        }
+    }
+
     apiKeyInput.addEventListener('input', () => {
         const v = apiKeyInput.value.trim();
-        if (v) persistGeminiApiKey(v);
+        if (isValidGeminiApiKey(v)) persistGeminiApiKey(v);
         else {
             try { localStorage.removeItem(GEMINI_API_KEY_STORAGE); } catch (_) {}
         }

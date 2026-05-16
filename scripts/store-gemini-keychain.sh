@@ -23,7 +23,12 @@ if [[ -z "$GEMINI_API_KEY" ]]; then
   exit 1
 fi
 
-# Update if entry exists, else add
+if [[ "$GEMINI_API_KEY" == "$ACCOUNT" ]]; then
+  echo "Refusing to store account label \"$ACCOUNT\" as the API key (use -w password field)." >&2
+  exit 1
+fi
+
+# Update if entry exists, else add (-a account label, -w password = API key)
 if security find-generic-password -s "$SERVICE" -a "$ACCOUNT" &>/dev/null; then
   security delete-generic-password -s "$SERVICE" -a "$ACCOUNT" &>/dev/null || true
 fi
