@@ -812,6 +812,10 @@
                         <span class="material-symbols-rounded">download</span>
                         Export HTML
                     </button>
+                    <button class="btn-secondary" id="export-slides-pptx-btn" disabled title="Generate slides first">
+                        <span class="material-symbols-rounded">slideshow</span>
+                        Export to PowerPoint
+                    </button>
                 </div>
             </div>
         </div>
@@ -1033,6 +1037,7 @@
 
     <!-- Script -->
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <script src="firebase-storage.js"></script>
     <script src="community-submissions.js?v=2026031507"></script>
     <!-- Load Google Generative AI as fallback for local file:// protocol -->
@@ -1041,7 +1046,7 @@
             console.warn('Running locally via file:// protocol. ES modules may not work. Please use a local server (e.g., npx serve) or access via GitHub Pages.');
         }
     </script>
-    <script type="module" src="script.js?v=2026041805"></script>
+    <script type="module" src="script.js?v=2026051601"></script>
     <div style="text-align:center;padding:8px;font-size:11px;color:#94a3b8;opacity:0.6;">v2026.03.15.07</div>
 </body>
 

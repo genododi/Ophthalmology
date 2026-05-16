@@ -9859,6 +9859,7 @@ function setupSlideDeck() {
     const nextBtn = document.getElementById('slide-next-btn');
     const presentBtn = document.getElementById('present-slides-btn');
     const exportBtn = document.getElementById('export-slides-btn');
+    const exportPptxBtn = document.getElementById('export-slides-pptx-btn');
 
     if (!slideBtn || !slideModal) return;
 
@@ -9889,6 +9890,8 @@ function setupSlideDeck() {
     nextBtn?.addEventListener('click', () => navigateSlide(1));
     presentBtn?.addEventListener('click', enterPresentationMode);
     exportBtn?.addEventListener('click', exportSlidesAsHTML);
+    exportPptxBtn?.addEventListener('click', () => exportSlidesAsPPTX());
+    updateSlideDeckActionButtons();
 
     // Keyboard nav inside the preview modal (not in presentation mode)
     slideModal.addEventListener('keydown', (e) => {
@@ -9931,6 +9934,94 @@ const SLIDE_TEMPLATES = {
     default:          { key: 'default',          label: 'Key Points',        icon: 'auto_awesome',      accent: '#3b82f6', bg: 'linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%)', border: '#3b82f6', bullet: 'arrow_forward_ios' }
 };
 
+const SLIDE_TYPE_EMOJI = {
+    title: '👁️', agenda: '📋', end: '🙏', section: '🔬',
+    pearls: '💡', pitfalls: '⚠️', red_flags: '🚩', complications: '⛔',
+    indications: '✅', contraindications: '🚫', differential: '🔀',
+    investigations: '🔬', management: '💊', surgery: '🏥', etiology: '🧬',
+    epidemiology: '📊', pathophysiology: '🧪', symptoms: '🤒', signs: '🔍',
+    anatomy: '🫀', prognosis: '📈', framework: '🗂️', mnemonic: '🧠', default: '📌'
+};
+
+function getSlideEmoji(slide) {
+    if (!slide) return '';
+    if (slide.type === 'title') return SLIDE_TYPE_EMOJI.title;
+    if (slide.type === 'agenda') return SLIDE_TYPE_EMOJI.agenda;
+    if (slide.type === 'end') return SLIDE_TYPE_EMOJI.end;
+    const key = slide.template?.key || 'default';
+    return SLIDE_TYPE_EMOJI[key] || SLIDE_TYPE_EMOJI.default;
+}
+
+function withSlideEmoji(text, slide) {
+    const em = getSlideEmoji(slide);
+    const t = text == null ? '' : String(text);
+    if (!em || t.startsWith(em)) return t;
+    return `${em} ${t}`;
+}
+
+function hexToPptxColor(hex) {
+    return String(hex || '#3b82f6').replace('#', '').toUpperCase();
+}
+
+function showSlideDeckToast(message, type = 'info') {
+    const modal = document.getElementById('slidedeck-modal');
+    if (!modal) {
+        alert(message);
+        return;
+    }
+    let toast = modal.querySelector('.slide-deck-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.className = 'slide-deck-toast';
+        modal.querySelector('.modal-content')?.appendChild(toast);
+    }
+    const icon = type === 'error' ? 'error' : (type === 'success' ? 'check_circle' : (type === 'warning' ? 'warning' : 'info'));
+    toast.className = `slide-deck-toast slide-deck-toast--${type}`;
+    toast.innerHTML = `<span class="material-symbols-rounded">${icon}</span><span>${message}</span>`;
+    toast.classList.add('visible');
+    clearTimeout(showSlideDeckToast._timer);
+    showSlideDeckToast._timer = setTimeout(() => toast.classList.remove('visible'), 3200);
+}
+
+function updateSlideDeckActionButtons() {
+    const hasSlides = slides.length > 0;
+    const presentBtn = document.getElementById('present-slides-btn');
+    const exportHtmlBtn = document.getElementById('export-slides-btn');
+    const exportPptxBtn = document.getElementById('export-slides-pptx-btn');
+    if (presentBtn) presentBtn.style.display = hasSlides ? 'flex' : 'none';
+    if (exportHtmlBtn) exportHtmlBtn.style.display = hasSlides ? 'flex' : 'none';
+    if (exportPptxBtn) {
+        exportPptxBtn.disabled = !hasSlides;
+        exportPptxBtn.title = hasSlides ? 'Download as PowerPoint (.pptx)' : 'Generate slides first';
+    }
+}
+
+function slideContentToTextLines(slide) {
+    const c = slide?.content;
+    if (Array.isArray(c)) return c.map(x => String(x));
+    if (typeof c === 'string' && c.trim()) return [c];
+    if (c && typeof c === 'object') {
+        if (c.headers && c.rows) {
+            const hdr = (c.headers || []).join(' | ');
+            return [hdr, ...(c.rows || []).map(row => row.join(' | '))];
+        }
+        if (c.mnemonic) {
+            const lines = [`${c.mnemonic}`];
+            if (c.explanation) lines.push(String(c.explanation));
+            return lines;
+        }
+        if (c.center) {
+            const lines = [String(c.center)];
+            if (Array.isArray(c.branches)) lines.push(...c.branches.map(String));
+            return lines;
+        }
+        if (Array.isArray(c.data)) {
+            return c.data.map(d => `${d.label}: ${d.value}${typeof d.value === 'number' ? '%' : ''}`);
+        }
+    }
+    return [];
+}
+
 function classifySlideTemplate(title, type) {
     const t = String(title || '').toLowerCase();
     const y = String(type || '').toLowerCase();
@@ -9960,13 +10051,14 @@ function classifySlideTemplate(title, type) {
 function renderTemplatedBullets(items, tpl, opts = {}) {
     const fontSize = opts.fontSize || '1.25rem';
     const numbered = !!opts.numbered;
+    const bulletEmoji = SLIDE_TYPE_EMOJI[tpl.key] || '';
     return `<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.85rem;width:100%;">
         ${items.map((it, i) => `
             <li style="display:flex;align-items:flex-start;gap:14px;padding:1rem 1.25rem;background:${tpl.bg};border-left:5px solid ${tpl.border};border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
                 <span ${numbered ? '' : 'class="material-symbols-rounded"'} style="${numbered
                     ? `min-width:36px;height:36px;border-radius:50%;background:${tpl.accent};color:white;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:0.95rem;flex-shrink:0;`
                     : `color:${tpl.accent};font-size:1.5rem;flex-shrink:0;margin-top:2px;`}">${numbered ? (i + 1) : tpl.bullet}</span>
-                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;">${it}</span>
+                <span style="flex:1;font-size:${fontSize};line-height:1.6;color:#0f172a;">${!numbered && bulletEmoji && i === 0 ? bulletEmoji + ' ' : ''}${it}</span>
             </li>
         `).join('')}
     </ul>`;
@@ -10003,7 +10095,7 @@ function generateSlides() {
     if (Array.isArray(data.sections) && data.sections.length > 1) {
         slides.push({
             type: 'agenda',
-            title: 'Overview',
+            title: 'Overview & Learning Objectives',
             items: data.sections.map(s => stripReferences(s.title || '')).filter(Boolean)
         });
     }
@@ -10078,11 +10170,7 @@ function generateSlides() {
     renderSlide();
     renderThumbnails();
     updateSlideIndicator();
-
-    const presentBtn = document.getElementById('present-slides-btn');
-    const exportBtn = document.getElementById('export-slides-btn');
-    if (presentBtn) presentBtn.style.display = 'flex';
-    if (exportBtn) exportBtn.style.display = 'flex';
+    updateSlideDeckActionButtons();
 }
 
 function renderSlide() {
@@ -10096,8 +10184,10 @@ function renderSlide() {
     if (slide.type === 'title') {
         slideContent.classList.add('title-slide');
         slideContent.innerHTML = `
+            <div class="slide-title-emoji" aria-hidden="true">${getSlideEmoji(slide)}</div>
             <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
+            <p class="slide-subtitle">${slide.subtitle || ''}</p>
+            <p class="slide-deck-tagline">Ophthalmology Clinical Teaching Deck</p>
         `;
     } else if (slide.type === 'section') {
         slideContent.classList.add('section-slide');
@@ -10107,7 +10197,7 @@ function renderSlide() {
             <div style="display:inline-flex;align-items:center;justify-content:center;width:120px;height:120px;border-radius:50%;background:${tpl.accent};color:white;margin-bottom:1.5rem;box-shadow:0 12px 24px rgba(0,0,0,0.15);">
                 <span class="material-symbols-rounded" style="font-size:4rem;">${slide.icon || tpl.icon}</span>
             </div>
-            <div style="font-size:0.9rem;text-transform:uppercase;letter-spacing:3px;color:${tpl.accent};font-weight:700;margin-bottom:0.5rem;">${tpl.label}</div>
+            <div style="font-size:0.9rem;text-transform:uppercase;letter-spacing:3px;color:${tpl.accent};font-weight:700;margin-bottom:0.5rem;">${getSlideEmoji(slide)} ${tpl.label}</div>
             <h2 style="color:#0f172a;">${slide.title}</h2>
         `;
     } else if (slide.type === 'agenda') {
@@ -10115,7 +10205,7 @@ function renderSlide() {
         slideContent.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:12px;font-size:2.4rem;color:#0f172a;margin-bottom:2rem;border-bottom:2px solid #e2e8f0;padding-bottom:1rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:#2563eb;font-size:2.4rem;">list_alt</span>
-                ${slide.title}
+                ${withSlideEmoji(slide.title, slide)}
             </h3>
             <ol style="list-style:none;padding-left:0;counter-reset:agenda;width:100%;">
                 ${slide.items.map(item => `
@@ -10137,9 +10227,9 @@ function renderSlide() {
     } else if (slide.type === 'end') {
         slideContent.classList.add('title-slide');
         slideContent.innerHTML = `
-            <span class="material-symbols-rounded" style="font-size:3.5rem;margin-bottom:1rem;color:#fbbf24;">auto_awesome</span>
+            <div class="slide-title-emoji" aria-hidden="true">${getSlideEmoji(slide)}</div>
             <h1>${slide.title}</h1>
-            <p>${slide.subtitle || ''}</p>
+            <p class="slide-subtitle">${slide.subtitle || ''}</p>
         `;
     } else {
         slideContent.classList.add('content-slide');
@@ -10223,7 +10313,7 @@ function renderSlide() {
         slideContent.innerHTML = `
             <h3 style="display:flex;align-items:center;gap:12px;border-bottom:3px solid ${tpl.accent}22;padding-bottom:0.9rem;font-size:2rem;color:#0f172a;margin-bottom:1.75rem;width:100%;">
                 <span class="material-symbols-rounded" style="color:${tpl.accent};font-size:2.2rem;">${slide.icon || tpl.icon}</span>
-                <span style="flex:1;">${slide.title}</span>
+                <span style="flex:1;">${withSlideEmoji(slide.title, slide)}</span>
                 ${headerBadge}
             </h3>
             <div style="margin-top:0.5rem;width:100%;">
@@ -10250,12 +10340,20 @@ function renderThumbnails() {
         return slide.icon || 'description';
     };
 
+    const accentFor = (slide) => {
+        if (slide.type === 'title' || slide.type === 'end') return '#0f172a';
+        if (slide.type === 'agenda') return '#2563eb';
+        return slide.template?.accent || '#3b82f6';
+    };
+
     container.innerHTML = slides.map((slide, i) => `
-        <div class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${slide.title || ''}">
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;height:100%;">
-                <span class="material-symbols-rounded" style="font-size:1.1rem;color:#2563eb;">${iconFor(slide)}</span>
-                <span style="font-size:0.6rem;font-weight:600;color:#64748b;">#${i + 1}</span>
-                <span style="font-size:0.55rem;color:#94a3b8;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;max-width:90%;">${truncateText(slide.title || slide.type, 18)}</span>
+        <div class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${slide.title || slide.type || ''}" style="--thumb-accent:${accentFor(slide)};">
+            <span class="slide-thumb-accent" aria-hidden="true"></span>
+            <div class="slide-thumb-inner">
+                <span class="slide-thumb-emoji" aria-hidden="true">${getSlideEmoji(slide)}</span>
+                <span class="material-symbols-rounded slide-thumb-icon">${iconFor(slide)}</span>
+                <span class="slide-thumb-num">#${i + 1}</span>
+                <span class="slide-thumb-label">${truncateText(slide.title || slide.type, 22)}</span>
             </div>
         </div>
     `).join('');
@@ -10642,6 +10740,116 @@ ${slides.map(slide => {
     a.download = `${currentInfographicData.title.replace(/[^a-z0-9]/gi, '_')}_slides.html`;
     a.click();
     URL.revokeObjectURL(url);
+    showSlideDeckToast('HTML slide deck downloaded.', 'success');
+}
+
+async function exportSlidesAsPPTX() {
+    if (slides.length === 0) {
+        showSlideDeckToast('Generate slides first.', 'warning');
+        return;
+    }
+    if (typeof PptxGenJS === 'undefined') {
+        showSlideDeckToast('PowerPoint library not loaded. Refresh the page.', 'error');
+        return;
+    }
+
+    const exportBtn = document.getElementById('export-slides-pptx-btn');
+    if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<span class="material-symbols-rounded rotating">progress_activity</span> Exporting…';
+    }
+
+    try {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_16x9';
+        pptx.author = 'Ophthalmic Infographic Creator';
+        pptx.title = currentInfographicData?.title || 'Clinical Slides';
+        pptx.subject = 'Ophthalmology teaching deck';
+
+        slides.forEach((slide) => {
+            const s = pptx.addSlide();
+            const tpl = slide.template || SLIDE_TEMPLATES.default;
+            const accent = hexToPptxColor(tpl.accent);
+            const em = getSlideEmoji(slide);
+
+            if (slide.type === 'title' || slide.type === 'end') {
+                s.background = { color: '0F172A' };
+                s.addText(`${em} ${slide.title}`, {
+                    x: 0.5, y: slide.type === 'title' ? 2.2 : 2.5, w: 9, h: 1.4,
+                    fontSize: slide.type === 'title' ? 36 : 40, bold: true, color: 'FFFFFF', align: 'center', fontFace: 'Segoe UI'
+                });
+                if (slide.subtitle) {
+                    s.addText(slide.subtitle, {
+                        x: 0.8, y: 3.9, w: 8.4, h: 1.2,
+                        fontSize: 18, color: '94A3B8', align: 'center', fontFace: 'Segoe UI'
+                    });
+                }
+                if (slide.type === 'title') {
+                    s.addText('Ophthalmology Clinical Teaching Deck', {
+                        x: 0.8, y: 5.1, w: 8.4, h: 0.5,
+                        fontSize: 12, color: '64748B', align: 'center', italic: true
+                    });
+                }
+                return;
+            }
+
+            if (slide.type === 'section') {
+                s.background = { color: accent };
+                s.addText(`${em} ${tpl.label}`, {
+                    x: 0.5, y: 2.2, w: 9, h: 0.6, fontSize: 16, color: 'FFFFFF', align: 'center', bold: true, charSpacing: 4
+                });
+                s.addText(slide.title, {
+                    x: 0.5, y: 3.1, w: 9, h: 1.5, fontSize: 34, color: 'FFFFFF', align: 'center', bold: true
+                });
+                return;
+            }
+
+            if (slide.type === 'agenda') {
+                s.addText(`${em} ${slide.title}`, {
+                    x: 0.5, y: 0.4, w: 9, h: 0.8, fontSize: 28, bold: true, color: accent
+                });
+                const items = (slide.items || []).map((item, i) => ({
+                    text: `${String(i + 1).padStart(2, '0')}. ${item}`,
+                    options: { bullet: false, breakLine: true, fontSize: 18, color: '334155' }
+                }));
+                if (items.length) {
+                    s.addText(items, { x: 0.7, y: 1.4, w: 8.6, h: 4.5, valign: 'top' });
+                }
+                return;
+            }
+
+            // Content slide
+            s.addText(`${em} ${slide.title}`, {
+                x: 0.5, y: 0.35, w: 9, h: 0.75, fontSize: 26, bold: true, color: accent
+            });
+            s.addShape(pptx.ShapeType.rect, {
+                x: 0.5, y: 1.05, w: 9, h: 0.03, fill: { color: accent }
+            });
+
+            const lines = slideContentToTextLines(slide);
+            if (lines.length) {
+                const numbered = tpl.key === 'framework' || tpl.key === 'management';
+                s.addText(lines.map((line, i) => ({
+                    text: numbered ? `${i + 1}. ${line}` : line,
+                    options: { bullet: !numbered, breakLine: true, fontSize: 17, color: '1E293B' }
+                })), { x: 0.55, y: 1.25, w: 8.9, h: 4.2, valign: 'top' });
+            } else if (typeof slide.content === 'string') {
+                s.addText(slide.content, { x: 0.55, y: 1.35, w: 8.9, h: 4, fontSize: 18, color: '334155' });
+            }
+        });
+
+        const safeName = (currentInfographicData?.title || 'slides').replace(/[^a-z0-9]/gi, '_').slice(0, 80);
+        await pptx.writeFile({ fileName: `${safeName}_slides.pptx` });
+        showSlideDeckToast('PowerPoint (.pptx) downloaded.', 'success');
+    } catch (err) {
+        console.error('[Slide Deck PPTX]', err);
+        showSlideDeckToast('Export failed: ' + (err.message || 'Unknown error'), 'error');
+    } finally {
+        if (exportBtn) {
+            exportBtn.disabled = slides.length === 0;
+            exportBtn.innerHTML = '<span class="material-symbols-rounded">slideshow</span> Export to PowerPoint';
+        }
+    }
 }
 
 /* ========================================
