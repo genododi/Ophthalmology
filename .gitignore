@@ -7,4 +7,6 @@ scripts/.gemini-key
 
 # Dependencies & OS
 node_modules/
+__pycache__/
+*.pyc
 .DS_Store
