@@ -9965,8 +9965,62 @@ let slides = [];
 let currentSlideIndex = 0;
 
 let _lastSlidesForTitle = null; // Remembers which infographic slides were built for
+let _slideDeckSetupDone = false;
+let _slideGenInFlight = false;
+let _thumbnailRenderGen = 0;
+
+const SLIDE_DECK_MAX_SLIDES = 120;
+const SLIDE_DECK_MAX_SECTIONS = 40;
+const SLIDE_DECK_MAX_BULLETS_PER_SECTION = 42;
+const SLIDE_DECK_THUMB_BATCH = 36;
+
+/** Strip citation brackets without infinite recursion on circular/deep JSON. */
+function safeStripReferences(val, depth = 0, seen = null) {
+    const MAX_DEPTH = 32;
+    if (depth > MAX_DEPTH) {
+        return typeof val === 'string' ? val : (Array.isArray(val) ? [] : '');
+    }
+    if (typeof val === 'string') {
+        return val.replace(/\[\d+(?:\s*,\s*\d+)*\]/g, '').trim();
+    }
+    if (Array.isArray(val)) {
+        const cap = val.length > 600 ? val.slice(0, 600) : val;
+        return cap.map(item => safeStripReferences(item, depth + 1, seen));
+    }
+    if (val && typeof val === 'object') {
+        const tracker = seen || new WeakSet();
+        if (tracker.has(val)) return '';
+        tracker.add(val);
+        const cleaned = {};
+        for (const k of Object.keys(val)) {
+            if (k === '__proto__' || k === 'constructor') continue;
+            cleaned[k] = safeStripReferences(val[k], depth + 1, tracker);
+        }
+        return cleaned;
+    }
+    return val;
+}
+
+function safeGenerateSlides() {
+    if (_slideGenInFlight) return;
+    _slideGenInFlight = true;
+    try {
+        generateSlides();
+    } catch (err) {
+        console.error('[Slide Deck] generateSlides failed:', err);
+        showSlideDeckToast(
+            'Could not build slides: ' + (err && err.message ? err.message : 'Unknown error'),
+            'error'
+        );
+    } finally {
+        _slideGenInFlight = false;
+    }
+}
 
 function setupSlideDeck() {
+    if (_slideDeckSetupDone) return;
+    _slideDeckSetupDone = true;
+
     const slideBtn = document.getElementById('slidedeck-btn');
     const slideModal = document.getElementById('slidedeck-modal');
     const closeBtn = document.getElementById('close-slidedeck-modal-btn');
@@ -9988,8 +10042,10 @@ function setupSlideDeck() {
         // Auto-generate on open (or when the infographic has changed since last open)
         const title = currentInfographicData.title;
         if (slides.length === 0 || _lastSlidesForTitle !== title) {
-            generateSlides();
-            _lastSlidesForTitle = title;
+            requestAnimationFrame(() => {
+                safeGenerateSlides();
+                _lastSlidesForTitle = title;
+            });
         }
     });
 
@@ -9999,7 +10055,7 @@ function setupSlideDeck() {
     });
 
     generateBtn?.addEventListener('click', () => {
-        generateSlides();
+        safeGenerateSlides();
         _lastSlidesForTitle = currentInfographicData?.title || null;
     });
     prevBtn?.addEventListener('click', () => navigateSlide(-1));
@@ -10261,95 +10317,101 @@ function generateSlides() {
 
     const data = currentInfographicData;
     slides = [];
-
-    // Helper to recursively remove citation brackets like [1] or [1, 2]
-    function stripReferences(val) {
-        if (typeof val === 'string') {
-            return val.replace(/\[\d+(?:\s*,\s*\d+)*\]/g, '').trim();
-        } else if (Array.isArray(val)) {
-            return val.map(stripReferences);
-        } else if (typeof val === 'object' && val !== null) {
-            const cleaned = {};
-            for (let k in val) cleaned[k] = stripReferences(val[k]);
-            return cleaned;
-        }
-        return val;
-    }
+    let truncated = false;
 
     // Title slide
     slides.push({
         type: 'title',
-        title: stripReferences(data.title || 'Untitled'),
-        subtitle: stripReferences(data.summary || '')
+        title: safeStripReferences(data.title || 'Untitled'),
+        subtitle: safeStripReferences(data.summary || '')
     });
 
+    const rawSections = Array.isArray(data.sections) ? data.sections : [];
+    const sections = rawSections.length > SLIDE_DECK_MAX_SECTIONS
+        ? rawSections.slice(0, SLIDE_DECK_MAX_SECTIONS)
+        : rawSections;
+    if (rawSections.length > SLIDE_DECK_MAX_SECTIONS) truncated = true;
+
     // Optional agenda slide summarizing the section titles
-    if (Array.isArray(data.sections) && data.sections.length > 1) {
+    if (sections.length > 1) {
         slides.push({
             type: 'agenda',
             title: 'Overview & Learning Objectives',
-            items: data.sections.map(s => stripReferences(s.title || '')).filter(Boolean)
+            items: sections.map(s => safeStripReferences(s.title || '')).filter(Boolean).slice(0, 24)
         });
     }
 
     // Split long array content into chunks so no slide gets overstuffed
     const MAX_BULLETS_PER_SLIDE = 7;
 
+    const slideBudget = () => SLIDE_DECK_MAX_SLIDES - 2; // reserve end slide (+ title already added)
+
     // Content slides from sections
-    if (data.sections) {
-        data.sections.forEach((section, sIdx) => {
-            const sectionTitle = stripReferences(section.title || `Section ${sIdx + 1}`);
-            const sectionType = section.type || 'plain_text';
-            const template = classifySlideTemplate(sectionTitle, sectionType);
-            // Prefer the template's curated icon; fall back to model-supplied + sanitizer
-            const sectionIcon = template.key === 'default'
-                ? (typeof sanitizeMaterialIcon === 'function'
-                    ? sanitizeMaterialIcon(section.icon || 'auto_awesome')
-                    : (section.icon || 'auto_awesome'))
-                : template.icon;
-            const colorTheme = section.color_theme || 'blue';
+    sections.forEach((section, sIdx) => {
+        if (slides.length >= slideBudget()) {
+            truncated = true;
+            return;
+        }
 
-            // Section divider slide
-            slides.push({
-                type: 'section',
-                title: sectionTitle,
-                icon: sectionIcon,
-                colorTheme,
-                template
-            });
+        const sectionTitle = safeStripReferences(section.title || `Section ${sIdx + 1}`);
+        const sectionType = section.type || 'plain_text';
+        const template = classifySlideTemplate(sectionTitle, sectionType);
+        // Prefer the template's curated icon; fall back to model-supplied + sanitizer
+        const sectionIcon = template.key === 'default'
+            ? (typeof sanitizeMaterialIcon === 'function'
+                ? sanitizeMaterialIcon(section.icon || 'auto_awesome')
+                : (section.icon || 'auto_awesome'))
+            : template.icon;
+        const colorTheme = section.color_theme || 'blue';
 
-            const content = stripReferences(section.content);
+        // Section divider slide
+        slides.push({
+            type: 'section',
+            title: sectionTitle,
+            icon: sectionIcon,
+            colorTheme,
+            template
+        });
 
-            // Chunk array content so each slide stays readable
-            if (Array.isArray(content) && content.length > MAX_BULLETS_PER_SLIDE) {
-                for (let i = 0; i < content.length; i += MAX_BULLETS_PER_SLIDE) {
-                    const chunk = content.slice(i, i + MAX_BULLETS_PER_SLIDE);
-                    const suffix = content.length > MAX_BULLETS_PER_SLIDE
-                        ? ` (${Math.floor(i / MAX_BULLETS_PER_SLIDE) + 1}/${Math.ceil(content.length / MAX_BULLETS_PER_SLIDE)})`
-                        : '';
-                    slides.push({
-                        type: 'content',
-                        title: sectionTitle + suffix,
-                        content: chunk,
-                        contentType: sectionType,
-                        icon: sectionIcon,
-                        colorTheme,
-                        template
-                    });
+        let content = safeStripReferences(section.content);
+        if (Array.isArray(content) && content.length > SLIDE_DECK_MAX_BULLETS_PER_SECTION) {
+            content = content.slice(0, SLIDE_DECK_MAX_BULLETS_PER_SECTION);
+            truncated = true;
+        }
+
+        // Chunk array content so each slide stays readable
+        if (Array.isArray(content) && content.length > MAX_BULLETS_PER_SLIDE) {
+            for (let i = 0; i < content.length; i += MAX_BULLETS_PER_SLIDE) {
+                if (slides.length >= slideBudget()) {
+                    truncated = true;
+                    break;
                 }
-            } else {
+                const chunk = content.slice(i, i + MAX_BULLETS_PER_SLIDE);
+                const suffix = content.length > MAX_BULLETS_PER_SLIDE
+                    ? ` (${Math.floor(i / MAX_BULLETS_PER_SLIDE) + 1}/${Math.ceil(content.length / MAX_BULLETS_PER_SLIDE)})`
+                    : '';
                 slides.push({
                     type: 'content',
-                    title: sectionTitle,
-                    content,
+                    title: sectionTitle + suffix,
+                    content: chunk,
                     contentType: sectionType,
                     icon: sectionIcon,
                     colorTheme,
                     template
                 });
             }
-        });
-    }
+        } else {
+            slides.push({
+                type: 'content',
+                title: sectionTitle,
+                content,
+                contentType: sectionType,
+                icon: sectionIcon,
+                colorTheme,
+                template
+            });
+        }
+    });
 
     // Thank you slide
     slides.push({
@@ -10363,6 +10425,13 @@ function generateSlides() {
     renderThumbnails();
     updateSlideIndicator();
     updateSlideDeckActionButtons();
+
+    if (truncated) {
+        showSlideDeckToast(
+            `Deck capped at ${SLIDE_DECK_MAX_SLIDES} slides for performance. Use Regenerate after trimming sections if needed.`,
+            'warning'
+        );
+    }
 }
 
 function renderSlide() {
@@ -10523,43 +10592,70 @@ function renderSlide() {
     });
 }
 
-function renderThumbnails() {
-    const container = document.getElementById('slide-thumbnails');
-    if (!container) return;
-
-    const iconFor = (slide) => {
-        if (slide.type === 'title') return 'title';
-        if (slide.type === 'section') return slide.icon || 'bookmark';
-        if (slide.type === 'agenda') return 'list_alt';
-        if (slide.type === 'end') return 'celebration';
-        return slide.icon || 'description';
+function buildSlideThumbnailHtml(slide, i, active) {
+    const iconFor = (s) => {
+        if (s.type === 'title') return 'title';
+        if (s.type === 'section') return s.icon || 'bookmark';
+        if (s.type === 'agenda') return 'list_alt';
+        if (s.type === 'end') return 'celebration';
+        return s.icon || 'description';
     };
-
-    const accentFor = (slide) => {
-        if (slide.type === 'title' || slide.type === 'end') return '#0f172a';
-        if (slide.type === 'agenda') return '#2563eb';
-        return slide.template?.accent || '#3b82f6';
+    const accentFor = (s) => {
+        if (s.type === 'title' || s.type === 'end') return '#0f172a';
+        if (s.type === 'agenda') return '#2563eb';
+        return s.template?.accent || '#3b82f6';
     };
-
-    container.innerHTML = slides.map((slide, i) => `
-        <motion class="slide-thumbnail ${i === currentSlideIndex ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${slide.title || slide.type || ''}" style="--thumb-accent:${accentFor(slide)};">
+    const thumbTitle = escapeHtml(slide.title || slide.type || '');
+    const thumbLabel = escapeHtml(truncateText(slide.title || slide.type, 22));
+    return `<div class="slide-thumbnail ${active ? 'active' : ''}" data-index="${i}" title="Slide ${i + 1}: ${thumbTitle}" style="--thumb-accent:${accentFor(slide)};">
             <span class="slide-thumb-accent" aria-hidden="true"></span>
             <div class="slide-thumb-inner">
                 <span class="slide-thumb-emoji" aria-hidden="true">${getSlideEmoji(slide)}</span>
                 <span class="material-symbols-rounded slide-thumb-icon">${iconFor(slide)}</span>
                 <span class="slide-thumb-num">#${i + 1}</span>
-                <span class="slide-thumb-label">${truncateText(slide.title || slide.type, 22)}</span>
+                <span class="slide-thumb-label">${thumbLabel}</span>
             </div>
-        </div>
-    `).join('');
+        </div>`;
+}
 
-    container.querySelectorAll('.slide-thumbnail').forEach(thumb => {
-        thumb.addEventListener('click', () => {
-            currentSlideIndex = parseInt(thumb.dataset.index);
+function renderThumbnails() {
+    const container = document.getElementById('slide-thumbnails');
+    if (!container) return;
+
+    if (!container.dataset.deckBound) {
+        container.dataset.deckBound = '1';
+        container.addEventListener('click', (e) => {
+            const thumb = e.target.closest('.slide-thumbnail');
+            if (!thumb || !container.contains(thumb)) return;
+            const idx = parseInt(thumb.dataset.index, 10);
+            if (!Number.isFinite(idx) || idx < 0 || idx >= slides.length) return;
+            currentSlideIndex = idx;
             renderSlide();
             updateSlideIndicator();
         });
-    });
+    }
+
+    const gen = ++_thumbnailRenderGen;
+    container.innerHTML = '';
+
+    if (slides.length === 0) return;
+
+    let start = 0;
+    const renderBatch = () => {
+        if (gen !== _thumbnailRenderGen) return;
+        const end = Math.min(start + SLIDE_DECK_THUMB_BATCH, slides.length);
+        const chunkHtml = [];
+        for (let i = start; i < end; i++) {
+            chunkHtml.push(buildSlideThumbnailHtml(slides[i], i, i === currentSlideIndex));
+        }
+        container.insertAdjacentHTML('beforeend', chunkHtml.join(''));
+        start = end;
+        if (start < slides.length) {
+            requestAnimationFrame(renderBatch);
+        }
+    };
+
+    requestAnimationFrame(renderBatch);
 }
 
 function navigateSlide(direction) {
