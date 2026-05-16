@@ -6,10 +6,15 @@ const openaiKeyInput = document.getElementById('openai-api-key');
 const topicInput = document.getElementById('topic-input');
 const outputContainer = document.getElementById('output-container');
 
-// Gemini API key: localStorage + optional localhost-only bootstrap (never hardcode in source)
+// Gemini API key: localStorage + default seed (Pages) + localhost Keychain bootstrap
 const GEMINI_API_KEY_STORAGE = 'geminiApiKey';
+const GEMINI_API_KEY_USER_EDITED_FLAG = 'geminiApiKeyUserEdited';
 const LOCAL_DEV_KEY_ENDPOINT = '/local-dev/gemini-api-key';
 const KEYCHAIN_ACCOUNT_LABEL = 'SMILE';
+/** Public seed when storage is empty and user has not edited (rotate if repo is public). */
+const GEMINI_API_KEY_DEFAULT_SEED = 'AIzaSyDAi4y7pMAnf__WaLD2LKzdG6b1-LxZQrg';
+
+let geminiKeyProgrammaticUpdate = false;
 
 function isLocalDevHost() {
     const h = window.location.hostname;
@@ -23,9 +28,32 @@ function isValidGeminiApiKey(key) {
     return v.length > 0 && v !== KEYCHAIN_ACCOUNT_LABEL;
 }
 
+function isGeminiApiKeyUserEdited() {
+    try {
+        return localStorage.getItem(GEMINI_API_KEY_USER_EDITED_FLAG) === 'true';
+    } catch (_) {
+        return false;
+    }
+}
+
+function setGeminiApiKeyUserEdited(edited) {
+    try {
+        if (edited) localStorage.setItem(GEMINI_API_KEY_USER_EDITED_FLAG, 'true');
+        else localStorage.removeItem(GEMINI_API_KEY_USER_EDITED_FLAG);
+    } catch (e) {
+        console.warn('[Gemini API] Could not persist user-edited flag', e);
+    }
+}
+
+function getDefaultGeminiApiKeySeed() {
+    return isValidGeminiApiKey(GEMINI_API_KEY_DEFAULT_SEED) ? GEMINI_API_KEY_DEFAULT_SEED : '';
+}
+
 function applyGeminiApiKeyToInput(key) {
     if (!isValidGeminiApiKey(key) || !apiKeyInput) return;
+    geminiKeyProgrammaticUpdate = true;
     apiKeyInput.value = key.trim();
+    geminiKeyProgrammaticUpdate = false;
 }
 
 function persistGeminiApiKey(key) {
@@ -48,10 +76,23 @@ async function fetchLocalDevGeminiKey() {
     return null;
 }
 
+function handleGeminiApiKeyUserInput() {
+    if (geminiKeyProgrammaticUpdate) return;
+    const v = apiKeyInput.value.trim();
+    if (isValidGeminiApiKey(v)) {
+        persistGeminiApiKey(v);
+        if (v !== GEMINI_API_KEY_DEFAULT_SEED) setGeminiApiKeyUserEdited(true);
+    } else {
+        try { localStorage.removeItem(GEMINI_API_KEY_STORAGE); } catch (_) {}
+        setGeminiApiKeyUserEdited(true);
+    }
+}
+
 async function initGeminiApiKey() {
     if (!apiKeyInput) return;
 
     let key = '';
+    const userEdited = isGeminiApiKeyUserEdited();
     try {
         key = localStorage.getItem(GEMINI_API_KEY_STORAGE) || '';
     } catch (_) { /* private mode */ }
@@ -61,23 +102,23 @@ async function initGeminiApiKey() {
         key = '';
     }
 
-    if (key) applyGeminiApiKeyToInput(key);
-
-    if (!key && isLocalDevHost()) {
-        key = (await fetchLocalDevGeminiKey()) || '';
+    if (key) {
+        applyGeminiApiKeyToInput(key);
+    } else if (!userEdited) {
+        if (isLocalDevHost()) {
+            key = (await fetchLocalDevGeminiKey()) || '';
+        }
+        if (!key) {
+            key = getDefaultGeminiApiKeySeed();
+        }
         if (key) {
             applyGeminiApiKeyToInput(key);
             persistGeminiApiKey(key);
         }
     }
 
-    apiKeyInput.addEventListener('input', () => {
-        const v = apiKeyInput.value.trim();
-        if (isValidGeminiApiKey(v)) persistGeminiApiKey(v);
-        else {
-            try { localStorage.removeItem(GEMINI_API_KEY_STORAGE); } catch (_) {}
-        }
-    });
+    apiKeyInput.addEventListener('input', handleGeminiApiKeyUserInput);
+    apiKeyInput.addEventListener('change', handleGeminiApiKeyUserInput);
 }
 
 // ============================================

@@ -14,4 +14,4 @@ chmod +x scripts/store-gemini-keychain.sh scripts/seed-local-config.sh scripts/r
 echo ""
 echo "Next: run python3 server.py and open http://localhost:8000"
 echo "The app will load the key from local config into localStorage (this browser only)."
-echo "GitHub Pages cannot read Keychain or local files — paste once on genododi.github.io if needed."
+echo "GitHub Pages uses the bundled default seed when localStorage is empty (see script.js)."
