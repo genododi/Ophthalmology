@@ -12,7 +12,7 @@ const GEMINI_API_KEY_USER_EDITED_FLAG = 'geminiApiKeyUserEdited';
 const LOCAL_DEV_KEY_ENDPOINT = '/local-dev/gemini-api-key';
 const KEYCHAIN_ACCOUNT_LABEL = 'SMILE';
 /** Public seed when storage is empty and user has not edited (rotate if repo is public). */
-const GEMINI_API_KEY_DEFAULT_SEED = 'AIzaSyDAi4y7pMAnf__WaLD2LKzdG6b1-LxZQrg';
+const GEMINI_API_KEY_DEFAULT_SEED = 'AIzaSyAvtf0-Dbu_Ue5aw03m0xpiRmphYK5YydA';
 /** Default topic when the topic field is empty on first load. */
 const TOPIC_DEFAULT_SEED = "today's trendy articles in ophthalmic journals";
 
